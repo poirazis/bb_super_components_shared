@@ -3,12 +3,12 @@
   import fsm from "svelte-fsm";
   import { createEventDispatcher ,beforeUpdate } from "svelte"
   import { flip } from 'svelte/animate';
-	import CellAttachment from "./CellAttachment.svelte";
 
   export let cellState
   export let cellOptions
   export let value;
   export let fieldSchema;
+  export let multi
 
   export let useOptionColors = false
   export let defaultOptionColor = "var(--spectrum-global-color-seafoam-700)"
@@ -65,7 +65,6 @@
   $: allowNull = !fieldSchema?.constraints?.presence ?? false;
   $: if (allowNull && options.length > 1) options = [ "Clear Selection", ...options ]
   $: inEdit = $cellState == "Editing"
-  $: multi = fieldSchema?.type == "array" ?? false
   $: if ( inEdit && anchor && editorState == "Closed" ) anchor?.focus() 
 
   const getOptionColor = (value) => {
