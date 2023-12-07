@@ -1,6 +1,6 @@
 <script>
   import Popover from "../../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
-  import SuperCell from "$lib/SuperTable/SuperTableCell/SuperCell.svelte";
+  import SuperCell from "../../SuperTableCell/SuperCell.svelte";
 
   export let columnState;
   export let columnOptions;

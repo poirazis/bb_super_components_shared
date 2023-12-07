@@ -1,6 +1,6 @@
 <script>
 	import { getContext , createEventDispatcher } from "svelte";
-	import SuperTableCell from "$lib/SuperTable/SuperTableCell/SuperTableCell.svelte";
+	import SuperTableCell from "../../SuperTableCell/SuperTableCell.svelte";
 	import { elementSizeStore } from "svelte-legos";
 
 	const { Provider } = getContext("sdk")
