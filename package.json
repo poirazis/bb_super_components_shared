@@ -51,6 +51,8 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
-    "@budibase/bbui": "^2.13.35"
+    "@budibase/bbui": "^2.13.35",
+    "svelte-fsm": "^1.2.0",
+    "svelte-legos": "^0.2.2"
   }
 }

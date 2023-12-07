@@ -16,7 +16,6 @@
    * @property {boolean} clearValueIcon - Wether to show an in line X mark that clears the value 
    * @property {number} debounce - The debounce time in ms before the cell send the change event
   */
-  export {};
 
   import { getContext , createEventDispatcher } from "svelte";
   import fsm from "svelte-fsm"

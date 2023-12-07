@@ -143,8 +143,6 @@
 
   onDestroy( () => tableDataStore?.unregisterColumn({ id: id, field: columnOptions.name }) );
   onMount( () => startWidth = column ? column.clientWidth : null )
-
-  $: console.log(columnOptions)
 </script>
 
 <svelte:window
