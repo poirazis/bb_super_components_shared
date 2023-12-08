@@ -66,6 +66,7 @@
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   bind:this={wrapperAnchor}
   class="superTableCellWrapper"
@@ -99,24 +100,12 @@
   justify-content: stretch;
   overflow: hidden;
   border: 1px solid transparent;
-  transition: all 30ms ease-out;
 }
-
 .superTableCellWrapper:focus {
   outline: none;
 }
 .superTableCellWrapper.inEdit {
-  border-color: var(--spectrum-global-color-blue-600);
-}
-.superTableCellWrapper.inEdit::before {
-  content: "";
-  position: absolute;
-  top: 1;
-  right: 1;
-  left: 1;
-  bottom: 1;
-  filter: brightness(80%);
-  background-color: var(--spectrum-textfield-m-background-color, var(--spectrum-global-color-gray-50));
+  border-color: var(--spectrum-global-color-blue-500);
 }
 
 </style>

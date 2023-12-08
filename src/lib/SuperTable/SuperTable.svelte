@@ -1,4 +1,8 @@
 <script>
+  /**
+   * @typedef {Object} tableOptions
+  */
+
   import { getContext, setContext } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
@@ -37,7 +41,7 @@
   const tableSelectionStore = new writable({});
   const tableDataChangesStore = new writable([]);
   const tableScrollPosition = new writable(0);
-  const tableHoverStore = new writable(0);
+  const tableHoverStore = new writable(-1);
   const tableOptionStore = new writable(tableOptions);
   
   const tableState = fsm("Idle", {
@@ -179,14 +183,6 @@
     if ( changes.length > 0 ) {
       let context = { ...changes[0] };
       tableOptions.onDataChange?.(context);
-    }
-  }
-
-  function handleRowClick(rowKey) {
-    if (rowKey) {
-      let context = { rowID: rowKey };
-      $tableStateStore.rowClicked = null;
-      tableOptions?.events?.onRowClick?.(context);
     }
   }
 

@@ -29,9 +29,11 @@
   $: synchScrollPosition($tableScrollPosition)
 </script>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnBodyAnchor}
   class="spectrum-Table-body"
+  tabindex="-1"
   style:background-color={columnOptions.background}
   class:filtered={$columnState == "Filtered"}
   on:scroll={handleScroll}

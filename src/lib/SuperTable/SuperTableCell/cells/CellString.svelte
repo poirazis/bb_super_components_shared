@@ -14,9 +14,7 @@
   /** @type {cellOptions} */
   export let cellOptions
 
-  const focus = (node) => {
-    node.focus();
-  }
+  let focusable
 
   const dispatch = createEventDispatcher();
 
@@ -33,6 +31,8 @@
      dispatch("change", value )
     }
 	}
+
+  export let focus = ( node ) =>  node ? node.focus() : focusable?.focus()
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -42,24 +42,26 @@
   style:color={cellOptions?.color}
   style:background={cellOptions?.background}
   style:padding={cellOptions?.padding}
-  class:inEdit={ $cellState == "Editing" }
+  class:inEdit={ cellState == "Editing" }
   style:font-weight={ cellOptions?.fontWeight ? cellOptions?.fontWeight : "400"}
 >
-  {#if $cellState == "Editing" }
+  {#if cellState == "Editing" }
     {#if cellOptions?.iconFront}
-      <i class={cellOptions.iconFront} style:color={ value ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-500)"  }></i>
+      <i class={cellOptions.iconFront} style:font-size={"14px"}  style:color={ value ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-500)"  }></i>
     {/if}
-    <input 
+    <input
+      bind:this={focusable} 
       class="inline-edit"
       {value} 
       style:padding-left={cellOptions.iconFront ? "0.5rem" : "0rem"}
       placeholder={cellOptions?.placeholder}
       on:input={debounce}
-      on:blur={cellState.lostFocus}
+      on:blur={() => dispatch("blur")}
       use:focus
     />
     {#if cellOptions.clearValueIcon}
-      <i class="ri-close-line" on:mousedown|preventDefault={ ()=> dispatch("change", null )}></i>
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <i class="ri-close-line" style:font-size={"16px"} on:mousedown|preventDefault={ ()=> dispatch("change", null )}></i>
     {/if}
   {:else}
     <div class="value" 
@@ -89,7 +91,6 @@
     overflow: hidden;
     min-width: unset;
   }
-
   .inline-edit:focus {
     min-width: unset;
   }

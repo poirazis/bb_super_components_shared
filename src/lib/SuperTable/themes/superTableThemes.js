@@ -9,9 +9,9 @@ export const themeMap = {
 	"budibase" : { 
 		headerFontSize: 14,
 		headerColor: "var(--spectrum-global-color-gray-700)",
-		headerBgColor: "var(--spectrum-global-color-gray-75)",
+		headerBgColor: "var(--spectrum-global-color-gray-100)",
 		tableColor: "var(--spectrum-global-color-gray-800)",
-		tableBgColor: "var(--spectrum-global-color-gray-50)",
+		tableBgColor: "var(--spectrum-global-color-gray-75)",
 		footerColor: "var(--spectrum-global-color-gray-500)",
 		footerBgColor: "var(--spectrum-global-color-gray-75)",
 		relationshipItemColor: "var(--spectrum-global-color-gray-800)",
