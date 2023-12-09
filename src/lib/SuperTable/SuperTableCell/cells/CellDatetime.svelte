@@ -33,7 +33,8 @@
 >
   {#if inEdit}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="pickerWrapper" on:mousedown|preventDefault|stopPropagation={ () => visible = !visible }>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div class="pickerWrapper" on:click={ () => visible = !visible }>
       { formattedValue || value || "" }
     </div>
   {:else}
