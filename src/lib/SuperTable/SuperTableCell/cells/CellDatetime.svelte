@@ -39,7 +39,7 @@
     />
   {:else}
     <div class="inline-value"> 
-      { formattedValue || value || cellOptions.placeholder }
+      { formattedValue || value }
     </div>
   {/if}
 
