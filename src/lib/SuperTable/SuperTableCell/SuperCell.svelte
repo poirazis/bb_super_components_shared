@@ -44,8 +44,6 @@
   export let multi = true
   export let focus
 
-  let focusFn
-
   /** @type {cellOptions} */
   export let cellOptions
 
