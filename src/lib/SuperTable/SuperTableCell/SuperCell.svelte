@@ -185,6 +185,7 @@
   :global(.superCell.unstyled) {
     border: none;
     padding: unset;
+    background-color: none;
   }
   :global(.superCell.unstyled.inEdit ) {
     border: none;

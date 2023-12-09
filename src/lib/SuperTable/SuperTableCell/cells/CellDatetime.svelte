@@ -20,8 +20,8 @@
   class="superCell"
   class:unstyled 
   class:inEdit
-  style:padding-left={cellOptions?.padding}
-  style:padding-right={cellOptions?.padding}
+  style:padding-left={cellOptions?.padding || "0.5rem" }
+  style:padding-right={cellOptions?.padding || "0.5rem" }
   style:--date-picker-background="var(--spectrum-alias-background-color-default)"
   style:--date-picker-foreground="var(--spectrum-global-color-gray-800)"
   style:--date-picker-selected-background="var(--accent-color)"
@@ -34,12 +34,13 @@
     <DateInput 
       bind:value={innerDate} 
       closeOnSelection 
+      disabled={!inEdit}
       placeholder={cellOptions.placeholder}
       on:select={ (e) => value = e.detail }
     />
   {:else}
     <div class="inline-value"> 
-      { formattedValue || value }
+      { formattedValue || value || cellOptions.placeholder }
     </div>
   {/if}
 
