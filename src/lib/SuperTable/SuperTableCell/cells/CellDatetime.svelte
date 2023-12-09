@@ -8,17 +8,9 @@
   export let cellOptions
 
   let anchor 
-  let innerDate
+  let innerDate = new Date(value)
 
   $: inEdit = $cellState == "Editing"
-  $: checkValue(value)
-
-  const checkValue = ( val ) => {
-    if ( typeof val === "string" )
-      innerDate = Date.parse(value)
-    else 
-      innerDate = value ? value : Date.parse(cellOptions.defaultValue)
-  }
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -40,7 +32,7 @@
 >
   {#if inEdit}
     <DateInput 
-      bind:innerDate 
+      bind:value={innerDate} 
       closeOnSelection 
       placeholder={cellOptions.placeholder}
       on:select={ (e) => value = e.detail }
