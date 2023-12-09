@@ -144,7 +144,6 @@
   onDestroy( () => tableDataStore?.unregisterColumn({ id: id, field: columnOptions.name }) );
   onMount( () => startWidth = column ? column.clientWidth : null )
 
-  $: console.log(columnOptions)
 </script>
 
 <svelte:window
@@ -152,16 +151,16 @@
   on:mousemove={ ( e ) => { if ( resizing ) columnState.resize( e ) } }
   />
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={column}
   class="superTableColumn"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:flex={ width ? "0" : columnOptions.sizing == "fixed" ? "0" : "1" }
-  style:width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : "auto"}
-  style:min-width={ columnOptions.sizing == "flexible" ? columnOptions.minWidth : null}
-  style:max-width={ columnOptions.sizing == "flexible" ? columnOptions.maxWidth : null}
-  on:mouseleave={() => ($tableHoverStore = null)}
+  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 1" }
+  style:min-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : "auto" } 
+  style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : "auto" } 
+  on:mouseleave={() => $tableHoverStore = null }
 >
   <div 
     class="grabber" 
@@ -189,18 +188,18 @@
     align-items: stretch;  
   }
   .grabber {
-    width: 3px;
+    width: 5px;
     position: absolute;
-    right: 2px;
+    right: 0px;
     top: 12px;
     height: 16px;
     border-radius: 2px;
-    z-index: 999;
+    z-index: 10;
     background-color: var(--spectrum-global-color-gray-200);
     transition: all 130ms ease-in-out;
   }
   .grabber:hover {
-    width: 8px;
+    width: 5px;
     background-color: var(--spectrum-global-color-gray-600);
     cursor: col-resize;
   }

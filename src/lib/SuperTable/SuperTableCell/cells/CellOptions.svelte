@@ -3,12 +3,13 @@
   import fsm from "svelte-fsm";
   import { createEventDispatcher ,beforeUpdate } from "svelte"
   import { flip } from 'svelte/animate';
-	import CellAttachment from "./CellAttachment.svelte";
 
   export let cellState
   export let cellOptions
   export let value;
   export let fieldSchema;
+  export let multi
+  export let subType = "buttons"
 
   export let useOptionColors = false
   export let defaultOptionColor = "var(--spectrum-global-color-seafoam-700)"
@@ -65,7 +66,6 @@
   $: allowNull = !fieldSchema?.constraints?.presence ?? false;
   $: if (allowNull && options.length > 1) options = [ "Clear Selection", ...options ]
   $: inEdit = $cellState == "Editing"
-  $: multi = fieldSchema?.type == "array" ?? false
   $: if ( inEdit && anchor && editorState == "Closed" ) anchor?.focus() 
 
   const getOptionColor = (value) => {
@@ -115,6 +115,7 @@
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   bind:this={anchor} 
   class="superCell" 
@@ -140,6 +141,7 @@
       {/each}
     {/if}
   </div>
+
 
   {#if overflow && inEdit}
     <div class="overflow" class:inEdit style:background-color={ fadeToColor } >

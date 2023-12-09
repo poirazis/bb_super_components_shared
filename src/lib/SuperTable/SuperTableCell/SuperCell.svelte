@@ -16,7 +16,6 @@
    * @property {boolean} clearValueIcon - Wether to show an in line X mark that clears the value 
    * @property {number} debounce - The debounce time in ms before the cell send the change event
   */
-  export {};
 
   import { getContext , createEventDispatcher } from "svelte";
   import fsm from "svelte-fsm"
@@ -43,6 +42,9 @@
   export let isHovered
   export let placeholder
   export let multi = true
+  export let focus
+
+  let focusFn
 
   /** @type {cellOptions} */
   export let cellOptions
@@ -82,15 +84,14 @@
 {#if fieldSchema.type === "string" || fieldSchema.type === "longform" || fieldSchema.type === "formula"}
   <CellString
     {cellOptions}
-    {cellState}
+    cellState={$cellState}
     {fieldSchema}
     {placeholder}
     {value}
     formattedValue = { getCellValue(value, valueTemplate) }
     {unstyled}
     on:change
-    on:focus
-    on:blur
+    on:blur={cellState.lostFocus}
   />
 {:else if fieldSchema.type === "array" || fieldSchema.type === "options"  }
   <CellOptions
@@ -170,54 +171,28 @@
     flex: auto;
     min-width: 80px;
     display: flex;
-    cursor: pointer;
+    align-items: center;
     position: relative;
-    z-index: 1;
     border: 1px solid var(--spectrum-global-color-gray-300);
-    background-color: var(--spectrum-global-color-blue-100);
+    background-color: var(--spectrum-global-color-gray-50);
     padding: 0.3rem 0.85rem;
   }
   :global(.superCell.inEdit) {
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    background-color: var(--spectrum-global-color-gray-50);
+    border: 1px solid var(--accent-color);
+    background-color: none;
+    &::hovered {
+      background-color: none;
+    }
   }
   :global(.superCell.unstyled) {
-    border: unset;
-    background-color: unset;
+    border: none;
     padding: unset;
   }
   :global(.superCell.unstyled.inEdit ) {
-    border: unset;
-    background-color: unset;
+    border: none;
     padding: unset;
   }
   :global(.superCell:focus) {
     outline: none;
-  }
-  :global(.overflow) {
-    position: absolute;
-    right: var(--super-table-cell-padding);
-    top: 10%;
-    height: 90%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: calc( 2 * var(--super-table-cell-padding));
-    mask-image: linear-gradient(to right, transparent 0%, black 65% );
-    mask-mode: alpha;
-    z-index: 1;
-    transition: all 130ms;
-  }
-  :global(.overflow.inEdit) {
-    width: calc( 4 * var(--super-table-cell-padding));
-    mask-image: linear-gradient(to right, transparent 0%, black 50% );
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    background-color: var(--spectrum-global-color-gray-50);
-  }
-
-  :global(.superCell .lucide) {
-    height: 100%;
-    display: flex;
-    align-items: center;
   }
 </style>

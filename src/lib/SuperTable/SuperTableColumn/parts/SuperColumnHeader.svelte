@@ -6,7 +6,7 @@
   export let columnOptions;
 
   let headerAnchor;
-  let showFilteringOptions = false;
+  let showFilteringOptions
   let cellState;
   let filterValue;
   let filterOperator = columnOptions.defaultFilteringOperator;
@@ -27,8 +27,9 @@
       filterValue.length != []
     ) {
       columnState.filter(buildFilter(filterOperator, filterValue));
-    } else {
-      columnState.clear();
+    } else if ( e.detail == null ) {
+      showFilteringOptions = false
+      columnState.cancel();
     }
   };
 
@@ -49,37 +50,32 @@
       columnState.cancel();
     }
   };
+
+  const handleBlur = ( e ) => {
+    if ( !showFilteringOptions && !filterValue )
+      columnState.cancel();
+  }
+
 </script>
 
 {#if columnOptions.showHeader}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div
-    bind:this={headerAnchor}
     class="spectrum-Table-headCell"
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
-    tabindex="0"
+    class:idle={$columnState != "Entering" && $columnState != "Filtered"}
     on:keydown={handleKeyboard}
+    bind:this={headerAnchor} 
+    tabindex="0" 
   >
     {#if $columnState == "Idle" || $columnState == "Ascending" || $columnState == "Descending"}
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
         <div class="actionIcon" on:click={columnState.filter}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="lucide lucide-search"
-          >
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-          </svg>
+          <i class="ri-search-line" > </i>
         </div>
       {/if}
 
@@ -98,54 +94,29 @@
 
       {#if columnOptions.isSorted}
         <div class="actionIcon sort">
-          srt
+            <i class={ $columnState == "Ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
         </div>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      <div
-        class="actionIcon"
-        on:click={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          showFilteringOptions = !showFilteringOptions;
-        }}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-settings-2"
-          ><path d="M20 7h-9" /><path d="M14 17H5" /><circle
-            cx="17"
-            cy="17"
-            r="3"
-          /><circle cx="7" cy="7" r="3" /></svg
-        >
-      </div>
-
+      <i class="ri-equalizer-line" style="align-self: center; font-size: 12px;" on:click|stopPropagation={ () => showFilteringOptions = true } />
       <SuperCell
-        bind:cellState
-        value={filterValue}
-        fieldSchema={columnOptions.schema}
-        placeholder={"Search"}
+        bind:cellState       
+        cellOptions={{
+          padding: "0 0.5rem",
+          clearValueIcon: true,
+          placeholder: columnOptions.name,
+          debounce: 500,
+        }}
+        multi={false}
+        initialState={"Editing"}
         editable
-        {cellOptions}
-        initialState="Editing"
         lockState
         unstyled
+        value={filterValue}
+        fieldSchema={columnOptions.schema}        
         on:change={handleValueChange}
-        on:blur={() =>
-          setTimeout(() => {
-            if (!showFilteringOptions && !filterValue) columnState.cancel();
-          }, 100)}
+        on:blur={() => { if (! headerAnchor.matches(":focus-within") && !filterValue) columnState.cancel() }}
       />
-
     {:else if $columnState == "Loading"}
       <p>...</p>
     {/if}
@@ -154,10 +125,8 @@
       anchor={headerAnchor}
       align="left"
       dismissible
-      open={showFilteringOptions}
-      on:close={() => {
-        showFilteringOptions = false;
-      }}
+      open={ showFilteringOptions }
+      on:close={ () => { showFilteringOptions = false  } }
     >
       <ul class="spectrum-Menu" role="menu">
         {#each columnOptions.filteringOperators as option}
@@ -165,11 +134,11 @@
             class="spectrum-Menu-item"
             class:selected={option.value == filterOperator}
             role="menuitem"
-            tabindex="0"
             on:click|stopPropagation={() => {
               filterOperator = option.value;
               showFilteringOptions = false;
               columnState.filter(buildFilter(filterOperator, filterValue));
+              cellState.focus();
             }}
           >
             <span class="spectrum-Menu-itemLabel">{option.label}</span>
@@ -177,6 +146,7 @@
         {/each}
       </ul>
     </Popover>
+
   </div>
 {/if}
 
@@ -184,28 +154,30 @@
   .spectrum-Table-headCell {
     display: flex;
     align-items: stretch;
-    justify-content: stretch;
     height: 2.5rem;
-    gap: 0.5rem;
     padding: unset;
-    padding-right: var(--super-table-cell-padding);
-    padding-left: var(--super-table-cell-padding);
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
     background-color: var(--super-table-header-bg-color);
+    padding-left: var(--super-table-cell-padding);
   }
+
+  .spectrum-Table-headCell.idle {
+    gap: 0.5rem;
+    padding-right: var(--super-table-cell-padding);
+
+  }
+
   .enterting {
-    gap: 0rem;
     background-color: var(
       --spectrum-textfield-m-background-color,
       var(--spectrum-global-color-gray-50)
     );
+    color: var(--spectrum-global-color-gray-600);
   }
   .filtered {
-    gap: 0rem;
     color: var(--spectrum-global-color-gray-800);
-    border: 1px solid var(--spectrum-global-color-gray-500);
-    font-weight: 700;
+    font-weight: 600;
     background-color: var(
       --spectrum-textfield-m-background-color,
       var(--spectrum-global-color-gray-100)
@@ -232,19 +204,25 @@
     filter: brightness(120%);
   }
   .actionIcon {
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--spectrum-global-color-gray-400);
+    color: var(--spectrum-global-color-gray-500);
+    transition: all 230ms ease-in-out;
   }
 
+  .actionIcon.sort {
+    color: var(--spectrum-global-color-gray-600);
+    font-size: 14px;
+  }
   .actionIcon:hover {
     color: var(--spectrum-global-color-blue-500);
     cursor: pointer;
   }
 
-  .actionIcon:hover > svg {
-    stroke-width: 2;
+  .actionIcon:hover > i {
+    font-weight: 600;
   }
   .selected {
     color: var(--primaryColor);
