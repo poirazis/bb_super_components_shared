@@ -1,9 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { DateInput } from 'date-picker-svelte'
+  import { DatePicker } from 'date-picker-svelte'
   import Popover from '../../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte'
-
-
 
   export let value
   export let cellState
@@ -46,19 +44,23 @@
   <Popover
     {anchor}
     dismissible
-    customHeight={"400px"}
     open={visible}
     on:close={ () => visible = false }
     >
-      <DateInput bind:value={innerDate} visible />
+      <div class="pickerWrapper">
+        <DatePicker bind:value={innerDate} visible timePrecision="minute" />
+      </div>
   </Popover>
 </div>
 
 <style>
-  .pickerWrapper {
+ .pickerWrapper {
     flex: auto;
     display: flex;
     align-items: center;
+    --date-picker-background: var(--spectrum-alias-background-color-default);
+    --date-picker-foreground: var(--spectrum-global-color-gray-800);
+    --date-picker-selected-background: var(--accent-color);
   }
   .inline-value { 
     flex-grow: 1;
