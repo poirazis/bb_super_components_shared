@@ -1,5 +1,5 @@
 <script>
-  import Popover from "../../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
+  import Popover from "../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
   import fsm from "svelte-fsm";
   import { createEventDispatcher, beforeUpdate } from "svelte";
   import CellLinkPicker from "./CellLinkPicker.svelte";

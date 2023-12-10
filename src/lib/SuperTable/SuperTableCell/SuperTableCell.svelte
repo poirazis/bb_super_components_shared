@@ -1,6 +1,6 @@
 <script>
   import { getContext , createEventDispatcher, onMount } from "svelte";
-  import SuperCell from "./SuperCell.svelte";
+  import SuperCell from "../../SuperCell/SuperCell.svelte";
 
   const tableDataChangesStore = getContext("tableDataChangesStore");
   const dispatch = createEventDispatcher();
