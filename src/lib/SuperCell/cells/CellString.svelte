@@ -4,10 +4,9 @@
    */
   import { createEventDispatcher } from "svelte";
 
-  export let value = ""
+  export let value = null
   export let cellState
   export let formattedValue
-  export let unstyled = false
   
   /** @type {cellOptions} */
   export let cellOptions
@@ -34,36 +33,41 @@
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   class="superCell"
-  class:unstyled 
-  style:color={cellOptions?.color}
-  style:background={cellOptions?.background}
-  style:padding={cellOptions?.padding}
-  class:inEdit={ cellState == "Editing" }
-  style:font-weight={ cellOptions?.fontWeight ? cellOptions?.fontWeight : "400"}
->
-  {#if cellState == "Editing" }
+  class:inEdit={ $cellState == "Editing" }
+  class:inline={ cellOptions?.role == "inline" }  
+  class:tableCell={ cellOptions?.role == "tableCell" } 
+  class:formInput={ cellOptions?.role == "formInput" } 
+  style:color={ cellOptions?.color }
+  style:background={ cellOptions?.background }
+  style:font-weight={ cellOptions?.fontWeight }
+> 
+  {#if $cellState == "Editing" }
     {#if cellOptions?.iconFront}
       <i class={cellOptions.iconFront} style:font-size={"14px"}  style:color={ value ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-500)"  }></i>
     {/if}
     <input
       bind:this={focusable} 
-      class="inline-edit"
-      {value} 
-      style:padding-left={cellOptions.iconFront ? "0.5rem" : "0rem"}
-      placeholder={cellOptions?.placeholder || "Enter ..."}
+      class="editor"
+      {value}
+      placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : "Enter..." }
       on:input={debounce}
       on:blur={() => dispatch("blur")}
       use:focus
     />
-    {#if cellOptions.clearValueIcon}
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
+    {#if cellOptions.clearValueIcon}  
       <i class="ri-close-line" style:font-size={"16px"} on:mousedown|preventDefault={ ()=> dispatch("change", null )}></i>
     {/if}
   {:else}
-    <div class="value" 
-    style:justify-content={cellOptions.align}> {formattedValue || value || "" } </div>
+    <div 
+      class="value"
+      style:padding={cellOptions?.padding} 
+      style:justify-content={cellOptions.align}
+      > 
+      { formattedValue || value || ""  } 
+    </div>
   {/if}
 </div>
 
@@ -77,22 +81,6 @@
     overflow: hidden;
     font-size: var(--super-table-base-font-size);
   }
-  .inline-edit {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: none;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-    overflow: hidden;
-    min-width: unset;
-  }
-  .inline-edit:focus {
-    min-width: unset;
-  }
-
   .inline-edit::placeholder {
     font-style: italic;
     font-size: 12px;

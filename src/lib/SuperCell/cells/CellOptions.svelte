@@ -9,22 +9,21 @@
   export let value;
   export let fieldSchema;
   export let multi
-  export let subType = "buttons"
 
   export let useOptionColors = false
-  export let defaultOptionColor = "var(--spectrum-global-color-seafoam-700)"
+  export let defaultOptionColor = "var(--spectrum-global-color-green-400)"
   export let isHovered = false
   export let placeholder = multi ? "Choose options" : "Choose an option";
   export let fadeToColor = "var(--spectrum-global-color-gray-50)"
-  export let optionIcon = "LoupeView"
-  export let unstyled
+  export let optionIcon = "ri-loope"
+
 
   const dispatch = createEventDispatcher()
 
-  let anchor;
+  let anchor
   let valueAnchor
-  let overflow = true
-  let focusedOptionIdx = undefined;
+  let overflow
+  let focusedOptionIdx 
 
   export let editorState = fsm( "Closed", {
     "*": {
@@ -109,8 +108,9 @@
   }
 
   beforeUpdate ( () => { 
-    overflow = valueAnchor ? valueAnchor.clientWidth != valueAnchor.scrollWidth : undefined
+    overflow = valueAnchor ? valueAnchor.clientWidth != valueAnchor.scrollWidth : true
   } )
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -118,41 +118,38 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   bind:this={anchor} 
-  class="superCell" 
+  tabindex="0"
+  class="superCell"
   class:inEdit
-  class:unstyled
-  class:focused={$cellState == "Focused"}
-  style:padding-left={cellOptions?.padding}
-  style:padding-right={cellOptions?.padding}
-  tabindex="0" 
+  class:inline={ cellOptions?.role == "inline" }  
+  class:tableCell={ cellOptions?.role == "tableCell" } 
+  class:formInput={ cellOptions?.role == "formInput" } 
+  style:color={ cellOptions?.color }
+  style:background={ cellOptions?.background }
+  style:font-weight={ cellOptions?.fontWeight }
   on:keydown={handleKeyboard} 
   on:click={ () => { if ( $cellState == "Editing" ) editorState.toggle() } }
   on:blur={() => { cellState.lostFocus() } }
 >
-  <div bind:this={valueAnchor} class="inline-value" >
+  <div bind:this={valueAnchor} class="value" >
     {#if value.length < 1 && inEdit}
-      <span class="placeholder">{ placeholder } </span>
+      <span class="placeholder">{ cellOptions?.placeholder ?? placeholder } </span>
     {:else if value.length > 0}
       {#each value as val (val)}
         {@const color = optionColors[val] || getOptionColor(val)}
-          <div animate:flip={{ duration: 130 }} class="item text" style="--color: {color}">
+          <div class="item" animate:flip={{ duration: 130 }}  style="--color: {color}">
             <span> {val} </span>
           </div>
       {/each}
     {/if}
+
+    {#if inEdit}
+      <i class="ri-arrow-down-s-line" style="font-size: 20px;" on:click|stopPropagation={(e) => editorState.toggle()}/>
+    {/if}
   </div>
 
 
-  {#if overflow && inEdit}
-    <div class="overflow" class:inEdit style:background-color={ fadeToColor } >
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6"/></svg>
-    </div>
-  {:else if inEdit}
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6"/></svg>
-  {:else if overflow}
-    <div class="overflow" style:background-color={fadeToColor} ></div>
-  {/if}
-  
+
   <Popover 
     {anchor} 
     useAnchorWidth={!multi}
@@ -176,13 +173,7 @@
               on:click|preventDefault={(e) => editorState.toggleOption(idx)}
             >
               <div class="option text">
-                <svg xmlns="http://www.w3.org/2000/svg" 
-                  width="16" height="16" viewBox="0 0 24 24" 
-                  fill="none" stroke="var(--spectrum-global-color-red-500)" 
-                  stroke-width="2" stroke-linecap="round" 
-                  stroke-linejoin="round" class="lucide lucide-x">
-                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                </svg>
+                <i class={optionIcon} />
                 {option}
               </div>
             </div>
@@ -198,15 +189,7 @@
                 {option}
               </div>
               {#if value?.includes(option)}
-                <svg xmlns="http://www.w3.org/2000/svg" 
-                width="14" height="14" viewBox="0 0 24 24" 
-                fill="none" stroke="var(--primaryColor)" 
-                stroke-width="2" 
-                stroke-linecap="round" 
-                stroke-linejoin="round" 
-                class="lucide lucide-check">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
+                <i class="ri-check-line" />
               {/if}
             </div>
           {/if}
@@ -217,34 +200,12 @@
 </div>
 
 <style>
-  .inline-value {
-    position: relative;
-    flex: 1 1 auto;
+    .value {
+    flex: auto;
     display: flex;
-    justify-content: flex-start;
+    flex-direction: row;
+    gap: 0.5rem;
     align-items: center;
-    column-gap: 0.5rem;
-    z-index: 1;
-    overflow: hidden;
-  }
-  .inline-value .placeholder {
-    font-style: italic;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    color: var(--spectrum-global-color-gray-600);
-  }
-  .item {
-    flex: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 4px;
-    background-color: var(--color);
-    color: var(--spectrum-global-color-gray-800);
-    height: 90%;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    max-height: 1.5rem;
   }
   .text {
     overflow: hidden;
