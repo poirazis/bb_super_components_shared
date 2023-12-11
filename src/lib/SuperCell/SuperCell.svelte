@@ -79,7 +79,7 @@
   }
 </script>
 
-{#if fieldSchema.type === "string" || fieldSchema.type === "longform" || fieldSchema.type === "formula"}
+{#if fieldSchema.type === "string" || fieldSchema.type === "longform" || fieldSchema.type === "formula"} 
   <CellString
     {cellOptions}
     cellState={$cellState}
@@ -166,29 +166,5 @@
 {/if}
 
 <style>
-  :global(.superCell) {
-    flex: auto;
-    min-width: 80px;
-    display: flex;
-    align-items: center;
-    position: relative;
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    background-color: var(--spectrum-global-color-gray-50);
-    padding: 0.3rem 0.85rem;
-  }
-  :global(.superCell.inEdit) {
-    border: 1px solid var(--accent-color);
-    background-color: none;
-  }
-  :global(.superCell.unstyled) {
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    padding: unset;
-  }
-  :global(.superCell.unstyled.inEdit ) {
-    border: 1px solid lime;
-    padding: unset;
-  }
-  :global(.superCell:focus) {
-    outline: none;
-  }
+    @import "./SuperCell.css"
 </style>

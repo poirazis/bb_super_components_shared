@@ -7,8 +7,6 @@
   export let value = ""
   export let cellState
   export let formattedValue
-  export let placeholder = "Enter ... "
-  export let debounced
   export let unstyled = false
   
   /** @type {cellOptions} */
@@ -54,7 +52,7 @@
       class="inline-edit"
       {value} 
       style:padding-left={cellOptions.iconFront ? "0.5rem" : "0rem"}
-      placeholder={cellOptions?.placeholder}
+      placeholder={cellOptions?.placeholder || "Enter ..."}
       on:input={debounce}
       on:blur={() => dispatch("blur")}
       use:focus
