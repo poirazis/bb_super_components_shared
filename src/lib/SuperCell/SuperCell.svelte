@@ -116,7 +116,7 @@
     on:change
     on:blur
   />
-{:else if fieldSchema.type === "link"  }
+{:else if fieldSchema.type === "link" || fieldSchema.type === "bb_reference"  }
   <CellLink
     {cellState}
     {cellOptions}
@@ -157,23 +157,39 @@
 
 <style>
   :global(.superCell ) {
-    flex: auto;
+    min-height: 2rem;
     min-width: 80px;
+    width: 100%;
     display: flex;
     align-items: center;
     position: relative;
   }
-  :global(.superCell  > .overflow) {
+  :global(.superCell:focus ) {
+    outline: none;
+  }
+
+  :global( .superCell > .frontIcon) {
     position: absolute;
-    right: 10px;
-    z-index: 2;
-    width: 44px;
-    height: 32px;
+    left: 0.5rem;
+    font-size: 16px;
+    color: var(--spectrum-global-color-gray-300);
+  }
+  :global( .superCell.inEdit > .frontIcon) {
+    color: var(--spectrum-alias-border-color-mouse-focus);
+  }
+  :global( .superCell > .endIcon) {
+    position: absolute;
+    right: 0.5rem;
   }
   :global(.superCell > .value ) {
-    flex: auto;
-    padding: 0.3rem 0.85rem;
-    min-width: 0;
+      flex: auto;
+      padding: 0.3rem 0.85rem;
+      min-width: 0;
+  }
+  :global(.superCell > .value.placeholder ) {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--spectrum-global-color-gray-500);
   }
   :global(.superCell > .value > .item ) {
     flex: 1 1 auto;
@@ -213,7 +229,15 @@
     border: none;
   }
   :global(.superCell.formInput ) {
-    border: 1px solid var(--spectrum-global-color-green-500);
+    max-height: 2rem;
+    border: 1px solid var(--spectrum-global-color-gray-300);
+    background: var(--spectrum-global-color-gray-50);
+  }
+  :global(.superCell.formInput:focus-within ) {
+    border-color: var(--spectrum-alias-border-color-mouse-focus);
+  }
+  :global(.superCell.formInput > .value > .item ) {
+    height: 1.25rem;
   }
   :global(.superCell.inline ) {
     border: 1px solid pink;

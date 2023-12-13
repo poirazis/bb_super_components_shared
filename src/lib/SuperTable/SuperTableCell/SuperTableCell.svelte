@@ -87,7 +87,7 @@
     {isHovered}
     on:change={handleChange}
     on:keydown
-    on:blur={cellState.lostFocus}
+    on:blur={cellState?.lostFocus}
   />
 </div>
 

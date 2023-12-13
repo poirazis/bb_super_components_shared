@@ -12,17 +12,13 @@
 
   export let useOptionColors = false
   export let defaultOptionColor = "var(--spectrum-global-color-green-400)"
-  export let isHovered = false
   export let placeholder = multi ? "Choose options" : "Choose an option";
-  export let fadeToColor = "var(--spectrum-global-color-gray-50)"
   export let optionIcon = "ri-loope"
 
 
   const dispatch = createEventDispatcher()
 
   let anchor
-  let valueAnchor
-  let overflow
   let focusedOptionIdx 
 
   export let editorState = fsm( "Closed", {
@@ -30,7 +26,7 @@
       handleKeyboard( e ) { }
     },
     Open: {  
-      toggle() { cellState.closeEditor(); anchor.focus(); return "Closed" },
+      toggle() { focusedOptionIdx = undefined; anchor.focus(); return "Closed" },
       toggleOption ( idx ) { 
         toggleOption(options[idx]); 
         dispatch("change", value )
@@ -54,7 +50,7 @@
       },
     },
     Closed: {
-      toggle() { cellState.openEditor(); return "Open" },
+      toggle() { return "Open" },
       highlightNext () { return "Open" },
     }
   });
@@ -107,9 +103,6 @@
     }
   }
 
-  beforeUpdate ( () => { 
-    overflow = valueAnchor ? valueAnchor.clientWidth != valueAnchor.scrollWidth : true
-  } )
 
 </script>
 
@@ -128,12 +121,15 @@
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
   on:keydown={handleKeyboard} 
-  on:click={ () => { if ( $cellState == "Editing" ) editorState.toggle() } }
-  on:blur={() => { cellState.lostFocus() } }
+  on:blur
+  on:focus={cellState.focus}
 >
-  <div bind:this={valueAnchor} class="value" >
-    {#if value.length < 1 && inEdit}
-      <span class="placeholder">{ cellOptions?.placeholder ?? placeholder } </span>
+  {#if cellOptions?.iconFront}
+    <i class={cellOptions.iconFront + " frontIcon"}></i>
+  {/if}
+  <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }>
+    {#if value.length < 1 }
+      { cellOptions?.placeholder ?? placeholder }
     {:else if value.length > 0}
       {#each value as val (val)}
         {@const color = optionColors[val] || getOptionColor(val)}
@@ -147,8 +143,6 @@
       <i class="ri-arrow-down-s-line" style="font-size: 20px;" on:click|stopPropagation={(e) => editorState.toggle()}/>
     {/if}
   </div>
-
-
 
   <Popover 
     {anchor} 
@@ -173,7 +167,7 @@
               on:click|preventDefault={(e) => editorState.toggleOption(idx)}
             >
               <div class="option text">
-                <i class={optionIcon} />
+                <i class="ri-close-line" />
                 {option}
               </div>
             </div>

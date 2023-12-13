@@ -44,13 +44,16 @@
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
 > 
+  {#if cellOptions?.iconFront}
+  <i class={cellOptions.iconFront + " frontIcon"}></i>
+  {/if}
+
   {#if $cellState == "Editing" }
-    {#if cellOptions?.iconFront}
-      <i class={cellOptions.iconFront} style:font-size={"14px"}  style:color={ value ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-500)"  }></i>
-    {/if}
     <input
       bind:this={focusable} 
       class="editor"
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
       {value}
       placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : "Enter..." }
       on:input={debounce}
@@ -58,15 +61,21 @@
       use:focus
     />
     {#if cellOptions.clearValueIcon}  
-      <i class="ri-close-line" style:font-size={"16px"} on:mousedown|preventDefault={ ()=> dispatch("change", null )}></i>
+      <i 
+        class="ri-close-line" 
+        class:endIcon={true} 
+        on:mousedown|preventDefault={ ()=> dispatch("change", null )}>
+      </i>
     {/if}
   {:else}
     <div 
       class="value"
-      style:padding={cellOptions?.padding} 
+      class:placeholder={!value}
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
       style:justify-content={cellOptions.align}
       > 
-      { formattedValue || value || ""  } 
+      { formattedValue || value || cellOptions?.placeholder || "" } 
     </div>
   {/if}
 </div>
@@ -81,12 +90,12 @@
     overflow: hidden;
     font-size: var(--super-table-base-font-size);
   }
-  .inline-edit::placeholder {
+
+  .editor::placeholder {
     font-style: italic;
-    font-size: 12px;
     color: var(--spectrum-global-color-gray-500);
   }
-  .inline-edit:focus::placeholder {
+  .editor:focus::placeholder {
     font-style: italic;
     color: var(--spectrum-global-color-blue-500);
   }
