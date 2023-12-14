@@ -38,13 +38,10 @@
   export let editable
   export let initialState = "View"
   export let lockState = false
-  export let unstyled
   export let isHovered
-  export let placeholder
   export let multi = true
-  export let focus
 
-  let focusFn
+  export const focus = () => { cellState.focus() }
 
   /** @type {cellOptions} */
   export let cellOptions
@@ -65,9 +62,7 @@
     Error: { check : "View" },
     Editing: { 
       unfocus() { return lockState ? initialState : "View" },
-      lostFocus() { 
-        dispatch("blur", {} );
-        return lockState ? initialState : "View" },
+      lostFocus() { return lockState ? initialState : "View" },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
@@ -81,28 +76,26 @@
   }
 </script>
 
-{#if fieldSchema.type === "string" || fieldSchema.type === "longform" || fieldSchema.type === "formula"}
+{#if fieldSchema.type === "string" || fieldSchema.type === "longform" || fieldSchema.type === "formula"} 
   <CellString
     {cellOptions}
-    cellState={$cellState}
+    {cellState}
     {fieldSchema}
-    {placeholder}
     {value}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
-    on:blur={cellState.lostFocus}
+    on:blur
   />
 {:else if fieldSchema.type === "array" || fieldSchema.type === "options"  }
   <CellOptions
     {cellState}
     {cellOptions}
-    {value}
     {fieldSchema}
+    {value}
     multi={fieldSchema.type == "array" && multi}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
+    on:blur
   />
 {:else if fieldSchema.type === "number" || fieldSchema.type == "bigint" }
   <CellNumber
@@ -111,7 +104,6 @@
     {value}
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
   />
 {:else if fieldSchema.type === "datetime"}
@@ -121,18 +113,18 @@
     {value}
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
+    on:blur
   />
-{:else if fieldSchema.type === "link"  }
+{:else if fieldSchema.type === "link" || fieldSchema.type === "bb_reference"  }
   <CellLink
     {cellState}
     {cellOptions}
     {value}
     {fieldSchema}
-    {unstyled}
     {isHovered}
     on:change
+    on:blur
   />
 {:else if fieldSchema.type === "attachment"  }
   <CellAttachment
@@ -141,7 +133,6 @@
     {value}
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
   />
 {:else if fieldSchema.type === "boolean"  }
@@ -151,7 +142,6 @@
     {value}
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
     on:change
   />
 {:else if fieldSchema.type === "json"  }
@@ -160,39 +150,97 @@
     {cellState}
     {value}
     {fieldSchema}
-    formattedValue = { getCellValue(value, valueTemplate) }
-    {unstyled}
+    formattedValue = { getCellValue(value, valueTemplate) } 
     on:change
   />
 {/if}
 
 <style>
-  :global(.superCell) {
-    flex: auto;
+  :global(.superCell ) {
+    min-height: 2rem;
     min-width: 80px;
+    width: 100%;
     display: flex;
     align-items: center;
     position: relative;
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    background-color: var(--spectrum-global-color-gray-50);
-    padding: 0.3rem 0.85rem;
   }
-  :global(.superCell.inEdit) {
-    border: 1px solid var(--accent-color);
-    background-color: none;
-    &::hovered {
-      background-color: none;
-    }
-  }
-  :global(.superCell.unstyled) {
-    border: none;
-    padding: unset;
-  }
-  :global(.superCell.unstyled.inEdit ) {
-    border: none;
-    padding: unset;
-  }
-  :global(.superCell:focus) {
+  :global(.superCell:focus ) {
     outline: none;
   }
+
+  :global( .superCell > .frontIcon) {
+    position: absolute;
+    left: 0.5rem;
+    font-size: 16px;
+    color: var(--spectrum-global-color-gray-300);
+  }
+  :global( .superCell.inEdit > .frontIcon) {
+    color: var(--spectrum-alias-border-color-mouse-focus);
+  }
+  :global( .superCell > .endIcon) {
+    position: absolute;
+    right: 0.5rem;
+  }
+  :global(.superCell > .value ) {
+      flex: auto;
+      padding: 0.3rem 0.85rem;
+      min-width: 0;
+  }
+  :global(.superCell > .value.placeholder ) {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--spectrum-global-color-gray-500);
+  }
+  :global(.superCell > .value > .item ) {
+    flex: 1 1 auto;
+    height: 1.45rem;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    background-color: var(--color, var(--spectrum-global-color-gray-300));
+    color: var(--spectrum-global-color-gray-800);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+  :global(.superCell > .value > .item > span) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :global(.superCell > .editor ) {
+    padding: 0.3rem 0.85rem;
+  }
+  :global(.superCell > input ) {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    outline: none;
+    background: none;
+    color: inherit;
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+    min-width: unset;
+    padding: 0.3rem 0.85rem;
+  }
+  :global(.superCell.tableCell ) {
+    border: none;
+  }
+  :global(.superCell.formInput ) {
+    max-height: 2rem;
+    border: 1px solid var(--spectrum-global-color-gray-300);
+    background: var(--spectrum-global-color-gray-50);
+  }
+  :global(.superCell.formInput:focus-within ) {
+    border-color: var(--spectrum-alias-border-color-mouse-focus);
+  }
+  :global(.superCell.formInput > .value > .item ) {
+    height: 1.25rem;
+  }
+  :global(.superCell.inline ) {
+    border: 1px solid pink;
+  }
+
 </style>

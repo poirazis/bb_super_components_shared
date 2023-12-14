@@ -1,6 +1,6 @@
 <script>
   import { getContext , createEventDispatcher, onMount } from "svelte";
-  import SuperCell from "./SuperCell.svelte";
+  import SuperCell from "../../SuperCell/SuperCell.svelte";
 
   const tableDataChangesStore = getContext("tableDataChangesStore");
   const dispatch = createEventDispatcher();
@@ -21,6 +21,7 @@
 
   /** @type {import('./SuperCell.Svelte').cellOptions} */
   $: cellOptions = {
+    role: "tableCell",
     align: columnOptions.align,
     color: columnOptions.color,
     background: columnOptions.background ?? "transparent",
@@ -84,10 +85,9 @@
     {fieldSchema}
     {editable}
     {isHovered}
-    lockState={false}
-    unstyled
     on:change={handleChange}
     on:keydown
+    on:blur={cellState?.lostFocus}
   />
 </div>
 

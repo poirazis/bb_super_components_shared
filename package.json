@@ -52,7 +52,10 @@
   "type": "module",
   "dependencies": {
     "@budibase/bbui": "^2.13.35",
+    "@budibase/frontend-core": "^2.13.37",
+    "date-picker-svelte": "^2.10.1",
     "svelte-fsm": "^1.2.0",
-    "svelte-legos": "^0.2.2"
+    "svelte-legos": "^0.2.2",
+    "uuid": "^9.0.1"
   }
 }

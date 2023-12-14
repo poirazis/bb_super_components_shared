@@ -2,6 +2,7 @@
     import CellSkeleton from "./CellSkeleton.svelte";
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
+    import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
 
     const { API } = getContext("sdk");
     const dispatch = createEventDispatcher();
@@ -10,6 +11,7 @@
     export let tableId 
     export let schema
     export let active = false
+    export let datasourceType = "table"
     
     let timer;
     let limit = 10
@@ -19,7 +21,20 @@
     let searchColumns = []
     let results
     let queryParams = {}
-    let primaryDisplay
+    let primaryDisplay = "email"
+
+    $: fetch = fetchData({
+      API,
+      datasource: {
+        type: datasourceType,
+        tableId: tableId,
+      },
+      options: {
+        filter: {},
+        limit: 100,
+      },
+    })
+
 
     const debounce = e => {
       clearTimeout(timer);
@@ -80,9 +95,11 @@
 
     $: loadTableSchema(tableId) 
     $: results = loadTable(tableId, filteredValue, limit )
+    $: console.log($fetch)
 
 </script>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div class="control" style:min-width={schema.relationshipType == "one-to-many" ? " 160px" : "320px"}> 
 
@@ -105,8 +122,8 @@
               <CellSkeleton > <div class="option text"> Loading ... </div> </CellSkeleton> 
             {:then results}
               {#key value}
-                {#if results.rows.length > 0 }
-                  {#each results.rows as row, idx }
+                {#if $fetch.rows.length > 0 }
+                  {#each $fetch.rows as row, idx }
                     {#if !(rowSelected(row)) }
                       <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
                         <div class="option text">
@@ -147,9 +164,9 @@
             {#await results}
               <CellSkeleton > <div class="option text"> Loading ... </div> </CellSkeleton> 
             {:then results}
-              {#if results.rows.length > 0 }
+              {#if $fetch.rows.length > 0 }
                 {#key value}
-                  {#each results.rows as row, idx }
+                  {#each $fetch.rows as row, idx }
                     {#if !(rowSelected(row)) }
                       <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
                         <div class="option text">
