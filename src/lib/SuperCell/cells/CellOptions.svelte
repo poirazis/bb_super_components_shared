@@ -1,7 +1,7 @@
 <script>
   import Popover from "../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
   import fsm from "svelte-fsm";
-  import { createEventDispatcher ,beforeUpdate } from "svelte"
+  import { createEventDispatcher } from "svelte"
   import { flip } from 'svelte/animate';
 
   export let cellState
@@ -13,7 +13,7 @@
   export let useOptionColors = false
   export let defaultOptionColor = "var(--spectrum-global-color-green-400)"
   export let placeholder = multi ? "Choose options" : "Choose an option";
-  export let optionIcon = "ri-loope"
+  export let optionIcon = "ri-square-fill"
 
 
   const dispatch = createEventDispatcher()
@@ -64,7 +64,7 @@
   $: if ( inEdit && anchor && editorState == "Closed" ) anchor?.focus() 
 
   const getOptionColor = (value) => {
-    return defaultOptionColor;
+    return optionColors[value] ?? defaultOptionColor;
   };
 
   const handleKeyboard = ( e ) => {
@@ -132,7 +132,7 @@
       { cellOptions?.placeholder ?? placeholder }
     {:else if value.length > 0}
       {#each value as val (val)}
-        {@const color = optionColors[val] || getOptionColor(val)}
+        {@const color = getOptionColor(val) }
           <div class="item" animate:flip={{ duration: 130 }}  style="--color: {color}">
             <span> {val} </span>
           </div>
@@ -157,7 +157,6 @@
         No Available Options
       {:else}
         {#each options as option,idx (idx)}
-        {@const color = optionColors[option] || getOptionColor(option)}
           {#if (option == "Clear Selection") }
             <div
               class="option"
@@ -177,9 +176,13 @@
               class:focused={focusedOptionIdx === idx}
               on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
               on:mouseenter={() => (focusedOptionIdx = idx)}
-            >
+            >              
               <div class="option text">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={color} stroke={color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                <div
+                  style:width={"14px"}
+                  style:height={"14px"}
+                  style:border-radius={"4px"}
+                  style:background-color={getOptionColor(option)} />
                 {option}
               </div>
               {#if value?.includes(option)}
@@ -194,7 +197,7 @@
 </div>
 
 <style>
-    .value {
+  .value {
     flex: auto;
     display: flex;
     flex-direction: row;

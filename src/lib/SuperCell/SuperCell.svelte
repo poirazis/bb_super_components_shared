@@ -70,7 +70,7 @@
 
   const getCellValue = (value, template) => {
     if (!valueTemplate) {
-      return value
+      return undefined
     }
     return processStringSync(template, { value })
   }
@@ -105,6 +105,7 @@
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
     on:change
+    on:blur
   />
 {:else if fieldSchema.type === "datetime"}
   <CellDatetime
@@ -143,6 +144,7 @@
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) }
     on:change
+    on:blur
   />
 {:else if fieldSchema.type === "json"  }
   <CellJson
@@ -152,6 +154,7 @@
     {fieldSchema}
     formattedValue = { getCellValue(value, valueTemplate) } 
     on:change
+    on:blur
   />
 {/if}
 
@@ -162,7 +165,6 @@
     width: 100%;
     display: flex;
     align-items: center;
-    position: relative;
   }
   :global(.superCell:focus ) {
     outline: none;
@@ -182,9 +184,10 @@
     right: 0.5rem;
   }
   :global(.superCell > .value ) {
-      flex: auto;
-      padding: 0.3rem 0.85rem;
-      min-width: 0;
+    flex: auto;
+    padding: 0.3rem 0.85rem;
+    min-width: 0;
+    white-space: nowrap;
   }
   :global(.superCell > .value.placeholder ) {
     font-style: italic;
@@ -233,7 +236,10 @@
     border: 1px solid var(--spectrum-global-color-gray-300);
     background: var(--spectrum-global-color-gray-50);
   }
-  :global(.superCell.formInput:focus-within ) {
+  :global(.superCell.formInput.inEdit:focus-within ) {
+    border-color: var(--spectrum-alias-border-color-mouse-focus);
+  }
+  :global(.superCell.formInput.inEdit:focus ) {
     border-color: var(--spectrum-alias-border-color-mouse-focus);
   }
   :global(.superCell.formInput > .value > .item ) {

@@ -33,26 +33,48 @@
   }
 </script>
 
-<div class="superCell"
-  class:inEdit
-  class:unstyled
-  style:padding-left={cellOptions?.padding}
-  style:padding-right={cellOptions?.padding}
-  style:width={$cellState == "Editing" || $cellState == "EditingWithEditor" ? cellOptions.width : null } 
->
-  {#if inEdit}
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div
+  class="superCell"
+  class:inEdit={ $cellState == "Editing" }
+  class:inline={ cellOptions?.role == "inline" }  
+  class:tableCell={ cellOptions?.role == "tableCell" } 
+  class:formInput={ cellOptions?.role == "formInput" } 
+  style:color={ cellOptions?.color }
+  style:background={ cellOptions?.background }
+  style:font-weight={ cellOptions?.fontWeight }
+  >
+
+
+  {#if $cellState == "Editing" }
     <input 
-      class="inline-edit" 
-      inputmode="numeric"
+      class="editor"
+      type="text" inputmode="numeric" pattern="[0-9]*"
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
+      style:text-align="right"
+      placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : 0 }
       {value} 
-      {placeholder} 
       on:input={debounce}
-      on:blur={cellState.lostFocus}
+      on:blur={() => dispatch("blur")}
       use:focus
     />
+    {#if cellOptions.clearValueIcon}  
+      
+      <i 
+        class="ri-close-line" 
+        class:endIcon={true} 
+        on:mousedown|preventDefault={ ()=> dispatch("change", null )}>
+      </i>
+    {/if}
   {:else}
    <div class="value"> {formattedValue || value || "" } </div>
+   {#if cellOptions?.iconFront}
+    <i class={cellOptions.iconFront + " frontIcon"}></i>
   {/if}
+  {/if}
+
+
 </div>
 
 <style>
@@ -65,27 +87,5 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
-  }
-  .inline-edit {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: none;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-    overflow: hidden;
-    min-width: unset;
-    text-align: right;
-  }
-
-  .inline-edit:focus {
-    min-width: unset;
-  }
-
-  .inline-edit::placeholder {
-    color: var(--primaryColor);
-    font-style: italic;
   }
 </style>

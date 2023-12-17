@@ -74,7 +74,7 @@
       { cellOptions?.placeholder || "Select " + fieldSchema.name }
     {:else if value?.length > 0}
       {#each value as val}
-        <div class="item">
+        <div class="item" >
           <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
          <span>{val.primaryDisplay}</span>
         </div>
@@ -88,7 +88,7 @@
 </div>
 
 <Popover 
-  {anchor} 
+{anchor} 
   dismissible
   align={"left"} 
   open={ picker } 
