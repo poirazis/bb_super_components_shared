@@ -62,53 +62,60 @@
   style:color={ cellOptions?.color }
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
-  on:focus={cellState.focus}
+  on:focusin={cellState.focus}
   on:blur
   on:keydown={handleKeyboard}
 >
   {#if cellOptions?.iconFront}
     <i class={cellOptions.iconFront + " frontIcon"}></i>
   {/if}
-  <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }>
-    {#if value?.length < 1}
-      { cellOptions?.placeholder || "Select " + fieldSchema.name }
-    {:else if value?.length > 0}
-      {#each value as val}
-        <div class="item">
-          <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
-         <span>{val.primaryDisplay}</span>
-        </div>
-      {/each}
-    {/if}
 
-    {#if inEdit}
-      <i class="ri-add-line" style="font-size: 20px;" on:click|stopPropagation={(e) => picker = !picker}/>
-    {/if}
-  </div>
+  {#if inEdit}
+    <div 
+      class="editor" class:placeholder={value?.length < 1} 
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      on:click|stopPropagation={(e) => picker = !picker}
+    >
+      {#if value?.length < 1}
+        { cellOptions?.placeholder || "Select " + fieldSchema.name }
+      {:else if value?.length > 0}
+        {#each value as val}
+          <div class="item" >
+            <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+          <span>{val.primaryDisplay}</span>
+          </div>
+        {/each}
+      {/if}
+        <i class="ri-add-line" style="font-size: 20px;"></i>
+    </div>
+  {:else}
+    <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }>
+      {#if value?.length < 1}
+        { cellOptions?.placeholder || "Select " + fieldSchema.name }
+      {:else if value?.length > 0}
+        {#each value as val}
+          <div class="item" >
+            <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+          <span>{val.primaryDisplay}</span>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <Popover 
   {anchor} 
-  dismissible
-  align={"left"} 
-  open={ picker } 
-  on:close={ () => { picker = false;} }
-  >
-  <CellLinkPicker 
-    {value} 
-    schema={fieldSchema} 
-    tableId={fieldSchema.tableId} 
-    datasourceType={fieldSchema.tableId ? "table" : "user" }
-    on:change={ (e) => { updateValue (e.detail)} } 
-  />
+    dismissible
+    align={"left"} 
+    open={ picker } 
+    on:close={ () => { picker = false;} }
+    >
+    <CellLinkPicker 
+      {value} 
+      schema={fieldSchema} 
+      tableId={fieldSchema.tableId} 
+      datasourceType={fieldSchema.tableId ? "table" : "user" }
+      on:change={ (e) => { updateValue (e.detail)} } 
+    />
 </Popover>
-
-<style>
-  .value {
-    flex: auto;
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    align-items: center;
-  }
-</style>

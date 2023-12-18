@@ -27,16 +27,21 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div 
-  class="superCell" 
+  class="superCell"
   class:inEdit={ $cellState == "Editing" }
-  class:unstyled
-  tabindex="0"
-  style:padding-left={cellOptions?.padding}
-  style:padding-right={cellOptions?.padding}
-  on:keydown={handleKeyboard}
+  class:inline={ cellOptions?.role == "inline" }  
+  class:tableCell={ cellOptions?.role == "tableCell" } 
+  class:formInput={ cellOptions?.role == "formInput" } 
+  style:color={ cellOptions?.color }
+  style:background={ cellOptions?.background }
+  style:font-weight={ cellOptions?.fontWeight }
   >
-    {#if inEdit }
-      <div class="inline-value" > 
+    {#if cellOptions?.iconFront}
+      <i class={cellOptions.iconFront + " frontIcon"}></i>
+    {/if}
+
+    {#if $cellState == "Editing" || cellOptions?.role == "formInput"}
+      <div class="editor"> 
         <div class="spectrum-Switch spectrum-Switch--emphasized">
           <input
             bind:this={anchor}
@@ -52,25 +57,8 @@
     {:else}
       <div class="inline-value" > 
         {#if value}
-        <svg xmlns="http://www.w3.org/2000/svg" 
-          width="14" height="14" viewBox="0 0 24 24" 
-          fill="none" stroke="lime" 
-          stroke-width="2" 
-          stroke-linecap="round" 
-          stroke-linejoin="round" 
-          class="lucide lucide-check">
-            <path d="M20 6 9 17l-5-5"/>
-          </svg>
+          <i class="ri-check-line"></i>
         {/if}
       </div>
     {/if}
 </div>
-
-<style>
-  .inline-value { 
-    flex: auto;
-    display: flex;
-    justify-content: var(--super-column-alignment);
-    align-items: center;
-  }
-</style>

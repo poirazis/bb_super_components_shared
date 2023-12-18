@@ -1,29 +1,40 @@
 <script>
   import Popover from "../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
   import fsm from "svelte-fsm";
-  import { createEventDispatcher ,beforeUpdate } from "svelte"
+  import { getContext, createEventDispatcher } from "svelte"
   import { flip } from 'svelte/animate';
+  import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
+
+  const dispatch = createEventDispatcher()
+  const { API } = getContext("sdk")
 
   export let cellState
   export let cellOptions
   export let value;
   export let fieldSchema;
   export let multi
+  export let simpleView = false
 
-  export let useOptionColors = false
-  export let defaultOptionColor = "var(--spectrum-global-color-green-400)"
   export let placeholder = multi ? "Choose options" : "Choose an option";
-  export let optionIcon = "ri-loope"
-
-
-  const dispatch = createEventDispatcher()
 
   let anchor
+  let picker
+  let options
   let focusedOptionIdx 
+  let fetch
+  let query = {}
+  let limit = 100
+  let paginate = false
+  let filter = {}
+  let sortColumn
+  let sortOrder
+
 
   export let editorState = fsm( "Closed", {
     "*": {
-      handleKeyboard( e ) { }
+      handleKeyboard( e ) { },
+      close() { return "Closed"},
+      open() { return "Open"}
     },
     Open: {  
       toggle() { focusedOptionIdx = undefined; anchor.focus(); return "Closed" },
@@ -55,8 +66,19 @@
     }
   });
 
+  $: if ( !fetch && cellOptions.optionsSource == "datasource" ) {
+    fetch = createFetch ( cellOptions.datasource )
+  }
+
+  $: if ( fetch && $fetch.loaded ) {
+    options = $fetch.rows.map( (x) => x[cellOptions.labelField] )
+  } else if ( fetch ) {
+    options = []
+  } else {
+    options = fieldSchema?.constraints?.inclusion || [];
+  }
+
   $: value = Array.isArray(value) ? value : value ? [ value ] : []
-  $: options = fieldSchema?.constraints?.inclusion || [];
   $: optionColors = fieldSchema?.optionColors || {};
   $: allowNull = !fieldSchema?.constraints?.presence ?? false;
   $: if (allowNull && options.length > 1) options = [ "Clear Selection", ...options ]
@@ -64,7 +86,7 @@
   $: if ( inEdit && anchor && editorState == "Closed" ) anchor?.focus() 
 
   const getOptionColor = (value) => {
-    return defaultOptionColor;
+    return cellOptions.optionsColors ? optionColors[value] : "var(--spectrum-global-color-gray-400)"
   };
 
   const handleKeyboard = ( e ) => {
@@ -103,6 +125,26 @@
     }
   }
 
+  const createFetch = datasource => {
+    return fetchData({
+      API,
+      datasource,
+      options: {
+        query,
+        sortColumn,
+        sortOrder,
+        limit,
+        paginate,
+      },
+    })
+  }
+
+  const handleBlur = (e) => {
+    if (!picker?.contains(e.relatedTarget)) {
+			editorState.close();
+      dispatch("blur")
+    }
+  }
 
 </script>
 
@@ -121,108 +163,136 @@
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
   on:keydown={handleKeyboard} 
-  on:blur
-  on:focus={cellState.focus}
+  on:focusout={handleBlur}
+  on:focusin={cellState.focus}
 >
   {#if cellOptions?.iconFront}
     <i class={cellOptions.iconFront + " frontIcon"}></i>
   {/if}
-  <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }>
-    {#if value.length < 1 }
-      { cellOptions?.placeholder ?? placeholder }
-    {:else if value.length > 0}
-      {#each value as val (val)}
-        {@const color = optionColors[val] || getOptionColor(val)}
-          <div class="item" animate:flip={{ duration: 130 }}  style="--color: {color}">
-            <span> {val} </span>
-          </div>
-      {/each}
-    {/if}
 
-    {#if inEdit}
-      <i class="ri-arrow-down-s-line" style="font-size: 20px;" on:click|stopPropagation={(e) => editorState.toggle()}/>
-    {/if}
-  </div>
-
-  <Popover 
-    {anchor} 
-    useAnchorWidth={!multi}
-    dismissible
-    align={"left"} 
-    open={ $editorState == "Open" && inEdit }
-    on:close={ () => { editorState.toggle() } }
-  >
-    <div class="options" on:wheel={(e) => e.stopPropagation()}>
-      {#if options.length < 1}
-        No Available Options
-      {:else}
-        {#each options as option,idx (idx)}
-        {@const color = optionColors[option] || getOptionColor(option)}
-          {#if (option == "Clear Selection") }
-            <div
-              class="option"
-              style:color={"var(--primaryColor)"}
-              class:focused={focusedOptionIdx === idx}
-              on:mouseenter={() => (focusedOptionIdx = idx)}
-              on:click|preventDefault={(e) => editorState.toggleOption(idx)}
-            >
-              <div class="option text">
-                <i class="ri-close-line" />
-                {option}
-              </div>
-            </div>
-          {:else}
-            <div
-              class="option"
-              class:focused={focusedOptionIdx === idx}
-              on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-              on:mouseenter={() => (focusedOptionIdx = idx)}
-            >
-              <div class="option text">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={color} stroke={color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
-                {option}
-              </div>
-              {#if value?.includes(option)}
-                <i class="ri-check-line" />
-              {/if}
-            </div>
+  {#if inEdit}
+    <div 
+      class="editor"
+      class:placeholder={ value?.length < 1} 
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      on:click={editorState.toggle}
+      >
+        <div class="items" class:simpleView >
+          {#if value.length < 1 }
+            { cellOptions?.placeholder ?? placeholder }
+          {:else if value.length > 0}
+            {#each value as val (val)}
+              {@const color = getOptionColor(val) }
+                <div class="item" animate:flip={{ duration: 130 }}  style:--color={color}>
+                  <span> {val} </span>
+                </div>
+            {/each}
           {/if}
-        {/each}
-      {/if}
+        </div>
+        <i class="ri-arrow-down-s-line"></i>
     </div>
-  </Popover>
+  {:else}
+    <div 
+      class="value"
+      class:placeholder={value?.length < 1} 
+      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+    >
+      <div class="items" class:simpleView >
+        {#if value.length < 1 }
+          { cellOptions?.placeholder ?? placeholder }
+        {:else if value.length > 0}
+          {#each value as val (val)}
+            {@const color = getOptionColor(val) }
+              <div class="item" animate:flip={{ duration: 130 }}  style:--color={color} >
+                <span> {val} </span>
+              </div>
+          {/each}
+        {/if}
+      </div>
+    </div>
+  {/if}
+
+  {#if inEdit}
+    <Popover 
+      {anchor} 
+      useAnchorWidth
+      dismissible
+      open={$editorState == "Open"}
+      on:close={editorState.close}
+    >
+      <div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}>
+        {#if options.length < 1}
+          <div class="option">
+            <div class="option text">
+              <i class="ri-close-line" />
+                No Available Options
+            </div>
+          </div>
+        {:else}
+          {#each options as option,idx (idx)}
+            {#if (option == "Clear Selection") }
+              <div
+                class="option"
+                style:color={"var(--primaryColor)"}
+                class:focused={focusedOptionIdx === idx}
+                on:mouseenter={() => (focusedOptionIdx = idx)}
+                on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+              >
+                  <i class="ri-close-line" style="font-size: 16px;"/>
+                  {option}
+              </div>
+            {:else}
+              <div
+                class="option"
+                class:focused={focusedOptionIdx === idx}
+                on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+                on:mouseenter={() => (focusedOptionIdx = idx)}
+              >            
+                <div class="loope" style:background-color={getOptionColor(option)} >
+                  {#if value?.includes(option)}
+                    <i class="ri-check-line" />
+                  {/if}
+                </div>
+                {option}
+              </div>
+            {/if}
+          {/each}
+        {/if}
+      </div>
+    </Popover>   
+  {/if}
+
+
+
 </div>
 
 <style>
-    .value {
-    flex: auto;
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .options {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
     overflow-y: auto;
-    padding: 0.3rem;
-    gap: 0rem;
+    padding: 0.25rem;
   }
   .option {
-    padding: 0.15rem;
+    height: 1.75rem;
+    padding: 0.25rem;
     display: flex;
-    gap: 0.3rem;
+    gap: 0.5rem;
     flex-direction: row;
-    justify-content: space-between;
     align-items: center;
     cursor: pointer;
+  }
+
+  .loope {
+    height: 14px;
+    width: 14px;
+    border-radius: 2px;
+    display: grid;
+    align-items: center;
+    justify-items: center;
+    font-size: 12px;
   }
   .option:hover,
   .option.focused {

@@ -11,11 +11,12 @@
   /** @type {cellOptions} */
   export let cellOptions
 
-  let focusable
-
   const dispatch = createEventDispatcher();
 
   let timer;
+
+  $: inEdit = $cellState == "Editing"
+
 	const debounce = e => {
     value = e.target.value
     if (cellOptions.debounce) {    
@@ -30,13 +31,14 @@
 	}
 
   export let focus = ( node ) =>  node ? node.focus() : focusable?.focus()
+
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   class="superCell"
-  class:inEdit={ $cellState == "Editing" }
+  class:inEdit
   class:inline={ cellOptions?.role == "inline" }  
   class:tableCell={ cellOptions?.role == "tableCell" } 
   class:formInput={ cellOptions?.role == "formInput" } 
@@ -45,17 +47,17 @@
   style:font-weight={ cellOptions?.fontWeight }
 > 
   {#if cellOptions?.iconFront}
-  <i class={cellOptions.iconFront + " frontIcon"}></i>
+   <i class={cellOptions.iconFront + " frontIcon"}></i>
   {/if}
 
-  {#if $cellState == "Editing" }
+  {#if inEdit}
     <input
-      bind:this={focusable} 
       class="editor"
+      class:placeholder={!value}
       style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
       style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
-      {value}
-      placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : "Enter..." }
+      value={ value ?? "" }
+      placeholder={ cellOptions?.placeholder ?? "Enter..." }
       on:input={debounce}
       on:blur={() => dispatch("blur")}
       use:focus
@@ -72,31 +74,10 @@
       class="value"
       class:placeholder={!value}
       style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
-      style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
       style:justify-content={cellOptions.align}
       > 
       { formattedValue || value || cellOptions?.placeholder || "" } 
     </div>
   {/if}
+
 </div>
-
-<style>
-  .value {
-    flex: auto;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    font-size: var(--super-table-base-font-size);
-  }
-
-  .editor::placeholder {
-    font-style: italic;
-    color: var(--spectrum-global-color-gray-500);
-  }
-  .editor:focus::placeholder {
-    font-style: italic;
-    color: var(--spectrum-global-color-blue-500);
-  }
-</style>

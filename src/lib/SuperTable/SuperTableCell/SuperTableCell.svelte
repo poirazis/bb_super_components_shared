@@ -27,6 +27,7 @@
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.padding,
+    optionsColors: true
   }
 
   function acceptChange ( ) { 
@@ -63,6 +64,13 @@
     } 
   }
 
+  const handleBlur = (event) => {
+    // if the blur was because of outside focus
+    // currentTarget is the parent element, relatedTarget is the clicked element
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+        cellState.lostFocus()
+    }
+}
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -74,8 +82,8 @@
   class:inEdit={ $cellState == "Editing" }
   tabindex="0"
   on:keydown={handleKeyboard}
-  on:click={ () => { cellState.focus() } }
-  on:focus={ () => { cellState.focus() } }
+  on:focus={ cellState.focus }
+  on:blur={handleBlur}
 >
   <SuperCell
     bind:cellState 

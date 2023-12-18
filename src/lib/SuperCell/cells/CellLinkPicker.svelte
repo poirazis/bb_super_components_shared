@@ -2,7 +2,7 @@
     import CellSkeleton from "./CellSkeleton.svelte";
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
-    import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
+
 
     const { API } = getContext("sdk");
     const dispatch = createEventDispatcher();
@@ -35,6 +35,7 @@
       },
     })
 
+    const fetchData = () => { }
 
     const debounce = e => {
       clearTimeout(timer);
