@@ -180,6 +180,7 @@
 
 <style>
   .superTableColumn {
+    flex: 1 1 auto;
     position: relative;
     border-right: var(--super-table-vertical-dividers);
     color: var(--super-table-color);

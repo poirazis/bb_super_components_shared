@@ -13,11 +13,9 @@
 	let anchor;
 	let picker;
 	let open;
-	$: innerDate = value ? new Date(value) : null;
-	let flag;
 
+	$: innerDate = value ? new Date(value) : null;
 	$: inEdit = $cellState == 'Editing';
-	$: inEdit ? anchor?.focus() : null;
 
 	const handleKeyboard = (e) => {
 		if (e.keyCode == 32) {
@@ -29,6 +27,7 @@
 
 	const handleBlur = (e) => {
     if (!picker?.contains(e.relatedTarget)) {
+			open = false
       dispatch("blur")
     }
   }
@@ -50,44 +49,38 @@
 	style:background={cellOptions?.background}
 	style:font-weight={cellOptions?.fontWeight}
   style:min-width={"8rem"}
-	on:focus={cellState.focus}
-	on:blur={handleBlur}
+	on:focusin={cellState.focus}
+	on:focusout={ handleBlur }
 	on:keypress={handleKeyboard}
 >
 	{#if cellOptions?.iconFront}
 		<i class={cellOptions.iconFront + ' frontIcon'}></i>
 	{/if}
 
-	<div
-		class="value"
-		class:placeholder={!value}
-		style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
-	>
-		{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder  }
-	</div>
-  {#if inEdit && !open}
-    <i
-      class="ri-calendar-line"
-      class:endIcon={true} 
-      on:click={() => {
-        if (inEdit) {
-          open = !open;
-          flag = false;
-        }
-      }}
-    ></i>
-  {:else if inEdit && open}
-    {#if cellOptions.clearValueIcon}  
-      <i 
-        class="ri-close-line" 
-        class:endIcon={true} 
-        on:mousedown|preventDefault={ ()=> dispatch("change", null )}>
-      </i>
-    {/if}
+	{#if inEdit}
+		<div class="editor"
+			class:placeholder={!value}
+			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+			on:click={() => open = !open }
+		>
+			{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}
+			<i
+				class="ri-calendar-line"
+				class:endIcon={true} 
+			></i>
+		</div>
+	{:else}
+		<div
+			class="value"
+			class:placeholder={!value}
+			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+		>
+			{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}	
+		</div>
   {/if}
 </div>
 
-<Popover {anchor} dismissible bind:open align="left">
+<Popover {anchor} dismissible bind:open align="left" >
   <div 
     bind:this={picker}
     style:--date-picker-background="var(--spectrum-alias-background-color-default)"
@@ -97,30 +90,12 @@
   <DatePicker
     bind:value={innerDate}
     browseWithoutSelecting
+		on:focusout={() => open = false }
     on:select={(e) => {
       dispatch('change', e.detail);
       anchor.focus();
-      flag = true;
       open = false;
     }}
   />
   </div>
 </Popover>
-
-<style>
-	.value {
-		flex: auto;
-		display: flex;
-		white-space: nowrap;
-		justify-content: space-between;
-		align-items: center;
-		text-overflow: ellipsis;
-		overflow: hidden;
-		gap: 1rem;
-	}
-
-	.placeholder {
-		font-style: italic;
-		color: var(--spectrum-global-color-gray-700);
-	}
-</style>

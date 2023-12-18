@@ -27,6 +27,7 @@
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.padding,
+    optionsColors: true
   }
 
   function acceptChange ( ) { 
