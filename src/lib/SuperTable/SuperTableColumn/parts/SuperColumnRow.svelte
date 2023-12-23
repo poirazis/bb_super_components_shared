@@ -40,6 +40,7 @@
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
 	bind:this={rowElement}
 	class="spectrum-Table-row" 
@@ -54,6 +55,7 @@
 	>
 	{#if !columnOptions.hasChildren }
 		<SuperTableCell 
+			{isLoading}
 			rowKey={ row?.rowKey }
 			valueTemplate={ columnOptions?.template }
 			value= { row?.rowValue }

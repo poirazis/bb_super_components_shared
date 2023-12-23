@@ -63,39 +63,41 @@
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
 			on:click={() => open = !open }
 		>
-			{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}
-			<i
-				class="ri-calendar-line"
-				class:endIcon={true} 
-			></i>
+			<div class="items" style:justify-content={cellOptions.align ?? "flex-end"}>
+				{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}
+			</div>
+			<i class="ri-calendar-line" style="font-size: 16px;"></i>
 		</div>
 	{:else}
 		<div
 			class="value"
 			class:placeholder={!value}
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+			style:justify-content={cellOptions.align ?? "flex-end"}
 		>
 			{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}	
 		</div>
   {/if}
 </div>
 
-<Popover {anchor} dismissible bind:open align="left" >
-  <div 
-    bind:this={picker}
-    style:--date-picker-background="var(--spectrum-alias-background-color-default)"
-    style:--date-picker-foreground="var(--spectrum-global-color-gray-800)"
-    style:--date-picker-selected-background="var(--accent-color)"
-  >
-  <DatePicker
-    bind:value={innerDate}
-    browseWithoutSelecting
-		on:focusout={() => open = false }
-    on:select={(e) => {
-      dispatch('change', e.detail);
-      anchor.focus();
-      open = false;
-    }}
-  />
-  </div>
-</Popover>
+{#if inEdit}
+	<Popover {anchor} dismissible bind:open align="left" >
+		<div 
+			bind:this={picker}
+			style:--date-picker-background="var(--spectrum-alias-background-color-default)"
+			style:--date-picker-foreground="var(--spectrum-global-color-gray-800)"
+			style:--date-picker-selected-background="var(--accent-color)"
+		>
+		<DatePicker
+			bind:value={innerDate}
+			browseWithoutSelecting
+			on:focusout={() => open = false }
+			on:select={(e) => {
+				dispatch('change', e.detail);
+				anchor.focus();
+				open = false;
+			}}
+		/>
+		</div>
+	</Popover>
+{/if}

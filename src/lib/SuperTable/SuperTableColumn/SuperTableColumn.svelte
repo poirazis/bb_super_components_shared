@@ -31,7 +31,6 @@
   // Props
   export let columnOptions;
   export let tableState
-  export let tableOptions;
 
   // Internal Variables
   let id = uuidv4();
@@ -116,6 +115,7 @@
     }
   });
 
+  $: columnState.tableState($tableState)
   // Reactive declaration.
   // nameStore is used in our derived store that holds the column data
   let nameStore = writable(columnOptions.name);
@@ -143,7 +143,6 @@
 
   onDestroy( () => tableDataStore?.unregisterColumn({ id: id, field: columnOptions.name }) );
   onMount( () => startWidth = column ? column.clientWidth : null )
-
 </script>
 
 <svelte:window

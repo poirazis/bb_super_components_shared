@@ -122,7 +122,7 @@ export const createSuperTableDataStore = () => {
 		subscribe,
 		nextUnusedField() {
 			let state = get(this)
-			let allFields = Object.keys(state.schema ?? {})
+			let allFields = Object.keys(state?.schema ?? {})
 			let usedFields = state.registeredColumns.map(v => v.field)
 			let freeField = allFields.filter(v => !usedFields.includes(v))
 			return freeField[0] ?? ""

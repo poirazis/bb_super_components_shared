@@ -16,18 +16,16 @@
     color: columnOptions.color,
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
-    padding: columnOptions.padding,
+    padding: columnOptions.cellPadding,
   };
 
   const handleValueChange = (e) => {
     filterValue = e.detail;
-    if (
-      filterValue != undefined &&
-      filterValue != "" &&
-      filterValue.length != []
-    ) {
+    if ( columnOptions.schema.type == "boolean" && !filterValue ) {
+      columnState.filter(buildFilter("notEqual", true));
+    } else if ( filterValue ) {
       columnState.filter(buildFilter(filterOperator, filterValue));
-    } else if ( e.detail == null ) {
+    } else {
       showFilteringOptions = false
       columnState.cancel();
     }
@@ -37,7 +35,7 @@
     return {
       field: columnOptions.name,
       operator: operator,
-      value: columnOptions.schema.type == "number" ? Number(value) : value,
+      value: value,
       valueType: "Value",
     };
   };
@@ -55,7 +53,6 @@
     if ( !showFilteringOptions && !filterValue )
       columnState.cancel();
   }
-
 </script>
 
 {#if columnOptions.showHeader}
@@ -68,15 +65,15 @@
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
+    style:padding-left={ columnOptions.cellPadding }
+    style:padding-right={ $columnState == "Entering" ? 0 : columnOptions.cellPadding }
     on:keydown={handleKeyboard}
     bind:this={headerAnchor} 
     tabindex="0" 
   >
-    {#if $columnState == "Idle" || $columnState == "Ascending" || $columnState == "Descending"}
+    {#if $columnState == "Idle" || $columnState == "Ascending" || $columnState == "Descending" || $columnState == "Loading" }
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
-        <div class="actionIcon" on:click={columnState.filter}>
-          <i class="ri-search-line" > </i>
-        </div>
+        <i class="ri-search-line icon" on:click={columnState.filter}> </i>
       {/if}
 
       <div
@@ -88,21 +85,19 @@
           class:sortable={columnOptions.canSort}
           on:click={columnState.sort}
         >
-          {columnOptions.displayName}
+          {columnOptions.displayName ?? columnOptions.name}
         </div>
       </div>
 
       {#if columnOptions.isSorted}
-        <div class="actionIcon sort">
-            <i class={ $columnState == "Ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
-        </div>
+        <i class={ $columnState == "Ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
       <i class="ri-equalizer-line" style="align-self: center; font-size: 12px;" on:click|stopPropagation={ () => showFilteringOptions = true } />
       <SuperCell
         bind:cellState       
         cellOptions={{
-          padding: "0 0.5rem",
+          ...cellOptions,
           clearValueIcon: true,
           placeholder: columnOptions.name,
           debounce: 500,
@@ -117,65 +112,62 @@
         on:change={handleValueChange}
         on:blur={() => { if (! headerAnchor.matches(":focus-within") && !filterValue) columnState.cancel() }}
       />
-    {:else if $columnState == "Loading"}
-      <p>...</p>
     {/if}
-
-    <Popover
-      anchor={headerAnchor}
-      align="left"
-      dismissible
-      open={ showFilteringOptions }
-      on:close={ () => { showFilteringOptions = false  } }
-    >
-      <ul class="spectrum-Menu" role="menu">
-        {#each columnOptions.filteringOperators as option}
-          <li
-            class="spectrum-Menu-item"
-            class:selected={option.value == filterOperator}
-            role="menuitem"
-            on:click|stopPropagation={() => {
-              filterOperator = option.value;
-              showFilteringOptions = false;
-              columnState.filter(buildFilter(filterOperator, filterValue));
-              cellState.focus();
-            }}
-          >
-            <span class="spectrum-Menu-itemLabel">{option.label}</span>
-          </li>
-        {/each}
-      </ul>
-    </Popover>
-
   </div>
+
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <Popover
+    anchor={headerAnchor}
+    align="left"
+    dismissible
+    open={ showFilteringOptions }
+    on:close={ () => { showFilteringOptions = false  } }
+  >
+    <ul class="spectrum-Menu" role="menu">
+      {#each columnOptions.filteringOperators as option}
+        <li
+          class="spectrum-Menu-item"
+          class:selected={option.value == filterOperator}
+          role="menuitem"
+          on:click|stopPropagation={() => {
+            filterOperator = option.value;
+            showFilteringOptions = false;
+            columnState.filter(buildFilter(filterOperator, filterValue));
+            cellState.focus();
+          }}
+        >
+          <span class="spectrum-Menu-itemLabel">{option.label}</span>
+        </li>
+      {/each}
+    </ul>
+  </Popover>
 {/if}
 
 <style>
   .spectrum-Table-headCell {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     height: 2.5rem;
-    padding: unset;
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
     background-color: var(--super-table-header-bg-color);
-    padding-left: var(--super-table-cell-padding);
+    padding-top: none;
+    padding-bottom: none;
   }
 
   .spectrum-Table-headCell.idle {
     gap: 0.5rem;
-    padding-right: var(--super-table-cell-padding);
-
   }
 
   .enterting {
+    min-width: 10rem;
     background-color: var(
       --spectrum-textfield-m-background-color,
-      var(--spectrum-global-color-gray-50)
+      var(--spectrum-global-color-gray-100)
     );
-    color: var(--spectrum-global-color-gray-600);
   }
   .filtered {
+    min-width: 10rem;
     color: var(--spectrum-global-color-gray-800);
     font-weight: 600;
     background-color: var(
@@ -203,29 +195,17 @@
   .sortable:hover {
     filter: brightness(120%);
   }
-  .actionIcon {
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--spectrum-global-color-gray-500);
-    transition: all 230ms ease-in-out;
-  }
-
-  .actionIcon.sort {
-    color: var(--spectrum-global-color-gray-600);
-    font-size: 14px;
-  }
-  .actionIcon:hover {
-    color: var(--spectrum-global-color-blue-500);
-    cursor: pointer;
-  }
-
-  .actionIcon:hover > i {
-    font-weight: 600;
-  }
   .selected {
     color: var(--primaryColor);
     background-color: var(--spectrum-global-color-gray-75);
+  }
+
+  .icon {
+    font-size: 18px;
+    color: var(--spectrum-global-color-gray-400);
+  }
+  .icon:hover {
+    cursor: pointer;
+    color: var(--primaryColor);
   }
 </style>

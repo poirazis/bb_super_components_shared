@@ -7,6 +7,9 @@
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
   import { dataFilters } from "@budibase/shared-core/";
+  import { fetchData } from "../../../node_modules/@budibase/frontend-core/src/fetch"
+  import { themeMap } from "./themes/superTableThemes.js"
+ 
   import {
     createSuperTableDataStore,
     createSuperTableFilterStore,
@@ -17,22 +20,24 @@
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
 
-  const { getAction, ActionTypes } = getContext("sdk");
+  const { API } = getContext("sdk");
 
   export let tableOptions = {}
-  export let tableColumns = []
-  export let tableTheme = {}
-  export let dataProvider = {};
   export let inBuilder = false
-
-  let setSorting,
-    setFiltering,
-    unsetFiltering,
-    filtered = false;
+  export let sortColumn
+  export let sortOrder
+  export let limit = 100
+  export let paginate= false
 
   let timer
   let anchor
   let columnStates = [];
+  let columns 
+  let fetch
+  let schema
+  let datasource
+  let query
+  let filter
 
   // Create Stores
   const tableDataStore = createSuperTableDataStore();
@@ -44,17 +49,21 @@
   const tableHoverStore = new writable(-1);
   const tableOptionStore = new writable(tableOptions);
   
-  const tableState = fsm("Idle", {
+  const tableState = fsm("Loading", {
     "*" : {
-      refresh() { return "Loading" },
+      refresh( fetch ) { 
+        if ( fetch.loaded ) 
+          return "Idle"
+        if ( fetch.loading )
+          return "Loading" 
+       },
       applyFilter( filterObj ) {
-        console.log(filterObj)
         tableFilterStore?.setFilter(filterObj) 
       },
       setFilter( filterObj ) { 
         this.applyFilter.debounce( 50, filterObj)
       },
-      clearFilter() { return "Idle" },
+      clearFilter() { removeQueryExtension("123"); return "Idle" },
       sortBy( column, direction ) {  
         if (column != $tableStateStore.sortedColumn || direction != $tableStateStore.sortedDirection) {
           setSorting?.({ column: column, order: direction });
@@ -103,7 +112,6 @@
       filtering: "Loading",
      },
     Loading: { 
-      _enter() { this.loaded.debounce(500) }, 
       loaded: "Idle"
     },
     Filtered: { },
@@ -111,62 +119,97 @@
     Empty: { }
   });
 
-  // Static Assignments
-  $tableStateStore.loaded = true;
-  $tableDataStore.loaded = true;
+  let queryExtensions = {}
 
-  $: $tableDataStore.data = dataProvider?.rows ?? [];
-  $: $tableDataStore.dataSource = dataProvider?.datasource ?? {};
-  $: $tableDataStore.schema = dataProvider?.schema ?? {};
+  $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
+  $: queryExtension = dataFilters.buildLuceneQuery($tableFilterStore.filters)
+  $: addQueryExtension("123", queryExtension)
+  $: query = extendQuery(defaultQuery, queryExtensions)
 
-  $: $tableStateStore.rowCount = dataProvider.rows.length
-    ? dataProvider.rows.length
+  $: inpProvider = tableOptions.data.datasource.type == "provider"
+
+  // Fetch data and refresh when needed
+  $: datasource = tableOptions.data.datasource
+  $: schema = tableOptions.data.schema
+  $: !fetch ? fetch = createFetch(datasource) : null
+
+  $: fetch?.update({
+    query,
+    sortColumn,
+    sortOrder,
+    limit,
+    paginate,
+  })
+
+  $: tableState.refresh($fetch)
+  $: console.log(tableOptions.hasChildren)
+
+  $: if ( tableOptions.columns?.length > 0 )
+        columns = tableOptions.columns.map( (column) => makeSuperColumn (column) )
+      else if ( tableOptions.hasChildren )
+        columns = []
+      else 
+        columns = getAllColumns(false)
+
+  $: tableTheme = themeMap[tableOptions.appearance.theme]
+  $: $tableDataStore.data = $fetch?.rows ?? [];
+  $: $tableDataStore.dataSource = tableOptions.data.datasource ?? {};
+  $: $tableDataStore.schema = schema
+
+  $: $tableStateStore.rowCount = $fetch.rows.length
+    ? $fetch.rows.length
     : tableOptions.visibleRowCount;
 
   // Initialize Store with appropriate row heights to avoid flicker when they load
   $: tableStateStore.setRowMinHeight(tableOptions.rowHeight);
   $: maxBodyHeight = tableOptions.visibleRowCount * $tableStateStore.rowHeights[0];
 
-  // Get dataProvider sorting / filtering functions
-  $: setSorting = getAction(
-    dataProvider?.id,
-    ActionTypes.SetDataProviderSorting
-  );
-  $: setFiltering = getAction(
-    dataProvider?.id,
-    ActionTypes.AddDataProviderQueryExtension
-  );
-  $: unsetFiltering = getAction(
-    dataProvider?.id,
-    ActionTypes.RemoveDataProviderQueryExtension
-  );
-
-  $: refreshDP = getAction(dataProvider?.id, ActionTypes.RefreshDatasource )
-  $: if ( tableOptions.autoRefresh && !timer ) 
-    timer = setInterval ( () => ( refreshDataProvider() ), tableOptions.autoRefreshRate * 1000 )
-
-  $: if ( timer && !tableOptions.autoRefresh ) clearInterval(timer)
-
-  $: setDataProviderFiltering($tableFilterStore?.filters);
   $: handleDataChange($tableDataChangesStore);
 
-  $: $tableDataStore._parentID = tableOptions.componentID;
   $: $tableDataStore.idColumn = tableOptions.idColumn;
 
-  // Component Function Definitions
-  function setDataProviderFiltering(filters) {
-    if (filters.length > 0) {
+  const createFetch = datasource => {
+    return fetchData({
+      API,
+      datasource,
+      options: {
+        query,
+        sortColumn,
+        sortOrder,
+        limit,
+        paginate,
+      },
+    })
+  }
 
-      const queryExtension = dataFilters.buildLuceneQuery(
-        $tableFilterStore?.filters
-      );
-      setFiltering?.(tableOptions.componentID, queryExtension);
-      filtered = true;
-    } else if (filtered) {
-      console.log("Clearing Filters")
-      unsetFiltering?.(tableOptions.componentID);
-      filtered = false;
+  const extendQuery = (defaultQuery, extensions) => {
+    const extensionValues = Object.values(extensions || {})
+    let extendedQuery = { ...defaultQuery }
+    extensionValues.forEach(extension => {
+      Object.entries(extension || {}).forEach(([operator, fields]) => {
+        extendedQuery[operator] = {
+          ...extendedQuery[operator],
+          ...fields,
+        }
+      })
+    })
+    return extendedQuery
+  }
+
+  const addQueryExtension = (key, extension) => {
+    if (!key || !extension) {
+      return
     }
+    queryExtensions = { ...queryExtensions, [key]: extension }
+  }
+
+  const removeQueryExtension = key => {
+    if (!key) {
+      return
+    }
+    const newQueryExtensions = { ...queryExtensions }
+    delete newQueryExtensions[key]
+    queryExtensions = newQueryExtensions
   }
 
   function handleRowSelect(event) {
@@ -186,10 +229,83 @@
     }
   }
 
-  function refreshDataProvider() {
-    $tableStateStore.refreshing = true;
-    refreshDP();
-    setTimeout( () => ($tableStateStore.refreshing = false) , 750 )
+  const defaultOperatorMap = {
+    "string" : "fuzzy",
+    "formula" : "fuzzy",
+    "array" : "contains",
+    "options" : "equal",
+    "datetime" : "rangeLow",
+    "boolean" : "equal",
+    "number" : "equal",
+    "bigint" : "equal",
+	}
+
+  const supportFilteringMap = {
+    "string" : true,
+    "array" : true,
+    "options" : true,
+    "datetime" : true,
+    "boolean" : true,
+    "number" : true,
+    "bigint" : true,
+	}
+
+  const supportSortingMap = {
+    "string" : true,
+    "formula" : true,
+    "array" : true,
+    "options" : true,
+    "datetime" : true,
+    "boolean" : true,
+    "number" : true,
+    "bigint" : true,
+	}
+
+  const supportEditingMap = {
+		 "string" : true,
+		 "array" : true,
+     "link" : true,
+     "bb_reference" : true,
+		 "options" : true,
+		 "datetime" : true,
+     "boolean" : true,
+     "number" : true,
+     "bigint" : true,
+	}
+
+  const getAllColumns = ( includeAuto ) => {
+    let allColumns = []
+    if (schema) 
+      allColumns = Object.keys(schema)
+        .filter( v => schema[v].autocolumn !== !includeAuto)
+        .map( (v) => makeSuperColumn( { name: v, displayName: v }) )
+      
+    return allColumns
+  }
+
+  const makeSuperColumn =  bbcolumn  => {
+    let superColumn = {
+      ...bbcolumn,
+      hasChildren: false,
+      schema: schema[bbcolumn.name] ?? {},
+      sizing: bbcolumn.width ? "fixed" : tableOptions.columnSizing,
+      fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth,
+      maxWidth: tableOptions.columnMaxWidth,
+      minWidth: tableOptions.columnMinWidth,
+      showFooter: tableOptions.showFooter,
+      showHeader: tableOptions.showHeader,
+      canEdit: tableOptions.canEdit && supportEditingMap[schema[bbcolumn.name].type],
+      canFilter: tableOptions.canFilter && supportFilteringMap[schema[bbcolumn.name].type],
+      canSort: tableOptions.canSort && supportSortingMap[schema[bbcolumn.name].type],
+      filteringOperators: dataFilters.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
+      defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
+      cellPadding: tableOptions.appearance.cellPadding,
+      headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
+      useOptionColors: tableOptions.appearance.useOptionColors, 
+      optionsViewMode: tableOptions.appearance.optionsViewMode,
+      relViewMode: tableOptions.appearance.relViewMode
+    }
+    return superColumn
   }
 
   setContext("tableDataStore", tableDataStore);
@@ -220,7 +336,7 @@
   style:--super-table-relItem-color={tableTheme.relationshipItemColor}
   style:--super-table-relItem-bg-color={tableTheme.relationshipItemBgColor}
   style:--super-table-column-width={tableOptions.columnSizing == "fixed" ? tableOptions.columnWidth : null }
-  style:--super-table-cell-padding={tableOptions.cellPadding + "px"}
+  style:--super-table-cell-padding={tableOptions.appearance.cellPadding + "px"}
   style:--super-table-vertical-dividers={tableOptions.dividers == "both" ||
   tableOptions.dividers == "vertical"
     ? "1px solid var(--spectrum-table-border-color, var(--spectrum-alias-border-color-mid))"
@@ -234,16 +350,17 @@
   <div class="st-master-columns" >
 
     {#if tableOptions.superColumnsPos == "first"} <slot /> {/if}
-
-    {#each tableColumns as columnOptions, idx }
-      <SuperTableColumn
-        bind:columnState={ columnStates[idx] }
-        {tableState}
-        {tableOptions}
-        columnOptions = {{...columnOptions, canEdit: inBuilder ? false : columnOptions.canEdit}}
-      />
-    {/each}
-
+    {#if columns?.length}
+      {#each columns as column, idx }
+        <SuperTableColumn
+          bind:columnState={ columnStates[idx] }
+          {tableState}
+          columnOptions = {{
+            ...column,
+            canEdit: column.canEdit}}
+        />
+      {/each}
+    {/if}
     {#if tableOptions.superColumnsPos != "first"} <slot /> {/if}
 
   </div>

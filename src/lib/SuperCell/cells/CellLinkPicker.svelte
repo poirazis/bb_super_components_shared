@@ -2,6 +2,7 @@
     import CellSkeleton from "./CellSkeleton.svelte";
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
+    import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
 
 
     const { API } = getContext("sdk");
@@ -9,6 +10,7 @@
 
     export let value = []
     export let tableId 
+    export let labelColumn
     export let schema
     export let active = false
     export let datasourceType = "table"
@@ -16,9 +18,7 @@
     let timer;
     let limit = 10
 
-    let tableSchema
     let filteredValue = ""
-    let searchColumns = []
     let results
     let queryParams = {}
     let primaryDisplay = "email"
@@ -35,7 +35,8 @@
       },
     })
 
-    const fetchData = () => { }
+    $: primaryDisplay = labelColumn || $fetch?.schema?.primaryDisplay
+    $: tableSchema = $fetch?.schema
 
     const debounce = e => {
       clearTimeout(timer);
@@ -48,27 +49,6 @@
       e.stopPropagation();
       limit = val
     }
-
-    const loadTableSchema = async ( tableId ) => {
-      if ( tableId && !tableSchema ) {
-        tableSchema = await API.fetchTableDefinition(tableId);
-        searchColumns = [ tableSchema.primaryDisplay ]
-        primaryDisplay = tableSchema.primaryDisplay
-      }
-    }
-
-    const loadTable = async ( tableId, filterValue, limit ) => {
-      queryParams = {}
-      queryParams[primaryDisplay] = filterValue ?? ""
-
-      results = API.searchTable({
-        paginate: false,
-        tableId: tableId,
-        limit: Number (limit),
-        query: { fuzzy: queryParams }
-      });
-      return results;
-    };
 
     const rowSelected = ( val ) => {
       if ( value ) {
@@ -94,10 +74,7 @@
       dispatch("change", value )
     }
 
-    $: loadTableSchema(tableId) 
-    $: results = loadTable(tableId, filteredValue, limit )
-    $: console.log($fetch)
-
+    $: console.log(primaryDisplay)
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -161,26 +138,22 @@
     <div class="listWrapper">
       <div class="list" style:width={"100%"}>
         <div class="options"> 
-          {#if results}
-            {#await results}
+          {#if $fetch.loading}
               <CellSkeleton > <div class="option text"> Loading ... </div> </CellSkeleton> 
-            {:then results}
-              {#if $fetch.rows.length > 0 }
-                {#key value}
-                  {#each $fetch.rows as row, idx }
-                    {#if !(rowSelected(row)) }
-                      <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
-                        <div class="option text">
-                          {row[primaryDisplay]}
-                        </div>
+          {:else}
+            {#if $fetch.rows.length > 0 }
+              {#key value}
+                {#each $fetch.rows as row, idx }
+                  {#if !(rowSelected(row)) }
+                    <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
+                      <div class="option text">
+                        {row[primaryDisplay]}
                       </div>
-                    {/if}
-                  {/each}
-                {/key}
-              {/if}
-            {:catch error}
-              <p style="color: red">{error.message}</p>
-            {/await}
+                    </div>
+                  {/if}
+                {/each}
+              {/key}
+            {/if}
           {/if}
         </div>
       </div>

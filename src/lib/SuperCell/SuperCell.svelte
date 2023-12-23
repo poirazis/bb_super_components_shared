@@ -42,7 +42,6 @@
   export let lockState = false
   export let isHovered
   export let multi = true
-  export let simpleView
 
   export const focus = () => { cellState.focus() }
 
@@ -77,6 +76,8 @@
     }
     return processStringSync(template, { value })
   }
+
+  $: cellOptions.role == "tableCell" ? cellOptions.placeholder = " " : null
 </script>
 
   {#if fieldSchema.type == "string" || fieldSchema.type == "longform" || fieldSchema.type == "formula"} 
@@ -95,7 +96,6 @@
       {cellOptions}
       {fieldSchema}
       {value}
-      {simpleView}
       multi={fieldSchema.type == "array" && multi}
       formattedValue = { getCellValue(value, valueTemplate) }
       on:change

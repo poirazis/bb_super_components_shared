@@ -1,6 +1,7 @@
 <script>
   import { getContext , createEventDispatcher, onMount } from "svelte";
   import SuperCell from "../../SuperCell/SuperCell.svelte";
+  import CellSkeleton from "../../SuperCell/cells/CellSkeleton.svelte";
 
   const tableDataChangesStore = getContext("tableDataChangesStore");
   const dispatch = createEventDispatcher();
@@ -13,6 +14,7 @@
   export let submitOn = "onEnter"
   export let isHovered = false
   export let columnOptions
+  export let isLoading
 
   let originalValue = Array.isArray(value) ? [ ... value ] : value
 
@@ -27,7 +29,9 @@
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.padding,
-    optionsColors: true
+    useOptionColors: columnOptions.useOptionColors,
+    optionsViewMode: columnOptions.optionsViewMode,
+    relViewMode: columnOptions.relViewMode,
   }
 
   function acceptChange ( ) { 
@@ -85,18 +89,22 @@
   on:focus={ cellState.focus }
   on:blur={handleBlur}
 >
-  <SuperCell
-    bind:cellState 
-    {cellOptions}
-    {value}
-    {valueTemplate}
-    {fieldSchema}
-    {editable}
-    {isHovered}
-    on:change={handleChange}
-    on:keydown
-    on:blur={cellState?.lostFocus}
-  />
+  {#if isLoading}
+    <CellSkeleton > Loading .. </CellSkeleton>
+  {:else}
+    <SuperCell
+      bind:cellState 
+      {cellOptions}
+      {value}
+      {valueTemplate}
+      {fieldSchema}
+      {editable}
+      {isHovered}
+      on:change={handleChange}
+      on:keydown
+      on:blur={cellState?.lostFocus}
+    />
+  {/if}
 </div>
 
 <style>
