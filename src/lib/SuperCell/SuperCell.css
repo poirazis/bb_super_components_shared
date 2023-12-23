@@ -110,7 +110,6 @@
   border: none;
 }
 .superCell.formInput {
-  max-height: 2rem;
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
 }
