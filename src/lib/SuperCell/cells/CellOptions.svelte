@@ -178,7 +178,7 @@
 	style:color={cellOptions?.color}
 	style:background={cellOptions?.background}
 	style:font-weight={cellOptions?.fontWeight}
-  style:max-height={() => { if ( cellOptions.controlType == "select" ) return "unset" }}
+  style:height={cellOptions.controlType == "select" ? "2rem" : "unset" }
 	on:keydown={handleKeyboard}
 	on:focusout={handleBlur}
 	on:focusin={cellState.focus}
