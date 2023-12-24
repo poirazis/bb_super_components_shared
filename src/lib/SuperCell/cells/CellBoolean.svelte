@@ -34,6 +34,7 @@
   style:color={ cellOptions?.color }
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
+  style:max-height="2rem"
   >
     {#if cellOptions?.iconFront}
       <i class={cellOptions.iconFront + " frontIcon"}></i>
@@ -45,7 +46,7 @@
       style:padding-right={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
       style:justify-content={ cellOptions.align ?? "center" }
       > 
-        <div class="spectrum-Switch spectrum-Switch--emphasized" style="margin: 0;">
+        <div class="spectrum-Switch spectrum-Switch--emphasized " style="margin: 0;">
           <input
             bind:this={anchor}
             checked={value}

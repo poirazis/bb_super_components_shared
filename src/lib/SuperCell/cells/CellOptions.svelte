@@ -8,11 +8,10 @@
 	const dispatch = createEventDispatcher();
 	const { API } = getContext('sdk');
 
-	export let cellState;
 	export let cellOptions;
 	export let value;
 	export let fieldSchema;
-	export let multi;
+	export let multi = false
 
 	export let placeholder = multi ? 'Choose options' : 'Choose an option';
 
@@ -28,6 +27,28 @@
 	let sortColumn;
 	let sortOrder;
 
+	export let cellState = fsm( "View" , {
+    "*": {
+      goTo( state ) { return state }
+    },
+    View: { 
+      focus () { 
+        return  "Editing"  
+      }
+    },
+    Hovered: { cancel: () => { return "View" }},
+    Focused: { 
+      unfocus() { return lockState ? initialState : "View" },
+    },
+    Error: { check : "View" },
+    Editing: { 
+      unfocus() { return lockState ? initialState : "View" },
+      lostFocus() { return lockState ? initialState : "View" },
+      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+    }
+  })
+
 	export let editorState = fsm('Closed', {
 		'*': {
 			handleKeyboard(e) {},
@@ -39,8 +60,7 @@
 			},
       toggleOption(idx) {
 				toggleOption(options[idx]);
-				dispatch('change', value);
-				if (!multi) this.close.debounce(100);
+				dispatch('change', localValue);
 			}
 		},
 		Open: {
@@ -84,22 +104,17 @@
 		options = fieldSchema?.constraints?.inclusion || [];
 	}
 
-	$: value = Array.isArray(value) ? value : value ? [value] : [];
+	$: localValue = Array.isArray(value) ? value : value ? [value] : [];
 	$: optionColors = fieldSchema?.optionColors || {};
 	$: allowNull = !fieldSchema?.constraints?.presence ?? false;
-	$: if (allowNull && options.length > 1) options = ['Clear Selection', ...options];
+	$: if (allowNull && options.length > 1 && cellOptions.coltrolType == "select") options = ['Clear Selection', ...options];
 	$: inEdit = $cellState == 'Editing';
 	$: if (inEdit && anchor && editorState == 'Closed') anchor?.focus();
 	$: simpleView = cellOptions.optionsViewMode == 'text';
 
 	const getOptionColor = (value) => {
-		if (cellOptions.optionsViewMode != 'text') {
 			return cellOptions.useOptionColors
-				? optionColors[value] ?? 'var(--spectrum-global-color-gray-300)'
-				: 'var(--spectrum-global-color-gray-300)';
-		} else {
-			return 'unset';
-		}
+				? optionColors[value] : undefined
 	};
 
 	const handleKeyboard = (e) => {
@@ -123,20 +138,17 @@
 
 	const toggleOption = (option) => {
 		if (option == 'Clear Selection') {
-			value = multi ? [] : null;
+			localValue = multi ? [] : null;
 			return;
 		}
 
-		if (!multi) {
-			value = [option];
-			editorState.toggle();
+		if (multi && localValue.includes(option))  {
+				localValue.splice(localValue.indexOf(option), 1);
+				localValue = localValue;
+		} else if (multi) {
+				localValue = [...localValue, option];
 		} else {
-			if (value.includes(option)) {
-				value.splice(value.indexOf(option), 1);
-				value = value;
-			} else {
-				value = [...value, option];
-			}
+			localValue = [option];
 		}
 	};
 
@@ -160,8 +172,6 @@
 			dispatch('blur');
 		}
 	};
-
-  $: console.log(cellOptions)
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -178,7 +188,7 @@
 	style:color={cellOptions?.color}
 	style:background={cellOptions?.background}
 	style:font-weight={cellOptions?.fontWeight}
-  style:height={cellOptions.controlType == "select" ? "2rem" : "unset" }
+	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
 	on:keydown={handleKeyboard}
 	on:focusout={handleBlur}
 	on:focusin={cellState.focus}
@@ -201,21 +211,20 @@
         </div>
       {:else}
         {#each options as option, idx (idx)}
-          {#if option != 'Clear Selection'}
-            <div
-              class="option"
-              class:focused={focusedOptionIdx === idx}
-              on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-              on:mouseenter={() => (focusedOptionIdx = idx)}
-            >
-              <div class="loope" style:background-color={getOptionColor(option)}>
-                {#if value?.includes(option)}
-                  <i class="ri-check-line" />
-                {/if}
-              </div>
-              {option}
-            </div>
-          {/if}
+				{@const color = getOptionColor(option)}
+					<div
+						class="option"
+						class:focused={focusedOptionIdx === idx}
+						on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+						on:mouseenter={() => (focusedOptionIdx = idx)}
+					>
+						<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
+							{#if localValue?.includes(option)}
+								<i class="ri-check-line" />
+							{/if}
+						</div>
+						{option}
+					</div>
         {/each}
       {/if}
     </div>
@@ -233,12 +242,17 @@
         </div>
       {:else}
         {#each options as option, idx (idx)}
-          {#if option != 'Clear Selection'}
-          <div class="option">
-            <div class="spectrum-Switch spectrum-Switch--emphasized">
+					{@const color = getOptionColor(option)}
+					{@const selected = localValue.includes(option)}
+					<div class="option">
+            <div class="spectrum-Switch spectrum-Switch--emphasized"
+						style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
+						style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
+						style:--spectrum-switch-m-emphasized-track-color-selected-hover={ color ? color : "var(--spectrum-global-color-blue-600)"}
+						>
               <input
-                checked={value.includes(option)}
-                on:change={(e) => toggleOption(option)}
+                checked={localValue.includes(option)}
+                on:change={(e) => editorState.toggleOption(idx)}
                 type="checkbox"
                 class="spectrum-Switch-input"
                 id={idx}
@@ -246,8 +260,7 @@
               <span class="spectrum-Switch-switch" />
               <label class="spectrum-Switch-label" for={idx}>{option}</label>
             </div>
-          </div>
-          {/if}
+					</div>
         {/each}
       {/if}
     </div>
@@ -259,10 +272,10 @@
 			on:click={editorState.toggle}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if value.length < 1}
+				{#if localValue.length < 1}
 					{cellOptions?.placeholder ?? placeholder}
-				{:else if value.length > 0}
-					{#each value as val (val)}
+				{:else if localValue.length > 0}
+					{#each localValue as val (val)}
 						<div
 							class="item"
 							animate:flip={{ duration: 130 }}
@@ -282,10 +295,10 @@
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if value.length < 1}
+				{#if localValue.length < 1}
 					{cellOptions?.placeholder ?? placeholder}
-				{:else if value.length > 0}
-					{#each value as val (val)}
+				{:else if localValue.length > 0}
+					{#each localValue as val (val)}
 						<div
 							class="item"
 							animate:flip={{ duration: 130 }}
@@ -338,7 +351,7 @@
 							on:mouseenter={() => (focusedOptionIdx = idx)}
 						>
 							<div class="loope" style:background-color={getOptionColor(option)}>
-								{#if value?.includes(option)}
+								{#if localValue?.includes(option)}
 									<i class="ri-check-line" />
 								{/if}
 							</div>
@@ -352,9 +365,6 @@
 {/if}
 
 <style>
-
-
-
 	.options {
     flex: 1;
 		display: flex;
@@ -388,6 +398,7 @@
 		align-items: center;
 		justify-items: center;
 		font-size: 12px;
+		border: 1px solid var(--spectrum-global-color-gray-300);
 	}
 	.option:hover,
 	.option.focused {
