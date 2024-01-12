@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, getContext } from 'svelte'
   import fsm from "svelte-fsm"
 
   export let value
@@ -7,6 +7,7 @@
   export let cellOptions
 
   const dispatch = createEventDispatcher()
+  const { processStringSync } = getContext("sdk")
 
   export let cellState = fsm( "View" , {
     "*": {
@@ -41,8 +42,11 @@
   let anchor
 
   $: inEdit = $cellState == "Editing"
-  $: if ( inEdit && anchor ) anchor?.focus() 
-  $: console.log(cellOptions)
+  $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
+
+  const focus = (node) => {
+    node.focus();
+  }
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -63,7 +67,7 @@
       <i class={cellOptions.icon + " frontIcon"}></i>
     {/if}
 
-    {#if $cellState == "Editing" || cellOptions.role == "formInput"}
+    {#if $cellState == "Editing"}
       <div class="editor" 
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
       style:padding-right={ cellOptions.icon ? "32px" : cellOptions.padding }
@@ -71,13 +75,14 @@
       > 
         <div class="spectrum-Switch spectrum-Switch--emphasized " style="margin: 0;">
           <input
+            class="spectrum-Switch-input"
             bind:this={anchor}
-            checked={value}
-            on:change={ (e) => dispatch("change", !value) }
+            bind:checked={value}
+            on:change={ (e) => dispatch("change", value ) }
             type="checkbox"
             disabled = {cellOptions.disabled || cellOptions.readonly }
-            class="spectrum-Switch-input"
             on:blur={() => dispatch("blur")}
+            use:focus
           />
           <span class="spectrum-Switch-switch" />
         </div>
@@ -90,6 +95,8 @@
           {formattedValue}
         {:else if value}
           <i class="ri-check-line icon"></i>
+        {:else if cellOptions.showFalse}
+          <i class="ri-close-line icon"></i>
         {/if}
       </div>
     {/if}

@@ -133,8 +133,15 @@
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
 }
+.superCell.formInput.error {
+  border: 1px solid var(--spectrum-global-color-red-500);
+  background: var(--spectrum-global-color-gray-50);
+}
 .superCell.formInput.inEdit:focus-within {
   border-color: var(--spectrum-alias-border-color-mouse-focus);
+}
+.superCell.formInput.error.inEdit:focus-within {
+  border: 2px solid var(--spectrum-global-color-red-500);
 }
 .superCell.formInput.inEdit:focus {
   border-color: var(--spectrum-alias-border-color-mouse-focus);

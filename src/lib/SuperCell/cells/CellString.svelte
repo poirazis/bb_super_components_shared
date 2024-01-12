@@ -59,6 +59,7 @@
   }
 
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
+  $: console.log(cellOptions)
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -70,13 +71,16 @@
   class:inline={ cellOptions.role == "inline" }  
   class:tableCell={ cellOptions.role == "tableCell" } 
   class:formInput={ cellOptions.role == "formInput" } 
-  class:disabled={cellOptions.disabled}
+  class:disabled={ cellOptions.disabled }
+  class:error={ cellOptions.error }
   style:color={ cellOptions.color }
   style:background={ cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
   on:focus={cellState.focus}
 > 
-  {#if cellOptions?.icon}
+  {#if cellOptions.error}
+    <i class="ri-alert-line frontIcon" style:color="var(--spectrum-global-color-yellow-400)"></i>
+  {:else if cellOptions.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
@@ -84,7 +88,7 @@
     <input
       class="editor"
       class:placeholder={!value}
-      style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
+      style:padding-left={ cellOptions.icon || cellOptions.error ? "32px" : cellOptions.padding }
       style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
       value={ value ?? "" }
       placeholder={ cellOptions.placeholder ?? "Enter..." }
