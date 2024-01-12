@@ -1,11 +1,17 @@
 <script>
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, getContext} from 'svelte'
   import fsm from "svelte-fsm"
+
+
+  const { processStringSync } = getContext("sdk")
+
 
   export let value
   export let formattedValue
-  export let debounced
   export let cellOptions
+
+
+  $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 
   export let cellState = fsm( "View" , {
     "*": {
