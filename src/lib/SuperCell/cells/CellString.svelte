@@ -59,7 +59,6 @@
   }
 
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
-  $: console.log(cellOptions)
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -106,7 +105,7 @@
     <div 
       class="value"
       class:placeholder={!value}
-      style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
+      style:padding-left={ cellOptions.icon || cellOptions.error  ? "32px" : cellOptions.padding }
       style:justify-content={cellOptions.align}
       > 
         <span>

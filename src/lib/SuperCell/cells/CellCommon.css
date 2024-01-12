@@ -1,8 +1,7 @@
 .superCell {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 2rem;
   min-width: 80px;
-  width: 100%;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -95,7 +94,7 @@
   position: absolute;
   left: 0.5rem;
   font-size: 16px;
-  color: var(--spectrum-global-color-gray-300);
+  color: var(--spectrum-global-color-gray-500);
 }
  .superCell.inEdit > .frontIcon {
   color: var(--spectrum-alias-border-color-mouse-focus);
@@ -141,7 +140,7 @@
   border-color: var(--spectrum-alias-border-color-mouse-focus);
 }
 .superCell.formInput.error.inEdit:focus-within {
-  border: 2px solid var(--spectrum-global-color-red-500);
+  border: 1px solid var(--spectrum-global-color-red-500);
 }
 .superCell.formInput.inEdit:focus {
   border-color: var(--spectrum-alias-border-color-mouse-focus);
