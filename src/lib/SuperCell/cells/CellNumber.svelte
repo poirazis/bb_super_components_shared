@@ -1,27 +1,45 @@
 <script>
   import { createEventDispatcher } from 'svelte'
+  import fsm from "svelte-fsm"
 
-  export let value = null
+  export let value
   export let formattedValue
-  export let cellState
-  export let unstyled
-  export let placeholder = "Enter..."
   export let debounced
   export let cellOptions
 
-  const dispatch = createEventDispatcher()
+  export let cellState = fsm( "View" , {
+    "*": {
+      goTo( state ) { return state }
+    },
+    View: { 
+      focus () { 
+        if (!cellOptions.readonly) return "Editing" 
+      }
+    },
+    Hovered: { cancel: () => { return "View" }},
+    Focused: { 
+      unfocus() { return "View" },
+    },
+    Error: { check : "View" },
+    Editing: { 
+      unfocus() { return "View" },
+      lostFocus() { return "View" },
+      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+    }
+  })
 
-  $: inEdit = $cellState == "Editing"
+  const dispatch = createEventDispatcher()
 
   let timer;
 	const debounce = e => {
     value = e.target.value
 
-    if (debounced) {    
+    if (cellOptions.debounce) {    
       clearTimeout(timer);
       timer = setTimeout(() => {
         dispatch("change", value )
-      }, debounced ?? 0 );
+      }, cellOptions.debounce  ?? 0 );
     }
     else {
      dispatch("change", value )
@@ -36,6 +54,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="superCell"
+  class:disabled={ cellOptions.disabled }
   class:inEdit={ $cellState == "Editing" }
   class:inline={ cellOptions?.role == "inline" }  
   class:tableCell={ cellOptions?.role == "tableCell" } 
@@ -45,6 +64,9 @@
   style:font-weight={ cellOptions?.fontWeight }
   >
 
+  {#if cellOptions?.icon}
+    <i class={cellOptions.icon + " frontIcon"}></i>
+  {/if}
 
   {#if $cellState == "Editing" }
     <input 
@@ -59,8 +81,7 @@
       on:blur={() => dispatch("blur")}
       use:focus
     />
-    {#if cellOptions.clearValueIcon}  
-      
+    {#if cellOptions.clearValueIcon}
       <i 
         class="ri-close-line" 
         class:endIcon={true} 
@@ -69,9 +90,6 @@
     {/if}
   {:else}
    <div class="value"> {formattedValue || value || "" } </div>
-   {#if cellOptions?.iconFront}
-    <i class={cellOptions.iconFront + " frontIcon"}></i>
-  {/if}
   {/if}
 
 

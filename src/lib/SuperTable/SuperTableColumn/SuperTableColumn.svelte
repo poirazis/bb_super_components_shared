@@ -22,10 +22,16 @@
   import SuperColumnHeader from "./parts/SuperColumnHeader.svelte";
   import SuperColumnBody from "./parts/SuperColumnBody.svelte";
   import SuperColumnFooter from "./parts/SuperColumnFooter.svelte";
+  import CellOptions from "../../SuperCell/cells/CellOptions.svelte";
+	import CellString from "../../SuperCell/cells/CellString.svelte";
+	import CellNumber from "../../SuperCell/cells/CellNumber.svelte";
+	import CellBoolean from "../../SuperCell/cells/CellBoolean.svelte";
+	import CellDatetime from "../../SuperCell/cells/CellDatetime.svelte";
+	import CellLink from "../../SuperCell/cells/CellLink.svelte";
+	import CellSkeleton from "../../SuperCell/cells/CellSkeleton.svelte";
 
   const tableDataStore = getContext("tableDataStore");
   const tableStateStore = getContext("tableStateStore");
-  const tableFilterStore = getContext("tableFilterStore");
   const tableHoverStore = getContext("tableHoverStore");
   
   // Props
@@ -42,6 +48,35 @@
   let column
   let columnOptionsStore = new writable({})
   let lockWidth = false
+
+  // Cell Components Map
+  const cellComponents = {
+		'string' : CellString,
+	  'number': CellNumber,
+		'options': CellOptions,
+		'array': CellOptions ,
+		'boolean': CellBoolean ,
+		'datetime': CellDatetime,
+		'link': CellLink,
+		"bb_reference": CellLink
+  };
+
+  $: columnOptions.cellOptions = {
+    role: "tableCell",
+    readonly: !columnOptions.canEdit,
+    align: columnOptions.align,
+    color: columnOptions.color,
+    background: columnOptions.background ?? "transparent",
+    fontWeight: columnOptions.fontWeight,
+    padding: columnOptions.cellPadding,
+    useOptionColors: columnOptions.useOptionColors,
+    optionsViewMode: columnOptions.optionsViewMode,
+    relViewMode: columnOptions.relViewMode,
+    controlType: "select",
+    placeholder: " "
+  }
+
+  $: columnOptions.cellComponent = $columnState == "Loading" ? CellSkeleton : cellComponents[columnOptions.schema.type] ?? CellString
 
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm( "Idle", {

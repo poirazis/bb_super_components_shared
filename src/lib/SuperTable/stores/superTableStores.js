@@ -1,6 +1,26 @@
 import { get, writable } from "svelte/store";
 
 
+export const createSuperTableRowHeightsStore = ( minHeight ) => {
+	const { set, update, subscribe } = writable({
+		// An array of Objects { columnID : columndID, rowHeights : [12,20,20] }
+		columnRowHeights: [],
+		rowHeights: [],
+		rowCount: 0,
+		minRowHeight: minHeight
+	})
+
+	return {
+		set,
+		update,
+		subscribe
+	}
+
+}
+
+
+
+
 // The state store holds UI/UX related synch changes to avoid unecessary refreshes of the main data store
 // It acts as the single source of truth for all super columns to adjust accordingly
 export const createSuperTableStateStore = () => {

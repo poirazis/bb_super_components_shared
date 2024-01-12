@@ -1,6 +1,5 @@
 <script>
   import Popover from "../../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
-  import SuperCell from "../../../SuperCell/SuperCell.svelte"
 
   export let columnState;
   export let columnOptions;
@@ -12,11 +11,15 @@
   let filterOperator = columnOptions.defaultFilteringOperator;
 
   $: cellOptions = {
+    role: "tableCell",
     align: columnOptions.align,
     color: columnOptions.color,
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.cellPadding,
+    controlType: "select",
+    initialState: "Editing",
+    readonly: false
   };
 
   const handleValueChange = (e) => {
@@ -53,6 +56,7 @@
     if ( !showFilteringOptions && !filterValue )
       columnState.cancel();
   }
+
 </script>
 
 {#if columnOptions.showHeader}
@@ -69,7 +73,7 @@
     style:padding-right={ $columnState == "Entering" ? 0 : columnOptions.cellPadding }
     on:keydown={handleKeyboard}
     bind:this={headerAnchor} 
-    tabindex="0" 
+    tabindex="0"
   >
     {#if $columnState == "Idle" || $columnState == "Ascending" || $columnState == "Descending" || $columnState == "Loading" }
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
@@ -94,24 +98,15 @@
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
       <i class="ri-equalizer-line" style="align-self: center; font-size: 12px;" on:click|stopPropagation={ () => showFilteringOptions = true } />
-      <SuperCell
-        bind:cellState       
-        cellOptions={{
-          ...cellOptions,
-          clearValueIcon: true,
-          placeholder: columnOptions.name,
-          debounce: 500,
-        }}
-        multi={false}
-        initialState={"Editing"}
-        editable
-        lockState
-        unstyled
-        value={filterValue}
-        fieldSchema={columnOptions.schema}        
-        on:change={handleValueChange}
-        on:blur={() => { if (! headerAnchor.matches(":focus-within") && !filterValue) columnState.cancel() }}
-      />
+        <svelte:component 
+          this={columnOptions.cellComponent} 
+          bind:cellState
+          {cellOptions}
+          fieldSchema={columnOptions.schema}
+          multi={columnOptions.schema.type == "array"}
+          on:change={handleValueChange}
+          on:blur={columnState.cancel}
+          />
     {/if}
   </div>
 

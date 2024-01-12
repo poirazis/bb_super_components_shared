@@ -35,7 +35,7 @@
       },
     })
 
-    $: primaryDisplay = labelColumn || $fetch?.schema?.primaryDisplay
+    $: primaryDisplay = labelColumn ? labelColumn : $fetch?.definition?.primaryDisplay
     $: tableSchema = $fetch?.schema
 
     const debounce = e => {
@@ -60,11 +60,11 @@
     const selectRow = ( val ) => {
 
       if ( schema.relationshipType == "many-to-many" ) {
-        value.push ( { _id: val._id, primaryDisplay: val[tableSchema.primaryDisplay] } )
+        value.push ( { _id: val._id, primaryDisplay: val[primaryDisplay] } )
       } else if ( schema.relationshipType == "many-to-one") {
-        value.push ( { _id: val._id, primaryDisplay: val[tableSchema.primaryDisplay] } )
+        value.push ( { _id: val._id, primaryDisplay: val[primaryDisplay] } )
       } else if ( schema.relationshipType == "one-to-many") {
-        value = [ { _id: val._id, primaryDisplay: val[tableSchema.primaryDisplay] }]
+        value = [ { _id: val._id, primaryDisplay: val[primaryDisplay] }]
       }
       dispatch("change", value )
     }
@@ -75,6 +75,7 @@
     }
 
     $: console.log(primaryDisplay)
+    $: console.log(value)
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -95,10 +96,9 @@
     <div class="listWrapper">
       <div class="list">
         <div class="options"> 
-          {#if results}
-            {#await results}
+          {#if $fetch.loading }
               <CellSkeleton > <div class="option text"> Loading ... </div> </CellSkeleton> 
-            {:then results}
+          {:else if $fetch.loaded }
               {#key value}
                 {#if $fetch.rows.length > 0 }
                   {#each $fetch.rows as row, idx }
@@ -112,9 +112,6 @@
                   {/each}
                 {/if}
               {/key}
-            {:catch error}
-              <p style="color: red">{error.message}</p>
-            {/await}
           {/if}
         </div>
       </div>

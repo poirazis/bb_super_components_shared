@@ -4,6 +4,7 @@
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { fetchData } from '../../../../node_modules/@budibase/frontend-core/src/fetch/index.js';
+	import "./CellCommon.css"
 
 	const dispatch = createEventDispatcher();
 	const { API } = getContext('sdk');
@@ -33,17 +34,17 @@
     },
     View: { 
       focus () { 
-        return  "Editing"  
+        if (!cellOptions.readonly) return "Editing"  
       }
     },
     Hovered: { cancel: () => { return "View" }},
     Focused: { 
-      unfocus() { return lockState ? initialState : "View" },
+      unfocus() { return "View" },
     },
     Error: { check : "View" },
     Editing: { 
-      unfocus() { return lockState ? initialState : "View" },
-      lostFocus() { return lockState ? initialState : "View" },
+      unfocus() { return "View" },
+      lostFocus() { return "View" },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
@@ -113,7 +114,7 @@
 	$: simpleView = cellOptions.optionsViewMode == 'text';
 
 	const getOptionColor = (value) => {
-			return cellOptions.useOptionColors
+			return cellOptions.useOptionColors && !simpleView
 				? optionColors[value] : undefined
 	};
 
@@ -149,6 +150,7 @@
 				localValue = [...localValue, option];
 		} else {
 			localValue = [option];
+			editorState.toggle();
 		}
 	};
 
@@ -212,14 +214,16 @@
       {:else}
         {#each options as option, idx (idx)}
 				{@const color = getOptionColor(option)}
+				{@const selected = localValue?.includes(option)}
 					<div
 						class="option"
+						class:selected
 						class:focused={focusedOptionIdx === idx}
 						on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
 						on:mouseenter={() => (focusedOptionIdx = idx)}
 					>
 						<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
-							{#if localValue?.includes(option)}
+							{#if selected}
 								<i class="ri-check-line" />
 							{/if}
 						</div>
@@ -258,7 +262,7 @@
                 id={idx}
               />
               <span class="spectrum-Switch-switch" />
-              <label class="spectrum-Switch-label" for={idx}>{option}</label>
+              <label class="spectrum-Switch-label" class:selected for={idx}>{option}</label>
             </div>
 					</div>
         {/each}
@@ -267,7 +271,7 @@
 	{:else if inEdit}
 		<div
 			class="editor"
-			class:placeholder={value?.length < 1}
+			class:placeholder={localValue?.length < 1}
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
 			on:click={editorState.toggle}
 		>
@@ -280,6 +284,7 @@
 							class="item"
 							animate:flip={{ duration: 130 }}
 							style:background-color={getOptionColor(val)}
+							style:border={ getOptionColor(val) || simpleView ? undefined : "1px solid var(--spectrum-global-color-gray-300)" }
 						>
 							<span> {val} </span>
 						</div>
@@ -291,7 +296,7 @@
 	{:else}
 		<div
 			class="value"
-			class:placeholder={value?.length < 1}
+			class:placeholder={localValue?.length < 1}
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
@@ -303,6 +308,7 @@
 							class="item"
 							animate:flip={{ duration: 130 }}
 							style:background-color={getOptionColor(val)}
+							style:border={ getOptionColor(val) || simpleView ? "unset" : "1px solid var(--spectrum-global-color-gray-300)" }
 						>
 							<span> {val} </span>
 						</div>
@@ -388,6 +394,11 @@
 		flex-direction: row;
 		align-items: center;
 		cursor: pointer;
+		color: var(--spectrum-global-color-gray-700);
+	}
+
+	.option.selected {
+		color: var(--spectrum-global-color-gray-900);
 	}
 
 	.loope {
@@ -404,5 +415,13 @@
 	.option.focused {
 		background-color: var(--spectrum-global-color-gray-200);
 		border-radius: 4px;
+	}
+
+	.spectrum-Switch-label {
+		color: var(--spectrum-global-color-gray-700);
+	}
+
+	.spectrum-Switch-label.selected {
+		color: var(--spectrum-global-color-gray-900);
 	}
 </style>

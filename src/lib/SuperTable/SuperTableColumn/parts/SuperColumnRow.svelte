@@ -1,9 +1,8 @@
 <script>
 	import { getContext , createEventDispatcher } from "svelte";
-	import SuperTableCell from "../../SuperTableCell/SuperTableCell.svelte";
 	import { elementSizeStore } from "svelte-legos";
 
-	const { Provider } = getContext("sdk")
+	const { Provider, processStringSync } = getContext("sdk")
 	const tableOptionStore = getContext("tableOptionStore");
 	const tableStateStore = getContext("tableStateStore");
 
@@ -14,14 +13,14 @@
 	export let columnOptions
 	export let isSelected
 	export let isHovered
-	export let isLoading
+
 	// the proposed height
 	export let height
 	export let minHeight
 
-	let contents, size, cellHeight, rowElement 
+	let contents, size, cellHeight, rowElement, cellState 
 
-	$: height = $tableStateStore?.rowHeights[index]
+	$: height = $tableStateStore?.rowHeights[index] || $tableOptionStore?.rowHeight
 	$: minHeight = $tableOptionStore?.rowHeight
 
 	$: if ( columnOptions.hasChildren && contents ) size = elementSizeStore(contents) 
@@ -37,41 +36,48 @@
 			dispatch( "resize" , { height : minHeight })
 		}
 	}
+
+	const getCellValue = value => {
+		return columnOptions.template ? processStringSync( columnOptions.template, { value } ) : undefined
+	}
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div 
 	bind:this={rowElement}
+	tabindex="0"
 	class="spectrum-Table-row" 
 	class:is-selected={isSelected} 
 	class:is-hovered={isHovered}
 	style:height={ height + "px" }
+	on:focusin={cellState.focus}
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
-	on:click={ () => dispatch("rowClicked", { rowKey : row?.rowKey }) }
+	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowKey : row?.rowKey })} }
 	on:dblclick={ () => dispatch("rowDblClicked", { rowKey : row?.rowKey }) } 
 	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowKey : row?.rowKey }) }
 	>
-	{#if !columnOptions.hasChildren }
-		<SuperTableCell 
-			{isLoading}
-			rowKey={ row?.rowKey }
-			valueTemplate={ columnOptions?.template }
-			value= { row?.rowValue }
-			editable={ columnOptions?.canEdit }
-			fieldSchema={ columnOptions.type && columnOptions.type != "auto" ? {...columnOptions?.schema, type: columnOptions.type } : columnOptions?.schema }
-			submitOn = { $tableOptionStore?.submitOn }
-			{isHovered} 
-			{columnOptions}
-		/> 
-	{:else}
-		<div bind:this={contents} class="contentsWrapper"> 
-			<Provider data={ { rowKey: row?.rowKey, Value: row?.rowValue } }>
-				<slot /> 
-			</Provider>
-		</div>	
-	{/if}
+		{#if !columnOptions.hasChildren }
+			<svelte:component 
+				this={columnOptions.cellComponent} 
+				bind:cellState
+				cellOptions={columnOptions.cellOptions}
+				fieldSchema={columnOptions.schema}
+				value={row.rowValue}
+				formattedValue={getCellValue(row.rowValue)}
+				multi={columnOptions.schema.type == "array"}
+				on:blur={cellState.lostFocus}
+				on:change
+			/>
+		{:else}
+			<div bind:this={contents} class="contentsWrapper"> 
+				<Provider data={ { rowKey: row?.rowKey, Value: row?.rowValue } }>
+					<slot /> 
+				</Provider>
+			</div>	
+		{/if}
 </div>
 
 <style>

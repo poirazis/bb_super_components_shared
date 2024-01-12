@@ -29,8 +29,6 @@
   import CellNumber from "./cells/CellNumber.svelte";
   import CellJson from "./cells/CellJSON.svelte";
 
-  import "./SuperCell.css"
-
   const { processStringSync } = getContext("sdk");
   const dispatch = createEventDispatcher();
 
@@ -92,7 +90,6 @@
     />
   {:else if fieldSchema.type == "array" || fieldSchema.type == "options"  }
     <CellOptions
-      {cellState}
       {cellOptions}
       {fieldSchema}
       {value}

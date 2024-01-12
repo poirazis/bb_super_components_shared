@@ -2,14 +2,36 @@
   import Popover from "../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
   import { createEventDispatcher } from "svelte";
 	import CellLinkPicker from "./CellLinkPicker.svelte";
+  import fsm from "svelte-fsm"
+  import "./CellCommon.css"
 
   const dispatch = createEventDispatcher();
 
   export let value = []
-  export let cellState
   export let fieldSchema;
   export let cellOptions
   export let simpleView = true
+  export let cellState = fsm( "View" , {
+    "*": {
+      goTo( state ) { return state }
+    },
+    View: { 
+      focus () { 
+        if (!cellOptions.readonly) return "Editing"  
+      }
+    },
+    Hovered: { cancel: () => { return "View" }},
+    Focused: { 
+      unfocus() { return "View" },
+    },
+    Error: { check : "View" },
+    Editing: { 
+      unfocus() { return "View" },
+      lostFocus() { return "View" },
+      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+    }
+  })
 
   let anchor;
   let open
@@ -83,7 +105,7 @@
           { cellOptions?.placeholder || "Select " + fieldSchema.name }
         {:else if value?.length > 0}
           {#each value as val}
-            <div class="item">
+            <div class="item" class:rel-pills={!simpleView} >
               {#if !simpleView}
                 <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
               {/if}
@@ -101,7 +123,7 @@
           { cellOptions?.placeholder || "Select " + fieldSchema.name }
         {:else if value?.length > 0}
           {#each value as val}
-            <div class="item" >
+            <div class="item" class:rel-pills={!simpleView} >
               {#if !simpleView}
                 <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
               {/if}              
@@ -120,7 +142,9 @@
     {anchor} 
     align="left"
     dismissible
+    useAnchorWidth
     open={ open }
+    
     on:close={() => open = false} 
     >
       <div bind:this={picker} >
@@ -135,3 +159,9 @@
       </div>
   </Popover>
 {/if}
+
+<style>
+  .rel-pills {
+    background-color: var(--spectrum-global-color-gray-300);
+  }
+</style>

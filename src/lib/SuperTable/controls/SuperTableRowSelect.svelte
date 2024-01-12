@@ -1,72 +1,36 @@
 <script>
-  import { getContext, createEventDispatcher, beforeUpdate } from "svelte"
-  import Checkbox from "../../../../node_modules/@budibase/bbui/src/Form/Core/Checkbox.svelte"
+  import { beforeUpdate } from "svelte"
 
-  const tableDataStore = getContext("tableDataStore")
-  const tableStateStore = getContext("tableStateStore")
-  const tableSelectionStore = getContext("tableSelectionStore")
-  const tableScrollPosition = getContext("tableScrollPosition")
-  const tableHoverStore = getContext("tableHoverStore")
-  const dispatch = createEventDispatcher();
+  export let stbSettings
+  export let stbState
+  export let stbSelected
+  export let stbHovered
+  export let stbData
+  export let stbScrollPos
+  export let stbRowHeights
+  export let tableStateStore
 
-  // Keep scrolling position in synch
-  export let tableOptions
   let bodyContainer
   let mouseover
-
-  $: selected_rows = Object.keys($tableSelectionStore).filter( v => $tableSelectionStore[v] == true) ?? []
+  let color 
 
   function handleScroll( e ) {
       if ( mouseover )
-        $tableScrollPosition = bodyContainer?.scrollTop;
+        $stbScrollPos = bodyContainer?.scrollTop;
     }
 
-  beforeUpdate( () => { if ( bodyContainer ) bodyContainer.scrollTop = $tableScrollPosition } )
-
-  function toggleSelectAll ( ) {
-
-    if ( tableOptions.rowSelectMode == "multi" ) {
-      // if all are slected, uselect all else select all
-      if (selected_rows.length == $tableDataStore.data.length) {
-        $tableSelectionStore = {}
-      } else {
-        $tableDataStore.data.forEach(element => {
-          $tableSelectionStore[element[$tableDataStore.idColumn]] = true
-        });
-      }
-    } else {
-      $tableSelectionStore = {}
-    }
-    dispatch ("selectionChange", { "rowID": -1} ) 
-  }
-
-  function handleSelection ( rowID ) {
-    dispatch ("selectionChange", { "rowID": rowID} ) 
-
-    if ( $tableSelectionStore[rowID] ) {
-      delete $tableSelectionStore[rowID] 
-      $tableSelectionStore = $tableSelectionStore
-    }
-    else if ( tableOptions.rowSelectMode == "single") {
-      $tableSelectionStore = []
-      $tableSelectionStore[rowID] = true
-    }
-    else 
-      $tableSelectionStore[rowID] = true
-  }
-
+  beforeUpdate( () => { if ( bodyContainer ) bodyContainer.scrollTop = $stbScrollPos } )
 </script>
 
-{#if tableOptions.rowSelectMode != "off" && tableOptions.canEdit }
-  <div style:width={"2.5rem"} class="spectrum-Table" on:mouseleave={() => ($tableHoverStore = null)} >
-    {#if tableOptions.showHeader}
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="spectrum-Table" on:mouseleave={() => ($stbHovered = null)} >
+    {#if $stbSettings.showHeader}
         <div style:min-height={"2.5rem"} class="spectrum-Table-headCell">
-          <Checkbox
-            on:change={toggleSelectAll}
-            disabled = { tableOptions.rowSelectMode != "multi" }
-            indeterminate={ selected_rows.length > 0 && (selected_rows.length !== $tableDataStore.data.length) }
-            value = { selected_rows.length > 0 && (selected_rows.length == $tableDataStore.data.length) }
-          />
+          <div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
+            {#if 0 == 1}
+              <i class="ri-check-line" />
+            {/if}
+          </div>
         </div>
     {/if}
 
@@ -77,32 +41,41 @@
       on:mouseenter={ () => mouseover = true } 
       on:mouseleave={ () => mouseover = false } 
     >
-      {#each $tableDataStore.data as row, index }
+      {#each $stbData.rows as row, index (index) }
+      {@const rowKey = row[$stbSettings.idColumn]}
+      {@const selected = $stbSelected.includes(rowKey)}
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div 
           class="spectrum-Table-row" 
-          on:mouseenter={ () => $tableHoverStore = index }
-          class:is-selected={ $tableSelectionStore[row[$tableDataStore.idColumn]] } 
-          class:is-hovered={ $tableHoverStore === index }
-          style:min-height={ ($tableStateStore.rowHeights[index] || $tableStateStore.minRowHeight) + "px"  }
+          on:mouseenter={ () => $stbHovered = index }
+          on:click={ () => stbState.toggleSelectRow(rowKey) }
+          class:is-selected={ selected } 
+          class:is-hovered={ $stbHovered === index }
+          style:min-height={ $stbSettings.rowHeight + "px"  }
           >
-            <Checkbox 
-              value = {$tableSelectionStore[row[$tableDataStore.idColumn]]}
-              on:change={ (e) => handleSelection( row[$tableDataStore.idColumn] ) }
-            />
+          <div 
+            class="loope" 
+            style:background-color={selected ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-50)"}
+            >
+            {#if selected }
+              <i class="ri-check-line" style:color="var(--spectrum-global-color-gray-50)" />
+            {/if}
+          </div>
+
         </div>
       {/each}
     </div>
 
-    {#if tableOptions.showFooter}
+    {#if $stbSettings.showFooter}
       <div class="spectrum-Table-footer"></div>
     {/if}
   </div>
-{/if}
 
 <style>
   
   .spectrum-Table {
     background-color: transparent;
+    min-width: 40px;
   }
   .spectrum-Table-headCell {
     display: flex;
@@ -132,7 +105,7 @@
 	}
   .spectrum-Table-body {
     height: var(--super-table-body-height);
-    background-color: var(--super-table-bg-color);
+    background-color: var(--spectrum-global-color-gray-75);
     border-radius: 0px;
     overflow-y: scroll !important;
     overflow-x: hidden;
@@ -152,4 +125,20 @@
     border-right: var(--super-table-vertical-dividers);
     overflow: hidden;
   }
+
+  .loope {
+		height: 14px;
+		width: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+		border-radius: 2px;
+    font-weight: 600;
+    font-size: 14px;
+		border: 1px solid var(--spectrum-global-color-gray-500);
+	}
+  .loope:hover {
+		border: 1px solid var(--spectrum-global-color-gray-800);
+    cursor: pointer;
+	}
 </style>

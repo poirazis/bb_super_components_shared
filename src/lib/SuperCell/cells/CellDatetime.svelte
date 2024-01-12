@@ -2,13 +2,34 @@
 	import { createEventDispatcher } from 'svelte';
 	import Popover from '../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte';
 	import { DatePicker } from 'date-picker-svelte';
+	const dispatch = new createEventDispatcher();
+	import fsm from "svelte-fsm"
 
 	export let value;
-	export let cellState;
 	export let formattedValue;
 	export let cellOptions;
 
-	const dispatch = new createEventDispatcher();
+	export let cellState = fsm( "View" , {
+    "*": {
+      goTo( state ) { return state }
+    },
+    View: { 
+      focus () { 
+        if (!cellOptions.readonly) return "Editing"  
+      }
+    },
+    Hovered: { cancel: () => { return "View" }},
+    Focused: { 
+      unfocus() { return "View" },
+    },
+    Error: { check : "View" },
+    Editing: { 
+      unfocus() { return "View" },
+      lostFocus() { return "View" },
+      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+    }
+  })
 
 	let anchor;
 	let picker;
