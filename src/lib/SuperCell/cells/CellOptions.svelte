@@ -4,6 +4,7 @@
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { fetchData } from '../../../../node_modules/@budibase/frontend-core/src/fetch/index.js';
+	import { dataFilters } from "@budibase/shared-core"
 	import "./CellCommon.css"
 
 	const dispatch = createEventDispatcher();
@@ -14,19 +15,17 @@
 	export let fieldSchema;
 	export let multi = false
 
-	export let placeholder = multi ? 'Choose options' : 'Choose an option';
-
 	let anchor;
 	let picker;
-	let options;
+	let options = []
+	let optionColors = {}
+	let optionIcons = {}
+	let optionLabels = {}
 	let focusedOptionIdx;
 	let fetch;
-	let query = {};
-	let limit = 100;
-	let paginate = false;
-	let filter = {};
-	let sortColumn;
-	let sortOrder;
+	let filterValue
+	let filterBar
+	let loadedData
 
 	export let cellState = fsm( "View" , {
     "*": {
@@ -34,7 +33,9 @@
     },
     View: { 
       focus () { 
-        if (!cellOptions.readonly) return "Editing"  
+        if (!cellOptions.readonly) {
+				 	return "Editing" 
+				}
       }
     },
     Hovered: { cancel: () => { return "View" }},
@@ -43,6 +44,7 @@
     },
     Error: { check : "View" },
     Editing: { 
+			_enter() { if (!cellOptions.addNew) editorState.open() },
       unfocus() { return "View" },
       lostFocus() { return "View" },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
@@ -67,7 +69,6 @@
 		Open: {
 			toggle() {
 				focusedOptionIdx = undefined;
-				anchor.focus();
 				return 'Closed';
 			},
 			highlightNext() {
@@ -83,39 +84,57 @@
 		},
 		Closed: {
 			toggle() {
-				return 'Open';
+				return $cellState == "Editing" ? 'Open' : "Closed"
 			},
 			highlightNext() {
-				return 'Open';
+				return $cellState == "Editing" ? 'Open' : "Closed"
 			}
 		}
 	});
 
-	$: if (!fetch && cellOptions.optionsSource == 'datasource') {
-		fetch = createFetch(cellOptions.datasource);
+	$: if ( loadedData != cellOptions.datasource?.label ) { 
+		fetch = createFetch(cellOptions.datasource) 
+		loadedData = cellOptions.datasource.label
 	}
 
-	$: if (fetch && $fetch.loaded) {
-		options = $fetch.rows.map((x) => x[cellOptions.labelField]);
-	} else if (fetch) {
-		options = [];
+	$: if (cellOptions.optionsSource == 'data' && fetch) {
+		options = $fetch.rows.map( (x) =>  x[cellOptions.valueColumn] )
+		$fetch.rows.forEach(element => {
+			optionColors[element[cellOptions.valueColumn]] = element[cellOptions.colorColumn] ;
+			optionIcons[element[cellOptions.valueColumn]] = element[cellOptions.iconColumn] ;
+			optionLabels[element[cellOptions.valueColumn]] = cellOptions.labelColumn ? element[cellOptions.labelColumn] : element[cellOptions.valueColumn];
+		});
 	} else if (cellOptions.optionsSource == 'custom') {
-		options = cellOptions.customOptions.map( (x) => x.label );
+			if ( cellOptions.customOptions.length) {
+				options = cellOptions.customOptions.map( (x) => x.value )
+				cellOptions.customOptions.forEach( (e) => {
+					optionLabels[e.value] = e.label
+				})
+			}
 	} else {
 		options = fieldSchema?.constraints?.inclusion || [];
+		optionColors = fieldSchema?.optionColors || {};
+		optionIcons = {}
+		optionLabels = {}
 	}
 
+	// Make sure the internal value is always an array
 	$: localValue = Array.isArray(value) ? value : value ? [value] : [];
-	$: optionColors = fieldSchema?.optionColors || {};
-	$: allowNull = !fieldSchema?.constraints?.presence ?? false;
-	$: if (allowNull && options.length > 1 && cellOptions.coltrolType == "select") options = ['Clear Selection', ...options];
+
+	$: if (options.length > 1 && cellOptions.coltrolType == "select") options = ['Clear Selection', ...options];
 	$: inEdit = $cellState == 'Editing';
-	$: if (inEdit && anchor && editorState == 'Closed') anchor?.focus();
 	$: simpleView = cellOptions.optionsViewMode == 'text';
 
 	const getOptionColor = (value) => {
-			return cellOptions.useOptionColors && !simpleView
-				? optionColors[value] : undefined
+		return cellOptions.useOptionColors ? optionColors[value] : undefined
+	};
+
+	const getOptionLabel = (value) => {
+		return cellOptions.optionsSource == "schema" ? value : optionLabels[value];
+	}
+
+	const getOptionIcon = (value) => {
+		return cellOptions.useOptionIcons ? optionIcons[value] : undefined
 	};
 
 	const handleKeyboard = (e) => {
@@ -159,21 +178,25 @@
 			API,
 			datasource,
 			options: {
-				query,
-				sortColumn,
-				sortOrder,
-				limit,
-				paginate
-			}
+				query: dataFilters.buildLuceneQuery(cellOptions.filter),
+				sortColumn : cellOptions.sortColumn,
+				sortOrder : cellOptions.sortOrder, 
+        limit : cellOptions.limit
+      },
 		});
 	};
 
 	const handleBlur = (e) => {
-		if (!picker?.contains(e.relatedTarget)) {
+
+		if (!picker?.contains(e.relatedTarget) && !anchor.contains(e.relatedTarget)) {
 			editorState.close();
 			dispatch('blur');
-		}
+		} 
 	};
+
+	const focus = node => {
+		node?.focus()
+	}
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -184,191 +207,235 @@
 	tabindex="0"
 	class="superCell"
 	class:inEdit
-	class:inline={cellOptions?.role == 'inline'}
-	class:tableCell={cellOptions?.role == 'tableCell'}
-	class:formInput={cellOptions?.role == 'formInput'}
-	style:color={cellOptions?.color}
-	style:background={cellOptions?.background}
-	style:font-weight={cellOptions?.fontWeight}
+	class:disabled = { cellOptions.disabled || (options.length < 1 && !filterValue )}
+	class:error = { cellOptions.error }
+	class:inline={cellOptions.role == 'inline'}
+	class:tableCell={cellOptions.role == 'tableCell'}
+	class:formInput={cellOptions.role == 'formInput'}
+	style:color={cellOptions.color}
+	style:background={cellOptions.background}
+	style:font-weight={cellOptions.fontWeight}
 	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
-	on:keydown={handleKeyboard}
-	on:focusout={handleBlur}
+	on:keydown={(e) => { if (!cellOptions.addNew) handleKeyboard(e) }}
+	on:blur={(e) => setTimeout(handleBlur, 20, e)}
 	on:focusin={cellState.focus}
 >
-	{#if cellOptions?.iconFront}
-		<i class={cellOptions.iconFront + ' frontIcon'}></i>
+	{#if cellOptions.icon && cellOptions.controlType == "select"}
+		<i class={cellOptions.icon + ' frontIcon'}></i>
 	{/if}
 
-	{#if cellOptions.controlType == 'checkbox'}
+	{#if cellOptions.controlType == 'checkbox' && options.length > 0}
     <div 
       class="options checkboxes" 
       style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
     >
-      {#if options.length < 1}
-        <div class="option">
-          <div class="option text">
-            <i class="ri-close-line" />
-            No Available Options
-          </div>
-        </div>
-      {:else}
-        {#each options as option, idx (idx)}
+			{#each options as option, idx (idx)}
+			{@const color = getOptionColor(option)}
+			{@const label = getOptionLabel(option)}
+			{@const icon = getOptionIcon(option)}
+			{@const selected = localValue?.includes(option)}
+				<div
+					class="option"
+					class:selected
+					class:focused={focusedOptionIdx === idx}
+					on:mousedown={(e) => editorState.toggleOption(idx)}
+					on:mouseenter={() => (focusedOptionIdx = idx)}
+					on:mouseleave={() => focusedOptionIdx = undefined}
+				>
+					{#if icon}
+						<i class={icon} style:color={color}> </i>
+					{/if}
+					<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
+						{#if selected}
+							<i class="ri-check-line" />
+						{/if}
+					</div>
+					{label}
+				</div>
+			{/each}
+    </div>
+	{:else if cellOptions.controlType == 'switch' && options.length > 0 }
+    <div 
+      class="options checkboxes" 
+      style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
+    >
+			{#each options as option, idx (idx)}
 				{@const color = getOptionColor(option)}
-				{@const selected = localValue?.includes(option)}
-					<div
-						class="option"
-						class:selected
-						class:focused={focusedOptionIdx === idx}
-						on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-						on:mouseenter={() => (focusedOptionIdx = idx)}
+				{@const label = getOptionLabel(option)}
+				{@const selected = localValue.includes(option)}
+				<div class="option">
+					<div class="spectrum-Switch spectrum-Switch--emphasized"
+					style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
+					style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
+					style:--spectrum-switch-m-emphasized-track-color-selected-hover={ color ? color : "var(--spectrum-global-color-blue-600)"}
 					>
-						<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
-							{#if selected}
-								<i class="ri-check-line" />
-							{/if}
-						</div>
-						{option}
+						<input
+							checked={localValue.includes(option)}
+							on:change={(e) => editorState.toggleOption(idx)}
+							type="checkbox"
+							class="spectrum-Switch-input"
+							id={idx}
+						/>
+						<span class="spectrum-Switch-switch" />
+						<label class="spectrum-Switch-label" class:selected for={idx}>{label}</label>
 					</div>
-        {/each}
-      {/if}
+				</div>
+			{/each}
     </div>
-	{:else if cellOptions.controlType == 'switch'}
-    <div 
-      class="options checkboxes" 
-      style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
-    >
-      {#if options.length < 1}
-        <div class="option">
-          <div class="option text">
-            <i class="ri-close-line" />
-            No Available Options
-          </div>
-        </div>
-      {:else}
-        {#each options as option, idx (idx)}
-					{@const color = getOptionColor(option)}
-					{@const selected = localValue.includes(option)}
-					<div class="option">
-            <div class="spectrum-Switch spectrum-Switch--emphasized"
-						style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
-						style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
-						style:--spectrum-switch-m-emphasized-track-color-selected-hover={ color ? color : "var(--spectrum-global-color-blue-600)"}
-						>
-              <input
-                checked={localValue.includes(option)}
-                on:change={(e) => editorState.toggleOption(idx)}
-                type="checkbox"
-                class="spectrum-Switch-input"
-                id={idx}
-              />
-              <span class="spectrum-Switch-switch" />
-              <label class="spectrum-Switch-label" class:selected for={idx}>{option}</label>
-            </div>
-					</div>
-        {/each}
-      {/if}
-    </div>
+	{:else if inEdit && cellOptions.addNew}
+		<input
+			class="editor"
+			class:placeholder={!value}
+			style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
+			style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
+			style:border={"none"}
+			bind:value={localValue[0]}
+			placeholder={ cellOptions.placeholder ?? "Enter..." }
+			on:blur={(e) => {
+				dispatch("change", localValue)
+				setTimeout(handleBlur, 20, e)
+			}}
+			use:focus
+		/>
+			<i 
+			class="ri-arrow-down-s-line" 
+			style="min-width: 1.5rem;"
+			on:click|stopPropagation={editorState.toggle}>
+		</i>
 	{:else if inEdit}
 		<div
 			class="editor"
 			class:placeholder={localValue?.length < 1}
-			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
-			on:click={editorState.toggle}
+			style:padding-left={cellOptions.icon ? '32px' : cellOptions.padding}
+			style:padding-right={cellOptions.padding}
+			on:click|stopPropagation={() => {if (!cellOptions.addNew) editorState.toggle()}}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if localValue.length < 1}
-					{cellOptions?.placeholder ?? placeholder}
-				{:else if localValue.length > 0}
+				{#if options.length < 1 && !filterValue}
+					No Available Options
+				{:else if localValue.length < 1}
+					{cellOptions?.placeholder}
+				{:else if localValue.length > 0 }
 					{#each localValue as val (val)}
+					{@const color = getOptionColor(val)}
+					{@const label = getOptionLabel(val)}
 						<div
 							class="item"
 							animate:flip={{ duration: 130 }}
-							style:background-color={getOptionColor(val)}
+							style:background-color={ !simpleView ? color : "unset"}
 							style:border={ getOptionColor(val) || simpleView ? undefined : "1px solid var(--spectrum-global-color-gray-300)" }
 						>
-							<span> {val} </span>
+						{#if simpleView && color }
+							<div class="loope" style:background-color={color} />
+						{/if}
+							<span> {label} </span>
 						</div>
 					{/each}
 				{/if}
 			</div>
-			<i class="ri-arrow-down-s-line"></i>
+			<i class="ri-arrow-down-s-line" on:click|stopPropagation={editorState.toggle}></i>
 		</div>
 	{:else}
 		<div
 			class="value"
 			class:placeholder={localValue?.length < 1}
-			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+			style:padding-left={cellOptions?.icon ? '32px' : cellOptions.padding}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if localValue.length < 1}
-					{cellOptions?.placeholder ?? placeholder}
+				{#if options.length < 1 && !filterValue}
+					No Available Options
+				{:else if localValue.length < 1}
+					{cellOptions.placeholder}
 				{:else if localValue.length > 0}
 					{#each localValue as val (val)}
+					{@const color = getOptionColor(val)}
+					{@const label = getOptionLabel(val)}
 						<div
 							class="item"
 							animate:flip={{ duration: 130 }}
-							style:background-color={getOptionColor(val)}
-							style:border={ getOptionColor(val) || simpleView ? "unset" : "1px solid var(--spectrum-global-color-gray-300)" }
+							style:background-color={ !simpleView ? color : "unset"}
+							style:border={ color || simpleView ? "unset" : "1px solid var(--spectrum-global-color-gray-300)" }
 						>
-							<span> {val} </span>
+						{#if simpleView && color }
+							<div class="loope" style:background-color={color} />
+						{/if}
+							<span> {label} </span>
 						</div>
 					{/each}
 				{/if}
 			</div>
 		</div>
 	{/if}
+
+	{#if cellOptions.controlType == "select"}
+		<Popover
+			{anchor}
+			dismissible={false}
+			useAnchorWidth
+			open={$editorState == "Open"}
+		>
+			<div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}>
+
+				{#if cellOptions.autocomplete}
+					<div class="search">
+						<i class="ri-search-line icon"> </i>
+						<input 
+							bind:value={filterValue}
+							bind:this={filterBar}
+							class="editor" 
+							type="text"
+							on:blur={editorState.close}
+						> 
+					</div>
+				{/if}
+
+				{#if options.length < 1}
+					<div class="option">
+							<i class="ri-close-line" />
+							No Available Options
+					</div>
+				{:else}
+					{#each options as option, idx (idx)}
+					{@const color = getOptionColor(option)}
+					{@const label = getOptionLabel(option)}
+					{@const icon = getOptionIcon(option)}
+						{#if option == 'Clear Selection'}
+							<div
+								class="option"
+								style:color={'var(--primaryColor)'}
+								class:focused={focusedOptionIdx === idx}
+								on:mouseenter={() => (focusedOptionIdx = idx)}
+								on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+							>
+								<i class="ri-close-line" style="font-size: 16px;" />
+								{label}
+							</div>
+						{:else}
+							<div
+								class="option"
+								class:focused={focusedOptionIdx === idx}
+								on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+								on:mouseenter={() => (focusedOptionIdx = idx)}
+							>
+								{#if multi || color }
+									<div class="loope" style:background-color={color}>
+										{#if localValue?.includes(option)}
+											<i class="ri-check-line" />
+										{/if}
+									</div>
+								{/if}
+								{label}
+							</div>
+						{/if}
+					{/each}
+				{/if}
+			</div>
+		</Popover>
+	{/if}
+
 </div>
 
-{#if inEdit && cellOptions.controlType == "select"}
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<Popover
-		{anchor}
-		useAnchorWidth
-		dismissible
-		open={$editorState == 'Open'}
-		on:close={editorState.close}
-	>
-		<div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}>
-			{#if options.length < 1}
-				<div class="option">
-					<div class="option text">
-						<i class="ri-close-line" />
-						No Available Options
-					</div>
-				</div>
-			{:else}
-				{#each options as option, idx (idx)}
-					{#if option == 'Clear Selection'}
-						<div
-							class="option"
-							style:color={'var(--primaryColor)'}
-							class:focused={focusedOptionIdx === idx}
-							on:mouseenter={() => (focusedOptionIdx = idx)}
-							on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-						>
-							<i class="ri-close-line" style="font-size: 16px;" />
-							{option}
-						</div>
-					{:else}
-						<div
-							class="option"
-							class:focused={focusedOptionIdx === idx}
-							on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-							on:mouseenter={() => (focusedOptionIdx = idx)}
-						>
-							<div class="loope" style:background-color={getOptionColor(option)}>
-								{#if localValue?.includes(option)}
-									<i class="ri-check-line" />
-								{/if}
-							</div>
-							{option}
-						</div>
-					{/if}
-				{/each}
-			{/if}
-		</div>
-	</Popover>
-{/if}
+
 
 <style>
 	.options {
@@ -383,7 +450,7 @@
 
   .options.checkboxes {
     display: grid; 
-    padding: 0.5rem;
+    padding: 0.25rem 0.5rem;
   }
 
 	.option {
@@ -423,5 +490,35 @@
 
 	.spectrum-Switch-label.selected {
 		color: var(--spectrum-global-color-gray-900);
+	}
+
+	.search {
+		display: flex;
+		justify-content: stretch;
+		align-items: center;
+		position: relative;
+		margin-bottom: 8px;
+	}
+
+	.icon {
+		position: absolute;
+		left: 0.5rem;
+	}
+	input {
+		width: 100%;
+		height: 100%;
+		box-sizing: border-box;
+		outline: none;
+		background: none;
+		color: inherit;
+		border: 1px solid var(--spectrum-global-color-gray-300);
+		cursor: text;
+		overflow: hidden;
+		min-width: unset;
+		padding: 0.3rem 0.5rem 0.3rem 2rem;
+	}
+
+	input:focus {
+		border: 1px solid var(--spectrum-global-color-blue-500);
 	}
 </style>

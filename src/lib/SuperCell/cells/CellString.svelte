@@ -77,9 +77,8 @@
   style:font-weight={ cellOptions.fontWeight }
   on:focus={cellState.focus}
 > 
-  {#if cellOptions.error}
-    <i class="ri-alert-line frontIcon" style:color="var(--spectrum-global-color-yellow-400)"></i>
-  {:else if cellOptions.icon}
+
+  {#if cellOptions.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
@@ -87,7 +86,7 @@
     <input
       class="editor"
       class:placeholder={!value}
-      style:padding-left={ cellOptions.icon || cellOptions.error ? "32px" : cellOptions.padding }
+      style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
       style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
       value={ value ?? "" }
       placeholder={ cellOptions.placeholder ?? "Enter..." }
@@ -105,7 +104,7 @@
     <div 
       class="value"
       class:placeholder={!value}
-      style:padding-left={ cellOptions.icon || cellOptions.error  ? "32px" : cellOptions.padding }
+      style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
       style:justify-content={cellOptions.align}
       > 
         <span>

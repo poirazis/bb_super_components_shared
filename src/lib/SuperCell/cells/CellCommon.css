@@ -8,6 +8,10 @@
   position: relative;
 }
 
+.superCell:focus{
+  outline: none;
+}
+
 .superCell.tableCell.inEdit:focus-within {
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
 }
@@ -115,10 +119,14 @@
   background: none;
   color: inherit;
   border: none;
-  cursor:text;
+  cursor: text;
   overflow: hidden;
   min-width: unset;
   padding: 0.3rem 0.5rem;
+}
+
+.superCell > input:focus {
+  outline: none;
 }
 
 .superCell > input::placeholder {

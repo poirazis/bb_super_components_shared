@@ -1,4 +1,5 @@
 <script>
+	import { error } from '@sveltejs/kit';
   import { createEventDispatcher, getContext} from 'svelte'
   import fsm from "svelte-fsm"
 
@@ -6,7 +7,7 @@
   const { processStringSync } = getContext("sdk")
 
 
-  export let value
+  export let value = 0
   export let formattedValue
   export let cellOptions
 
@@ -60,6 +61,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="superCell"
+  class:error={cellOptions.error}
   class:disabled={ cellOptions.disabled }
   class:inEdit={ $cellState == "Editing" }
   class:inline={ cellOptions?.role == "inline" }  
@@ -77,12 +79,14 @@
   {#if $cellState == "Editing" }
     <input 
       class="editor"
-      type="text" inputmode="numeric" pattern="[0-9]*"
+      type="text"
+      inputmode="numeric" 
+      pattern="[0-9]*"
       style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
       style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
       style:text-align="right"
       placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : 0 }
-      {value} 
+      {value}
       on:input={debounce}
       on:blur={() => dispatch("blur")}
       use:focus
