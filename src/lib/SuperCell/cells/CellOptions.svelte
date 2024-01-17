@@ -99,6 +99,8 @@
 
 	$: if (cellOptions.optionsSource == 'data' && fetch) {
 		options = $fetch.rows.map( (x) =>  x[cellOptions.valueColumn] )
+		options = [ "__clr__", ...options ]
+		optionLabels["__clr__"] = "Clear Selection"
 		$fetch.rows.forEach(element => {
 			optionColors[element[cellOptions.valueColumn]] = element[cellOptions.colorColumn] ;
 			optionIcons[element[cellOptions.valueColumn]] = element[cellOptions.iconColumn] ;
@@ -107,15 +109,18 @@
 	} else if (cellOptions.optionsSource == 'custom') {
 			if ( cellOptions.customOptions.length) {
 				options = cellOptions.customOptions.map( (x) => x.value )
+				options = [ "__clr__", ...options ]
 				cellOptions.customOptions.forEach( (e) => {
 					optionLabels[e.value] = e.label
 				})
+				optionLabels["__clr__"] = "Clear Selection"
 			}
 	} else {
 		options = fieldSchema?.constraints?.inclusion || [];
+		options = [ "__clr__", ...options ]
 		optionColors = fieldSchema?.optionColors || {};
-		optionIcons = {}
-		optionLabels = {}
+		optionIcons = { "Clear Selection" : "ri-close-line" }
+		optionLabels["__clr__"] = "Clear Selection"
 	}
 
 	// Make sure the internal value is always an array
@@ -126,11 +131,18 @@
 	$: simpleView = cellOptions.optionsViewMode == 'text';
 
 	const getOptionColor = (value) => {
-		return cellOptions.useOptionColors ? optionColors[value] : undefined
+		let color 
+		if ( cellOptions.useOptionColors ) 
+			color = optionColors[value]
+
+		if (cellOptions.controlType == "select" && cellOptions.optionsViewMode == "pills" && !color)
+			color = "var(--spectrum-global-color-gray-300)" 
+
+		return color
 	};
 
 	const getOptionLabel = (value) => {
-		return cellOptions.optionsSource == "schema" ? value : optionLabels[value];
+		return optionLabels[value] || value;
 	}
 
 	const getOptionIcon = (value) => {
@@ -230,10 +242,65 @@
       style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
     >
 			{#each options as option, idx (idx)}
+				{@const color = getOptionColor(option)}
+				{@const label = getOptionLabel(option)}
+				{@const icon = getOptionIcon(option)}
+				{@const selected = localValue?.includes(option)}
+				{#if option == '__clr__'}
+					<div
+						class="option"
+						style:color={'var(--primaryColor)'}
+						class:focused={focusedOptionIdx === idx}
+						on:mouseenter={() => (focusedOptionIdx = idx)}
+						on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
+					>
+						<i class="ri-close-line" style="font-size: 16px;" />
+						{label}
+					</div>
+				{:else}
+					<div
+						class="option"
+						class:selected
+						class:focused={focusedOptionIdx === idx}
+						on:mousedown={(e) => editorState.toggleOption(idx)}
+						on:mouseenter={() => (focusedOptionIdx = idx)}
+						on:mouseleave={() => focusedOptionIdx = undefined}
+					>
+						{#if icon}
+							<i class={icon} style:color={color}> </i>
+						{/if}
+						<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-100)"}>
+							{#if selected}
+								<i class="ri-check-line" />
+							{/if}
+						</div>
+						{label}
+					</div>
+				{/if}
+			{/each}
+    </div>
+	{:else if cellOptions.controlType == "radio" && options.length > 0 }
+	<div 
+		class="options checkboxes" 
+		style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
+	>
+		{#each options as option, idx (idx)}
 			{@const color = getOptionColor(option)}
 			{@const label = getOptionLabel(option)}
 			{@const icon = getOptionIcon(option)}
 			{@const selected = localValue?.includes(option)}
+			{#if option == '__clr__'}
+				<div
+					class="option"
+					style:color={'var(--primaryColor)'}
+					class:focused={focusedOptionIdx === idx}
+					on:mouseenter={() => (focusedOptionIdx = idx)}
+					on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
+				>
+					<i class="ri-close-line" style="font-size: 16px;" />
+					{label}
+				</div>
+			{:else}
 				<div
 					class="option"
 					class:selected
@@ -245,15 +312,18 @@
 					{#if icon}
 						<i class={icon} style:color={color}> </i>
 					{/if}
-					<div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
+					<div class="loope round" 
+						style:background-color={color ? color : "var(--spectrum-global-color-gray-100)"}>
 						{#if selected}
-							<i class="ri-check-line" />
+							<div class="loope dot" />
 						{/if}
 					</div>
 					{label}
 				</div>
-			{/each}
-    </div>
+			{/if}
+		{/each}
+	</div>
+
 	{:else if cellOptions.controlType == 'switch' && options.length > 0 }
     <div 
       class="options checkboxes" 
@@ -263,31 +333,46 @@
 				{@const color = getOptionColor(option)}
 				{@const label = getOptionLabel(option)}
 				{@const selected = localValue.includes(option)}
-				<div class="option">
-					<div class="spectrum-Switch spectrum-Switch--emphasized"
-					style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
-					style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
-					style:--spectrum-switch-m-emphasized-track-color-selected-hover={ color ? color : "var(--spectrum-global-color-blue-600)"}
+				{#if option == '__clr__'}
+					<div
+						class="option"
+						style:color={'var(--primaryColor)'}
+						class:focused={focusedOptionIdx === idx}
+						on:mouseenter={() => (focusedOptionIdx = idx)}
+						on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
 					>
-						<input
-							checked={localValue.includes(option)}
-							on:change={(e) => editorState.toggleOption(idx)}
-							type="checkbox"
-							class="spectrum-Switch-input"
-							id={idx}
-						/>
-						<span class="spectrum-Switch-switch" />
-						<label class="spectrum-Switch-label" class:selected for={idx}>{label}</label>
+						<i class="ri-close-line" style="font-size: 16px;" />
+						{label}
 					</div>
-				</div>
+				{:else}
+					<div class="option">
+						<div class="spectrum-Switch spectrum-Switch--emphasized"
+						style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
+						style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
+						style:--spectrum-switch-m-emphasized-track-color-selected-hover={ color ? color : "var(--spectrum-global-color-blue-600)"}
+						>
+							<input
+								checked={localValue.includes(option)}
+								on:change={(e) => editorState.toggleOption(idx)}
+								type="checkbox"
+								class="spectrum-Switch-input"
+								id={idx}
+							/>
+							<span class="spectrum-Switch-switch" />
+							<label class="spectrum-Switch-label" class:selected for={idx}>{label}</label>
+						</div>
+					</div>
+				{/if}
 			{/each}
     </div>
 	{:else if inEdit && cellOptions.addNew}
 		<input
 			class="editor"
-			class:placeholder={!value}
+			class:placeholder={!localValue[0]}
 			style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
 			style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
+			style:padding-top={0}
+			style:padding-bottom={0}
 			style:border={"none"}
 			bind:value={localValue[0]}
 			placeholder={ cellOptions.placeholder ?? "Enter..." }
@@ -297,11 +382,9 @@
 			}}
 			use:focus
 		/>
-			<i 
-			class="ri-arrow-down-s-line" 
-			style="min-width: 1.5rem;"
-			on:click|stopPropagation={editorState.toggle}>
-		</i>
+			<div class="actionIcon" on:click|stopPropagation={editorState.toggle}>
+				<i class="ri-arrow-down-s-line" ></i> 
+			</div>
 	{:else if inEdit}
 		<div
 			class="editor"
@@ -357,7 +440,7 @@
 							style:border={ color || simpleView ? "unset" : "1px solid var(--spectrum-global-color-gray-300)" }
 						>
 						{#if simpleView && color }
-							<div class="loope" style:background-color={color} />
+							<div class="loope small" style:background-color={color} />
 						{/if}
 							<span> {label} </span>
 						</div>
@@ -399,13 +482,13 @@
 					{@const color = getOptionColor(option)}
 					{@const label = getOptionLabel(option)}
 					{@const icon = getOptionIcon(option)}
-						{#if option == 'Clear Selection'}
+						{#if option == "__clr__" }
 							<div
 								class="option"
 								style:color={'var(--primaryColor)'}
 								class:focused={focusedOptionIdx === idx}
 								on:mouseenter={() => (focusedOptionIdx = idx)}
-								on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+								on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
 							>
 								<i class="ri-close-line" style="font-size: 16px;" />
 								{label}
@@ -418,7 +501,7 @@
 								on:mouseenter={() => (focusedOptionIdx = idx)}
 							>
 								{#if multi || color }
-									<div class="loope" style:background-color={color}>
+									<div class="loope small" style:background-color={color}>
 										{#if localValue?.includes(option)}
 											<i class="ri-check-line" />
 										{/if}
@@ -450,7 +533,7 @@
 
   .options.checkboxes {
     display: grid; 
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.25rem;
   }
 
 	.option {
@@ -476,7 +559,22 @@
 		align-items: center;
 		justify-items: center;
 		font-size: 12px;
-		border: 1px solid var(--spectrum-global-color-gray-300);
+		font-weight: 700;
+		border: 1px solid var(--spectrum-global-color-gray-500);
+	}
+	.loope.round {
+		border-radius: 50%;
+	}
+	.loope.small {
+		height: 12px;
+		width: 12px;
+		font-size: 10px;
+	}
+	.loope.dot {
+		border-radius: 50%;
+		height: 8px;
+		width: 8px;
+		background-color: var(--spectrum-global-color-gray-800);
 	}
 	.option:hover,
 	.option.focused {
@@ -500,6 +598,21 @@
 		margin-bottom: 8px;
 	}
 
+	.actionIcon {
+		height: 100%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		border-left: 1px solid var(--spectrum-global-color-blue-500);
+		min-width: 2rem;
+		font-size: 16px;
+		transition: all 130ms;
+	}
+	.actionIcon:hover {
+		cursor: pointer;
+		background-color: var(--spectrum-global-color-gray-75);
+		font-weight: 800;
+	}
 	.icon {
 		position: absolute;
 		left: 0.5rem;
