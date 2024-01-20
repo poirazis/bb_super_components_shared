@@ -2,7 +2,7 @@
 	import fsm from 'svelte-fsm';
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { fetchData } from '../../../../node_modules/@budibase/frontend-core/src/fetch/index.js';
+	import { fetchData } from "../../Fetch"
 	import { dataFilters } from "@budibase/shared-core"
 	import { elementSizeStore } from "svelte-legos";
 

@@ -7,7 +7,7 @@
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
   import { dataFilters } from "@budibase/shared-core/";
-  import { fetchData } from "../../../node_modules/@budibase/frontend-core/src/fetch"
+  import { fetchData } from "./../Fetch"
   import { themeMap } from "./themes/superTableThemes.js"
  
   import {
@@ -19,6 +19,7 @@
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
+	import CellAttachment from "$lib/SuperCell/cells/CellAttachment.svelte";
 
   const { API } = getContext("sdk");
 

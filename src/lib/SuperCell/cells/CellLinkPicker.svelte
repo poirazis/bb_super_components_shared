@@ -2,7 +2,7 @@
     import CellSkeleton from "./CellSkeleton.svelte";
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
-    import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
+    import { fetchData } from "../../Fetch"
     import { dataFilters } from "@budibase/shared-core"
 
 
