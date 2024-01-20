@@ -3,6 +3,7 @@
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
     import { fetchData } from "../../../../node_modules/@budibase/frontend-core/src/fetch/index.js"
+    import { dataFilters } from "@budibase/shared-core"
 
 
     const { API } = getContext("sdk");
@@ -30,7 +31,8 @@
         tableId: tableId,
       },
       options: {
-        filter: {},
+        filter: {
+        },
         limit: 100,
       },
     })
@@ -73,23 +75,14 @@
       value.splice( value.findIndex ( (e) => e._id === val._id  ), 1 );
       dispatch("change", value )
     }
-
-    $: console.log(primaryDisplay)
-    $: console.log(value)
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="control" style:min-width={schema.relationshipType == "one-to-many" ? " 160px" : "320px"}> 
+<div class="control"> 
 
   <div class="searchControl">
     <input class="input" on:input={debounce} type="text" placeholder="Search..."/>
-    <div class="pageSize">
-      <div class="pageSizeItem" class:selected={limit == 10} on:click={(e) => setLimit(e, 10)}> 10 </div>
-      <div class="pageSizeItem" class:selected={limit == 50} on:click={(e) => setLimit(e, 50)}> 50 </div>
-      <div class="pageSizeItem" class:selected={limit == 100} on:click={(e) => setLimit(e, 100)}> 100 </div>
-      <div class="pageSizeItem" class:selected={limit == 10000} on:click={(e) => setLimit(e, 10000)}> ALL </div>
-    </div>
   </div>
 
   {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}
@@ -104,9 +97,7 @@
                   {#each $fetch.rows as row, idx }
                     {#if !(rowSelected(row)) }
                       <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
-                        <div class="option text">
                           {row[primaryDisplay]}
-                        </div>
                       </div>
                     {/if}
                   {/each}
@@ -120,9 +111,7 @@
           {#each value as val, idx }
             {#if (rowSelected(val)) }
               <div transition:fly={{ x: -20, duration: 130}} class="option" on:mousedown|stopPropagation|preventDefault={unselectRow(val)} >
-                <div class="option text">
                   {val.primaryDisplay}
-                </div>
               </div>
             {/if}
           {/each}
@@ -133,7 +122,7 @@
 
   {#if schema.relationshipType == "one-to-many"}
     <div class="listWrapper">
-      <div class="list" style:width={"100%"}>
+      <div class="list">
         <div class="options"> 
           {#if $fetch.loading}
               <CellSkeleton > <div class="option text"> Loading ... </div> </CellSkeleton> 
@@ -143,9 +132,7 @@
                 {#each $fetch.rows as row, idx }
                   {#if !(rowSelected(row)) }
                     <div class="option" on:mousedown|stopPropagation|preventDefault={selectRow(row)} >
-                      <div class="option text">
                         {row[primaryDisplay]}
-                      </div>
                     </div>
                   {/if}
                 {/each}
@@ -167,12 +154,13 @@
     display: flex;
     align-items: stretch;
     justify-content: space-around;
-    gap: 0.85rem;
+    gap: 0.5rem;
     padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+    overflow-x: hidden;
   }
 
   .searchControl {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
   }
 
   .listWrapper {
@@ -180,11 +168,12 @@
     display: flex;
     justify-content: stretch;
     align-content: stretch;
-    gap: 0.85rem;
+    gap: 0.5rem;
+    overflow: hidden;
   }
 
   .list {
-    width: 50%;
+    flex: 1 1 50%;
     height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -205,15 +194,6 @@
     min-height: 2rem;
   }
 
-  .columnSelect {
-    flex: auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 800;
-    min-height: 1.85rem;
-  }
-
   .input {
     min-height: 1.85rem;
     min-width: none;
@@ -229,26 +209,6 @@
     background-color: var(--spectrum-textfield-m-background-color, var(--spectrum-global-color-gray-50));
   }
 
-  .pageSize {
-    flex: auto;
-    display: flex;
-    justify-content: space-between;
-    padding-top: 0.5rem;
-  }
-  .pageSizeItem {
-    width: 24%;
-    color: var(--spectrum-global-color-gray-600);
-    display: flex;
-    justify-content: center;
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .pageSizeItem.selected {
-    color: var(--primaryColor);
-    background-color: var(--spectrum-global-color-gray-300);
-  }
   .options {
     display: flex;
     flex-direction: column;
@@ -257,29 +217,19 @@
     overflow-y: auto;
     padding: 0.3rem;
     gap: 0rem;
+    min-width: 0;
   }
   .option {
     padding: 0.15rem;
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    cursor: pointer;
-    gap: 0.3rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
- :global(.option > span) {
-    color: lime;
-  }
   .option:hover,
   .option.focused {
     background-color: var(--spectrum-global-color-gray-200);
     border-radius: 4px;
-  }
-
-  .text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    cursor: pointer;
   }
 </style>

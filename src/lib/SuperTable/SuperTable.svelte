@@ -19,12 +19,10 @@
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
-	import CellAttachment from "$lib/SuperCell/cells/CellAttachment.svelte";
 
   const { API } = getContext("sdk");
 
   export let tableOptions 
-  export let inBuilder = false
   export let sortColumn
   export let sortOrder
   export let limit = 100
@@ -34,12 +32,11 @@
   let anchor
   let columnStates = [];
   let columns 
-  let schema
+  let schema = {}
   let datasource
   let query
   let filter
-
-  let stbData, stbChanges 
+  let stbChanges 
 
   // Create Stores
   const tableDataStore = createSuperTableDataStore();
@@ -53,9 +50,10 @@
   const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
   const stbHovered = new writable(-1);
-  $: stbSettings = new writable(tableOptions);
+  const stbSettings = new writable({})
+  let stbData = new writable({})
   
-  const stbState = fsm("Loading", {
+  const stbState = fsm("Idle", {
     "*" : {
       refresh( fetch ) { 
         if ( fetch.loaded ) 
@@ -97,11 +95,10 @@
       editCell() {},
       cellClicked( columnID, rowID ) { },
       rowDblClicked ( context ) { 
-        tableOptions.onRowDblClick?.( context )
+        tableOptions.events.onRowDblClick?.( context )
       },
       rowClicked( context ) { 
-        // Invoke attached Events
-        tableOptions.onRowClick?.( context );
+        tableOptions.events.onRowClick?.( context );
        },
       setState( state ) { return state } 
     },
@@ -122,14 +119,9 @@
   $: queryExtension = dataFilters.buildLuceneQuery($tableFilterStore.filters)
   $: addQueryExtension("123", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
-
-  $: inpProvider = tableOptions.data.datasource.type == "provider"
-
-  // Fetch data and refresh when needed
-  $: datasource = tableOptions.data.datasource
-  $: schema = tableOptions.data.schema
-  $: !stbData ? stbData = createFetch(datasource) : null
-
+  $: stbData = createFetch(tableOptions.data.datasource)
+  $: setContext("stbData", stbData)
+  $: schema = $stbData.schema
   $: stbData?.update({
     query,
     sortColumn,
@@ -138,7 +130,7 @@
     paginate,
   })
 
-  $: if ( tableOptions.columns?.length > 0 )
+  $: if ( $stbData.schema && tableOptions.columns?.length > 0 )
         columns = tableOptions.columns.map( (column) => makeSuperColumn (column) )
       else if ( tableOptions.hasChildren )
         columns = []
@@ -147,8 +139,7 @@
 
   $: tableTheme = themeMap[tableOptions.appearance.theme]
   $: $tableDataStore.data = $stbData?.rows ?? [];
-  $: $tableDataStore.dataSource = tableOptions.data.datasource ?? {};
-  $: $tableDataStore.schema = schema
+  $: $tableDataStore.schema = $stbData?.datasource?.schema
 
   $: $tableStateStore.rowCount = $stbData.rows.length
     ? $stbData.rows.length
@@ -160,6 +151,8 @@
 
 
   $: $tableDataStore.idColumn = tableOptions.idColumn;
+  $: $stbSettings = tableOptions
+
 
   const createFetch = datasource => {
     return fetchData({
@@ -204,7 +197,6 @@
     delete newQueryExtensions[key]
     queryExtensions = newQueryExtensions
   }
-
 
   const defaultOperatorMap = {
     "string" : "fuzzy",
@@ -290,11 +282,16 @@
 
   setContext("tableSelectionStore", stbSelected);
   setContext("tableScrollPosition", stbScrollPos);
-  setContext("tableOptionStore", stbSettings);
+
   setContext("tableHoverStore", stbHovered);
   setContext("tableState", stbState);
+
+  setContext("tableOptionStore", stbSettings);
+
 </script>
 
+
+{#if schema}
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   bind:this={anchor}
@@ -332,28 +329,29 @@
     </div>
   {/if}
   
-  <div class="st-master-columns" >
+    <div class="st-master-columns">
 
-    {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
-    {#if columns?.length}
-      {#each columns as column, idx }
-        <SuperTableColumn
-          bind:columnState={ columnStates[idx] }
-          {stbState}
-          columnOptions = {{
-            ...column,
-            canEdit: column.canEdit}}
-        />
-      {/each}
-    {/if}
-    {#if $stbSettings.superColumnsPos != "first"} <slot /> {/if}
+      {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
+      {#if columns?.length}
+        {#each columns as column, idx }
+          <SuperTableColumn
+            bind:columnState={ columnStates[idx] }
+            {stbState}
+            columnOptions = {{
+              ...column,
+              canEdit: column.canEdit}}
+          />
+        {/each}
+      {/if}
+      {#if $stbSettings.superColumnsPos != "first"} <slot /> {/if}
+    </div>
 
-  </div>
 
   {#if $stbData?.rows.length > tableOptions.visibleRowCount}
     <div class="st-master-scroll"> <SuperTableVerticalScroller {tableOptions} /></div>
   {/if}
 </div>
+{/if}
 
 <style>
   .st-master-wrapper {

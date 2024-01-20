@@ -50,8 +50,8 @@
         isSelected={ $tableSelectionStore.includes(row.rowKey) }
         on:resize={ (event) => tableStateStore.resizeRow(columnOptions.id, index, event.detail.height)}
         on:hovered={() => ($tableHoverStore = index)}
-        on:rowClicked={ (e) => columnState.rowClicked( e.detail.rowKey ) }
-        on:rowDblClicked={ (e) => columnState.rowDblClicked( e.detail.rowKey ) }
+        on:rowClicked
+        on:rowDblClicked
       >
         <slot />
       </SuperColumnRow>

@@ -47,17 +47,15 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div 
 	bind:this={rowElement}
-	tabindex="0"
 	class="spectrum-Table-row" 
 	class:is-selected={isSelected} 
 	class:is-hovered={isHovered}
 	style:height={ height + "px" }
-	on:focusin={cellState.focus}
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
-	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowKey : row?.rowKey })} }
-	on:dblclick={ () => dispatch("rowDblClicked", { rowKey : row?.rowKey }) } 
-	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowKey : row?.rowKey }) }
+	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowID : row?.rowKey })} }
+	on:dblclick={ () => dispatch("rowDblClicked", { rowID : row?.rowKey }) } 
+	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row?.rowKey }) }
 	>
 		{#if !columnOptions.hasChildren }
 			<svelte:component 

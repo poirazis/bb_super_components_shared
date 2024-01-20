@@ -1,11 +1,10 @@
 .superCell {
   flex: 1 1 auto;
   min-height: 2rem;
-  min-width: 80px;
   display: flex;
   align-items: center;
-  overflow: hidden;
   position: relative;
+  min-width: 0px;
 }
 
 .superCell:focus{
@@ -21,6 +20,7 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 .superCell.formInput.disabled {
   background-color: var(--spectrum-global-color-gray-100);
@@ -137,6 +137,7 @@
   border: 1px solid transparent;
 }
 .superCell.formInput {
+  min-width: 120px;
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
 }

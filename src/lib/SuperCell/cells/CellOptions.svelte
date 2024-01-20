@@ -1,10 +1,11 @@
 <script>
-	import Popover from '../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte';
 	import fsm from 'svelte-fsm';
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { fetchData } from '../../../../node_modules/@budibase/frontend-core/src/fetch/index.js';
 	import { dataFilters } from "@budibase/shared-core"
+	import { elementSizeStore } from "svelte-legos";
+
 	import "./CellCommon.css"
 
 	const dispatch = createEventDispatcher();
@@ -15,17 +16,17 @@
 	export let fieldSchema;
 	export let multi = false
 
-	let anchor;
+	let anchor = null
 	let picker;
 	let options = []
 	let optionColors = {}
 	let optionIcons = {}
 	let optionLabels = {}
-	let focusedOptionIdx;
+	let focusedOptionIdx = -1
 	let fetch;
-	let filterValue
-	let filterBar
 	let loadedData
+	let searchTerm = ""
+	let pickerWidth
 
 	export let cellState = fsm( "View" , {
     "*": {
@@ -33,7 +34,7 @@
     },
     View: { 
       focus () { 
-        if (!cellOptions.readonly) {
+        if (!cellOptions.readonly && !cellOptions.disabled) {
 				 	return "Editing" 
 				}
       }
@@ -44,7 +45,20 @@
     },
     Error: { check : "View" },
     Editing: { 
-			_enter() { if (!cellOptions.addNew) editorState.open() },
+			_enter() {
+				 if (!cellOptions.autocomplete) 
+				 	editorState.open() 
+				else 
+					searchTerm = localValue[0]		
+			},
+			handleKeyboard( e ) {
+				if ( e.key == "Backspace" || e.key == "Delete"  ){
+						e.stopPropagation();
+						dispatch("change",[] )
+					}
+
+					editorState.handleKeyboard( e )
+			},
       unfocus() { return "View" },
       lostFocus() { return "View" },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
@@ -54,37 +68,126 @@
 
 	export let editorState = fsm('Closed', {
 		'*': {
-			handleKeyboard(e) {},
 			close() {
 				return 'Closed';
+			},
+      toggleOption(idx) {
+				if (!cellOptions.addNew && idx < 0 ) return;
+
+				let option = options[idx] ?? searchTerm
+
+				if (multi && localValue.includes(option))  {
+						localValue.splice(localValue.indexOf(option), 1);
+						localValue = localValue;
+				} else if (multi) {
+						localValue = [...localValue, option];
+				} else {
+					localValue = [option];
+				}
+
+				if ( cellOptions.autocomplete ) searchTerm = localValue[0]
+				dispatch("change", localValue)
+			}
+		},
+		Open: {
+			_enter() { 
+				focusedOptionIdx = -1;
+			},
+			toggle() {
+				return 'Closed';
+			},
+			handleKeyboard ( e ) {
+				if ( e.keyCode == 32 ) {
+					if ( focusedOptionIdx > -1 ) {
+						this.toggleOption(focusedOptionIdx)
+						if ( !multi ) this.close()
+					} else {
+						this.close();
+					}
+				}
+
+
+				if ( e.key == "Enter" ) {
+					if ( multi )
+						this.close();
+					else {
+						this.toggleOption(focusedOptionIdx);
+						this.close()
+					}
+				}
+
+				if (e.key == 'ArrowDown') this.highlightNext(e.stopPropagation());
+				if (e.key == 'ArrowUp') this.highlightPrevious(e.stopPropagation());
+				if (e.key == 'ArrowLeft') this.highlightLeft(e.stopPropagation());
+				if (e.key == 'ArrowRight') this.highlightRight(e.stopPropagation());
+			},
+			highlightNext() {
+				if ( cellOptions.coltrolType == "select" ) {
+					focusedOptionIdx = focusedOptionIdx + 1
+				} else {
+					if ( focusedOptionIdx + columns < options.length) {
+						focusedOptionIdx = focusedOptionIdx == -1 ? 0 : focusedOptionIdx + columns
+					} else {
+						focusedOptionIdx = focusedOptionIdx % columns
+					}
+				}
+				if ( focusedOptionIdx > options.length - 1 ) focusedOptionIdx = 0
+			},
+			highlightPrevious() {
+				let rows = Math.ceil(options.length / columns)
+
+				if ( cellOptions.coltrolType == "select" ) {
+					focusedOptionIdx = focusedOptionIdx - 1
+				} else {
+					if ( focusedOptionIdx - columns > -1 ) {
+						focusedOptionIdx = focusedOptionIdx - columns
+					} else {
+						focusedOptionIdx = ( (rows - 1) * columns) + focusedOptionIdx < options.length 
+						? ( (rows - 1) * columns) + focusedOptionIdx 
+						: ( (rows - 2) * columns) + focusedOptionIdx 
+					}
+				}
+
+				if ( focusedOptionIdx < 0 ) focusedOptionIdx = options.length - 1
+			},
+			highlightRight() {
+				if ( cellOptions.coltrolType != "select" ) {
+					if ( (focusedOptionIdx + 1) % columns== 0 )
+						focusedOptionIdx = focusedOptionIdx - columns+ 1
+					else
+						focusedOptionIdx = focusedOptionIdx + 1 == options.length
+						? options.length - 1
+						: focusedOptionIdx += 1
+				}
+			},
+			highlightLeft() {
+				if ( cellOptions.coltrolType != "select" ) {
+					if ( focusedOptionIdx % columns== 0 )
+						focusedOptionIdx = (focusedOptionIdx + columns- 1) > options.length
+						? options.length - 1
+						: focusedOptionIdx + columns- 1
+					else
+						focusedOptionIdx = focusedOptionIdx - 1
+				}
+			}
+		},
+		Closed: {
+			_enter() { },
+			toggle() {
+				return $cellState == "Editing" ? 'Open' : "Closed"
 			},
 			open() {
 				return 'Open';
 			},
-      toggleOption(idx) {
-				toggleOption(options[idx]);
-				dispatch('change', localValue);
-			}
-		},
-		Open: {
-			toggle() {
-				focusedOptionIdx = undefined;
-				return 'Closed';
-			},
-			highlightNext() {
-				if (focusedOptionIdx == options.length - 1) focusedOptionIdx = 0;
-				else if (focusedOptionIdx != undefined) focusedOptionIdx = focusedOptionIdx + 1;
-				else focusedOptionIdx = 0;
-			},
-			highlightPrevious() {
-				if (focusedOptionIdx == 0) focusedOptionIdx = options.length - 1;
-				else if (focusedOptionIdx == undefined) focusedOptionIdx = options.length - 1;
-				else focusedOptionIdx = focusedOptionIdx - 1;
-			}
-		},
-		Closed: {
-			toggle() {
-				return $cellState == "Editing" ? 'Open' : "Closed"
+			handleKeyboard( e ) {
+				if ( cellOptions.autocomplete )
+					return "Open"
+				else {
+					if (e.keyCode == 32) {
+						e.stopPropagation();
+						return "Open"
+					}
+				}
 			},
 			highlightNext() {
 				return $cellState == "Editing" ? 'Open' : "Closed"
@@ -92,15 +195,13 @@
 		}
 	});
 
-	$: if ( loadedData != cellOptions.datasource?.label ) { 
+	$: if ( (cellOptions.controlType != "select" || $cellState == "Editing" ) && loadedData != cellOptions.datasource?.label ) { 
 		fetch = createFetch(cellOptions.datasource) 
-		loadedData = cellOptions.datasource.label
+		loadedData = cellOptions.datasource?.label
 	}
 
 	$: if (cellOptions.optionsSource == 'data' && fetch) {
 		options = $fetch.rows.map( (x) =>  x[cellOptions.valueColumn] )
-		options = [ "__clr__", ...options ]
-		optionLabels["__clr__"] = "Clear Selection"
 		$fetch.rows.forEach(element => {
 			optionColors[element[cellOptions.valueColumn]] = element[cellOptions.colorColumn] ;
 			optionIcons[element[cellOptions.valueColumn]] = element[cellOptions.iconColumn] ;
@@ -108,27 +209,23 @@
 		});
 	} else if (cellOptions.optionsSource == 'custom') {
 			if ( cellOptions.customOptions.length) {
-				options = cellOptions.customOptions.map( (x) => x.value )
-				options = [ "__clr__", ...options ]
+				options = cellOptions.customOptions.map( (x) => x.value || x)
 				cellOptions.customOptions.forEach( (e) => {
-					optionLabels[e.value] = e.label
+					optionLabels[e.value || e] = e.label || e
 				})
-				optionLabels["__clr__"] = "Clear Selection"
 			}
 	} else {
 		options = fieldSchema?.constraints?.inclusion || [];
-		options = [ "__clr__", ...options ]
 		optionColors = fieldSchema?.optionColors || {};
-		optionIcons = { "Clear Selection" : "ri-close-line" }
-		optionLabels["__clr__"] = "Clear Selection"
+		if ( searchTerm && searchTerm != localValue[0]) options = options.filter ( x => x.startsWith(searchTerm) )
 	}
 
 	// Make sure the internal value is always an array
 	$: localValue = Array.isArray(value) ? value : value ? [value] : [];
-
-	$: if (options.length > 1 && cellOptions.coltrolType == "select") options = ['Clear Selection', ...options];
+	$: columns = cellOptions.optionsArrangement || 1
 	$: inEdit = $cellState == 'Editing';
-	$: simpleView = cellOptions.optionsViewMode == 'text';
+	$: simpleView = cellOptions.optionsViewMode != 'pills';
+	$: anchor ? pickerWidth = elementSizeStore(anchor) : null
 
 	const getOptionColor = (value) => {
 		let color 
@@ -149,42 +246,6 @@
 		return cellOptions.useOptionIcons ? optionIcons[value] : undefined
 	};
 
-	const handleKeyboard = (e) => {
-		if ($editorState == 'Open') {
-			if (e.key == 'ArrowDown') editorState.highlightNext(e.preventDefault());
-			if (e.key == 'ArrowUp') editorState.highlightPrevious();
-			if (e.key == 'Escape') editorState.close(e.stopPropagation());
-			if (e.key == 'Enter') editorState.close(e.stopPropagation());
-			if (e.key == 'Tab') editorState.close();
-			if (e.keyCode == 32) {
-				e.preventDefault();
-				e.stopPropagation();
-				focusedOptionIdx != undefined
-					? editorState.toggleOption(focusedOptionIdx)
-					: editorState.toggle();
-			}
-		} else if ($cellState == 'Editing') {
-			if (e.keyCode == 32) editorState.toggle(e.preventDefault());
-		}
-	};
-
-	const toggleOption = (option) => {
-		if (option == 'Clear Selection') {
-			localValue = multi ? [] : null;
-			return;
-		}
-
-		if (multi && localValue.includes(option))  {
-				localValue.splice(localValue.indexOf(option), 1);
-				localValue = localValue;
-		} else if (multi) {
-				localValue = [...localValue, option];
-		} else {
-			localValue = [option];
-			editorState.toggle();
-		}
-	};
-
 	const createFetch = (datasource) => {
 		return fetchData({
 			API,
@@ -201,6 +262,7 @@
 	const handleBlur = (e) => {
 
 		if (!picker?.contains(e.relatedTarget) && !anchor.contains(e.relatedTarget)) {
+			focusedOptionIdx = -1;
 			editorState.close();
 			dispatch('blur');
 		} 
@@ -219,7 +281,7 @@
 	tabindex="0"
 	class="superCell"
 	class:inEdit
-	class:disabled = { cellOptions.disabled || (options.length < 1 && !filterValue )}
+	class:disabled = { cellOptions.disabled }
 	class:error = { cellOptions.error }
 	class:inline={cellOptions.role == 'inline'}
 	class:tableCell={cellOptions.role == 'tableCell'}
@@ -228,7 +290,7 @@
 	style:background={cellOptions.background}
 	style:font-weight={cellOptions.fontWeight}
 	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
-	on:keydown={(e) => { if (!cellOptions.addNew) handleKeyboard(e) }}
+	on:keydown={cellState.handleKeyboard}
 	on:blur={(e) => setTimeout(handleBlur, 20, e)}
 	on:focusin={cellState.focus}
 >
@@ -236,35 +298,23 @@
 		<i class={cellOptions.icon + ' frontIcon'}></i>
 	{/if}
 
-	{#if cellOptions.controlType == 'checkbox' && options.length > 0}
+	{#if cellOptions.controlType == 'checkbox'}
     <div 
       class="options checkboxes" 
-      style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
+      style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
+			on:mouseleave={() => focusedOptionIdx = -1}
     >
 			{#each options as option, idx (idx)}
 				{@const color = getOptionColor(option)}
 				{@const label = getOptionLabel(option)}
 				{@const icon = getOptionIcon(option)}
 				{@const selected = localValue?.includes(option)}
-				{#if option == '__clr__'}
-					<div
-						class="option"
-						style:color={'var(--primaryColor)'}
-						class:focused={focusedOptionIdx === idx}
-						on:mouseenter={() => (focusedOptionIdx = idx)}
-						on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
-					>
-						<i class="ri-close-line" style="font-size: 16px;" />
-						{label}
-					</div>
-				{:else}
 					<div
 						class="option"
 						class:selected
 						class:focused={focusedOptionIdx === idx}
 						on:mousedown={(e) => editorState.toggleOption(idx)}
 						on:mouseenter={() => (focusedOptionIdx = idx)}
-						on:mouseleave={() => focusedOptionIdx = undefined}
 					>
 						{#if icon}
 							<i class={icon} style:color={color}> </i>
@@ -276,76 +326,58 @@
 						</div>
 						{label}
 					</div>
-				{/if}
 			{/each}
     </div>
-	{:else if cellOptions.controlType == "radio" && options.length > 0 }
+	{:else if cellOptions.controlType == "radio"}
 	<div 
 		class="options checkboxes" 
-		style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
+		style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
+		on:mouseleave={() => focusedOptionIdx = -1}
 	>
 		{#each options as option, idx (idx)}
 			{@const color = getOptionColor(option)}
 			{@const label = getOptionLabel(option)}
 			{@const icon = getOptionIcon(option)}
 			{@const selected = localValue?.includes(option)}
-			{#if option == '__clr__'}
-				<div
-					class="option"
-					style:color={'var(--primaryColor)'}
-					class:focused={focusedOptionIdx === idx}
-					on:mouseenter={() => (focusedOptionIdx = idx)}
-					on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
-				>
-					<i class="ri-close-line" style="font-size: 16px;" />
-					{label}
-				</div>
-			{:else}
 				<div
 					class="option"
 					class:selected
 					class:focused={focusedOptionIdx === idx}
-					on:mousedown={(e) => editorState.toggleOption(idx)}
+					on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
 					on:mouseenter={() => (focusedOptionIdx = idx)}
-					on:mouseleave={() => focusedOptionIdx = undefined}
 				>
 					{#if icon}
 						<i class={icon} style:color={color}> </i>
 					{/if}
+
 					<div class="loope round" 
 						style:background-color={color ? color : "var(--spectrum-global-color-gray-100)"}>
 						{#if selected}
 							<div class="loope dot" />
 						{/if}
 					</div>
+
 					{label}
 				</div>
-			{/if}
 		{/each}
 	</div>
 
-	{:else if cellOptions.controlType == 'switch' && options.length > 0 }
+	{:else if cellOptions.controlType == 'switch'}
     <div 
       class="options checkboxes" 
-      style:grid-template-columns={ "repeat( " + cellOptions.optionsArrangement  + " , 1fr" }
+			on:mouseleave={() => focusedOptionIdx = -1}
+      style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
     >
 			{#each options as option, idx (idx)}
 				{@const color = getOptionColor(option)}
 				{@const label = getOptionLabel(option)}
 				{@const selected = localValue.includes(option)}
-				{#if option == '__clr__'}
-					<div
-						class="option"
-						style:color={'var(--primaryColor)'}
-						class:focused={focusedOptionIdx === idx}
-						on:mouseenter={() => (focusedOptionIdx = idx)}
-						on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
+					<div class="option" 
+					class:focused={focusedOptionIdx === idx}
+					style:max-height={"1.75rem"} 
+					on:click={(e) => editorState.toggleOption(idx, e.stopPropagation())}
+					on:mouseenter={() => (focusedOptionIdx = idx)} 
 					>
-						<i class="ri-close-line" style="font-size: 16px;" />
-						{label}
-					</div>
-				{:else}
-					<div class="option">
 						<div class="spectrum-Switch spectrum-Switch--emphasized"
 						style:--spectrum-switch-m-emphasized-handle-border-color-selected = { color ? color : "var(--spectrum-global-color-blue-500)" }
 						style:--spectrum-switch-m-emphasized-track-color-selected={ selected && color ? color : "var(--spectrum-global-color-blue-500)"}
@@ -353,7 +385,6 @@
 						>
 							<input
 								checked={localValue.includes(option)}
-								on:change={(e) => editorState.toggleOption(idx)}
 								type="checkbox"
 								class="spectrum-Switch-input"
 								id={idx}
@@ -362,22 +393,22 @@
 							<label class="spectrum-Switch-label" class:selected for={idx}>{label}</label>
 						</div>
 					</div>
-				{/if}
 			{/each}
     </div>
-	{:else if inEdit && cellOptions.addNew}
+	{:else if inEdit && cellOptions.autocomplete}
 		<input
 			class="editor"
-			class:placeholder={!localValue[0]}
+			class:placeholder={!searchTerm}
 			style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
 			style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
 			style:padding-top={0}
 			style:padding-bottom={0}
 			style:border={"none"}
-			bind:value={localValue[0]}
+			bind:value={searchTerm}
+			on:keydown={editorState.handleKeyboard}
 			placeholder={ cellOptions.placeholder ?? "Enter..." }
 			on:blur={(e) => {
-				dispatch("change", localValue)
+				dispatch("change", [searchTerm])
 				setTimeout(handleBlur, 20, e)
 			}}
 			use:focus
@@ -394,9 +425,7 @@
 			on:click|stopPropagation={() => {if (!cellOptions.addNew) editorState.toggle()}}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if options.length < 1 && !filterValue}
-					No Available Options
-				{:else if localValue.length < 1}
+				{#if localValue.length < 1}
 					{cellOptions?.placeholder}
 				{:else if localValue.length > 0 }
 					{#each localValue as val (val)}
@@ -425,9 +454,10 @@
 			style:padding-left={cellOptions?.icon ? '32px' : cellOptions.padding}
 		>
 			<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
-				{#if options.length < 1 && !filterValue}
-					No Available Options
-				{:else if localValue.length < 1}
+				{#if $fetch?.loading}
+					Loading
+				{/if}
+				{#if localValue.length < 1}
 					{cellOptions.placeholder}
 				{:else if localValue.length > 0}
 					{#each localValue as val (val)}
@@ -449,76 +479,52 @@
 			</div>
 		</div>
 	{/if}
-
-	{#if cellOptions.controlType == "select"}
-		<Popover
-			{anchor}
-			dismissible={false}
-			useAnchorWidth
-			open={$editorState == "Open"}
-		>
-			<div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}>
-
-				{#if cellOptions.autocomplete}
-					<div class="search">
-						<i class="ri-search-line icon"> </i>
-						<input 
-							bind:value={filterValue}
-							bind:this={filterBar}
-							class="editor" 
-							type="text"
-							on:blur={editorState.close}
-						> 
-					</div>
-				{/if}
-
-				{#if options.length < 1}
-					<div class="option">
-							<i class="ri-close-line" />
-							No Available Options
-					</div>
-				{:else}
-					{#each options as option, idx (idx)}
-					{@const color = getOptionColor(option)}
-					{@const label = getOptionLabel(option)}
-					{@const icon = getOptionIcon(option)}
-						{#if option == "__clr__" }
-							<div
-								class="option"
-								style:color={'var(--primaryColor)'}
-								class:focused={focusedOptionIdx === idx}
-								on:mouseenter={() => (focusedOptionIdx = idx)}
-								on:mousedown|preventDefault|stopPropagation={(e) => localValue = []}
-							>
-								<i class="ri-close-line" style="font-size: 16px;" />
-								{label}
-							</div>
-						{:else}
-							<div
-								class="option"
-								class:focused={focusedOptionIdx === idx}
-								on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-								on:mouseenter={() => (focusedOptionIdx = idx)}
-							>
-								{#if multi || color }
-									<div class="loope small" style:background-color={color}>
-										{#if localValue?.includes(option)}
-											<i class="ri-check-line" />
-										{/if}
-									</div>
-								{/if}
-								{label}
-							</div>
-						{/if}
-					{/each}
-				{/if}
-			</div>
-		</Popover>
-	{/if}
-
 </div>
 
-
+{#if cellOptions.controlType == "select" && inEdit}
+	<div
+	 	class="spectrum-Popover spectrum-Popover--bottom" 
+		id="popover-default" 
+		class:is-open={$editorState == "Open"}
+		style:width={$pickerWidth.width}
+		style:z-index={1000}
+		style:margin-top={"2rem"}
+		>
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1}>
+			{#if options.length < 1}
+				<div class="option">
+						<i class="ri-close-line" />
+						No Available Options
+				</div>
+			{:else}
+				{#each options as option, idx (idx)}
+				{@const color = getOptionColor(option)}
+				{@const label = getOptionLabel(option)}
+				{@const icon = getOptionIcon(option)}
+					<div
+						class="option"
+						class:focused={focusedOptionIdx === idx}
+						on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+						on:mouseenter={() => (focusedOptionIdx = idx)}
+					>
+						{#if multi || color }
+							<div class="loope small" style:background-color={color}>
+								{#if localValue?.includes(option)}
+									<i class="ri-check-line" />
+								{/if}
+							</div>
+						{/if}
+						{#if icon}
+							<i class={icon} />
+						{/if}
+						{label}
+					</div>
+				{/each}
+			{/if}
+		</div>
+	</div>
+{/if}
 
 <style>
 	.options {
@@ -537,7 +543,7 @@
   }
 
 	.option {
-		height: 1.75rem;
+		line-height: 18px;
 		padding: 0.25rem;
 		display: flex;
 		gap: 0.5rem;
@@ -554,6 +560,7 @@
 	.loope {
 		height: 14px;
 		width: 14px;
+		line-height: 12px;
 		border-radius: 2px;
 		display: grid;
 		align-items: center;
@@ -568,7 +575,9 @@
 	.loope.small {
 		height: 12px;
 		width: 12px;
+		line-height: 10px;
 		font-size: 10px;
+		font-weight: 700;
 	}
 	.loope.dot {
 		border-radius: 50%;

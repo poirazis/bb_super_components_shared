@@ -29,6 +29,7 @@
 	import CellDatetime from "../../SuperCell/cells/CellDatetime.svelte";
 	import CellLink from "../../SuperCell/cells/CellLink.svelte";
 	import CellSkeleton from "../../SuperCell/cells/CellSkeleton.svelte";
+  import CellJSON from "../../SuperCell/cells/CellJSON.svelte"
 
   const tableDataStore = getContext("tableDataStore");
   const tableStateStore = getContext("tableStateStore");
@@ -36,7 +37,7 @@
   
   // Props
   export let columnOptions;
-  export let tableState
+  export let stbState
 
   // Internal Variables
   let id = uuidv4();
@@ -54,10 +55,12 @@
 		'string' : CellString,
 	  'number': CellNumber,
 		'options': CellOptions,
-		'array': CellOptions ,
+		'array': CellOptions,
+		'jsonarray': CellOptions,
 		'boolean': CellBoolean ,
 		'datetime': CellDatetime,
 		'link': CellLink,
+		'json': CellJSON,
 		"bb_reference": CellLink
   };
 
@@ -71,11 +74,20 @@
     padding: columnOptions.cellPadding,
     useOptionColors: columnOptions.useOptionColors,
     optionsViewMode: columnOptions.optionsViewMode,
+    optionsSource: columnOptions.optionsSource,
+    customOptions: columnOptions.customOptions,
+    useOptionColors: columnOptions.useOptionColors,
+    useOptionIcons: columnOptions.useOptionIcons,
     relViewMode: columnOptions.relViewMode,
     controlType: "select",
-    placeholder: " "
+    addNew: false,
+    placeholder: " ",
+    datasource: columnOptions.data?.datasource,
+    valueColumn : columnOptions.data?.valueColumn,
+    labelColumn : columnOptions.data?.labelColumn,
+    iconColumn : columnOptions.data?.iconColumn,
+    colorColumn : columnOptions.data?.colorColumn,
   }
-
   $: columnOptions.cellComponent = $columnState == "Loading" ? CellSkeleton : cellComponents[columnOptions.schema.type] ?? CellString
 
   // Allow the Super Table to bind to the Super Column State Machine to control it
@@ -87,8 +99,6 @@
         tableDataStore?.unregisterColumn({ id: id, field: field });
         tableDataStore?.registerColumn({ id: id, field: field });
       },
-      rowClicked ( id ) { tableState.rowClicked( { "rowID" : id } ) },
-      rowDblClicked ( id ) { tableState.rowDblClicked( { "rowID" : id } ) },
       cancel() { return "Idle"},
       lockWidth () { lockWidth = true },
       goTo ( state ) { return state },
@@ -150,16 +160,18 @@
     }
   });
 
-  $: columnState.tableState($tableState)
+  $: columnState.tableState($stbState)
   // Reactive declaration.
   // nameStore is used in our derived store that holds the column data
-  let nameStore = writable(columnOptions.name);
-  $: nameStore.set(columnOptions.name);
+
+  let colsStore = new writable([])
+  $: columnOptions.name ? colsStore.set(columnOptions.name.split(".")) : $colsStore = []
+
   let columnStore =
-    derived([tableDataStore, nameStore], ([$tableDataStore, $nameStore]) => {
+    derived([tableDataStore, colsStore], ([$tableDataStore, $colsStore]) => {
       return $tableDataStore?.data.map((row) => ({
         rowKey: row[$tableDataStore.idColumn],
-        rowValue: row[$nameStore],
+        rowValue: $colsStore.length > 1 ? row[$colsStore[0]]?.[$colsStore[1]] : row[$colsStore[0]]
       }));
     }) || null;
 
@@ -191,9 +203,9 @@
   class="superTableColumn"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 1" }
-  style:min-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : "auto" } 
-  style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : "auto" } 
+  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 1 auto" }
+  style:min-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.minWidth || "auto"} 
+  style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.maxWidth || "auto"} 
   on:mouseleave={() => $tableHoverStore = null }
 >
   <div 
@@ -205,7 +217,12 @@
 
   <SuperColumnHeader {columnState} {columnOptions} />
 
-  <SuperColumnBody {columnState} {columnOptions} rows={$columnStore}>
+  <SuperColumnBody 
+    on:rowClicked={(e) => stbState.rowClicked( e.detail )} 
+    on:rowDblClicked={(e) => stbState.rowDblClicked( e.detail )} 
+    {columnState} 
+    {columnOptions} 
+    rows={$columnStore}>
     <slot />
   </SuperColumnBody>
 
@@ -214,13 +231,14 @@
 
 <style>
   .superTableColumn {
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     position: relative;
     border-right: var(--super-table-vertical-dividers);
     color: var(--super-table-color);
     display: flex;
     flex-direction: column;
-    align-items: stretch;  
+    align-items: stretch;
+    overflow-x: hidden;
   }
   .grabber {
     width: 5px;

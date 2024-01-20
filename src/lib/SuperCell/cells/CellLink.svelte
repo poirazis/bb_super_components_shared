@@ -17,7 +17,7 @@
     },
     View: { 
       focus () { 
-        if (!cellOptions.readonly) return "Editing"  
+        if (!cellOptions.readonly && !cellOptions.disabled) return "Editing"  
       }
     },
     Hovered: { cancel: () => { return "View" }},
@@ -69,7 +69,6 @@
       dispatch("blur")
     }
   }
-
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -79,6 +78,7 @@
   bind:this={anchor} 
   tabindex="0"
   class="superCell"
+  class:disabled={ cellOptions.disabled }
   class:inEdit
   class:inline={ cellOptions?.role == "inline" }  
   class:tableCell={ cellOptions?.role == "tableCell" } 
@@ -90,14 +90,14 @@
   on:blur={handleBlur}
   on:keydown={handleKeyboard}
 >
-  {#if cellOptions?.iconFront}
-    <i class={cellOptions.iconFront + " frontIcon"}></i>
+  {#if cellOptions?.icon}
+    <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
   {#if inEdit}
     <div 
       class="editor" class:placeholder={value?.length < 1} 
-      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
       on:click={(e) => open = !open}
     >
       <div class="items" class:simpleView >
@@ -117,7 +117,7 @@
         <i class="ri-add-line"></i>
     </div>
   {:else}
-    <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }>
+    <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }>
       <div class="items" class:simpleView >
         {#if value?.length < 1}
           { cellOptions?.placeholder || "Select " + fieldSchema.name }
@@ -147,7 +147,7 @@
     
     on:close={() => open = false} 
     >
-      <div bind:this={picker} >
+      <div bind:this={picker} style="display: contents">
         <CellLinkPicker 
           {value} 
           schema={fieldSchema} 

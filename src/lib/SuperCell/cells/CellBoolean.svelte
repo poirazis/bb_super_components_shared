@@ -61,7 +61,7 @@
   style:color={ cellOptions.color }
   style:background={ cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
-  style:max-height={"2rem"}
+  style:max-height={ cellOptions.role == "formInput" ? "2rem" : "auto"}
   >
     {#if cellOptions.icon}
       <i class={cellOptions.icon + " frontIcon"}></i>
