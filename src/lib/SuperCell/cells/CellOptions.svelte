@@ -5,6 +5,7 @@
 	import { fetchData } from "../../Fetch"
 	import { dataFilters } from "@budibase/shared-core"
 	import { elementSizeStore } from "svelte-legos";
+	import SuperPopover from '../../SuperPopover/SuperPopover.svelte';
 
 	import "./CellCommon.css"
 
@@ -17,7 +18,6 @@
 	export let multi = false
 
 	let anchor = null
-	let picker;
 	let options = []
 	let optionColors = {}
 	let optionIcons = {}
@@ -26,7 +26,8 @@
 	let fetch;
 	let loadedData
 	let searchTerm = ""
-	let pickerWidth
+	let picker
+	let anchorSize
 
 	export let cellState = fsm( "View" , {
     "*": {
@@ -54,9 +55,8 @@
 			handleKeyboard( e ) {
 				if ( e.key == "Backspace" || e.key == "Delete"  ){
 						e.stopPropagation();
-						dispatch("change",[] )
+						dispatch("change", null )
 					}
-
 					editorState.handleKeyboard( e )
 			},
       unfocus() { return "View" },
@@ -87,6 +87,7 @@
 
 				if ( cellOptions.autocomplete ) searchTerm = localValue[0]
 				dispatch("change", localValue)
+				if ( !multi ) return "Closed"
 			}
 		},
 		Open: {
@@ -225,7 +226,7 @@
 	$: columns = cellOptions.optionsArrangement || 1
 	$: inEdit = $cellState == 'Editing';
 	$: simpleView = cellOptions.optionsViewMode != 'pills';
-	$: anchor ? pickerWidth = elementSizeStore(anchor) : null
+	$: anchor ? anchorSize = elementSizeStore(anchor) : null
 
 	const getOptionColor = (value) => {
 		let color 
@@ -261,7 +262,7 @@
 
 	const handleBlur = (e) => {
 
-		if (!picker?.contains(e.relatedTarget) && !anchor.contains(e.relatedTarget)) {
+		if (!picker?.contains(e.relatedTarget) && !anchor?.contains(e.relatedTarget)) {
 			focusedOptionIdx = -1;
 			editorState.close();
 			dispatch('blur');
@@ -458,7 +459,7 @@
 					Loading
 				{/if}
 				{#if localValue.length < 1}
-					{cellOptions.placeholder}
+					{cellOptions.placeholder ?? ""}
 				{:else if localValue.length > 0}
 					{#each localValue as val (val)}
 					{@const color = getOptionColor(val)}
@@ -482,16 +483,14 @@
 </div>
 
 {#if cellOptions.controlType == "select" && inEdit}
-	<div
-	 	class="spectrum-Popover spectrum-Popover--bottom" 
-		id="popover-default" 
-		class:is-open={$editorState == "Open"}
-		style:width={$pickerWidth.width}
-		style:z-index={1000}
-		style:margin-top={"2rem"}
-		>
+<SuperPopover
+	anchor={anchor}
+	useAnchorWidth
+	dismissible=false
+	open={ $editorState == "Open" }
+	>
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div bind:this={picker} class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1}>
+		<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1}>
 			{#if options.length < 1}
 				<div class="option">
 						<i class="ri-close-line" />
@@ -523,7 +522,7 @@
 				{/each}
 			{/if}
 		</div>
-	</div>
+	</SuperPopover>
 {/if}
 
 <style>

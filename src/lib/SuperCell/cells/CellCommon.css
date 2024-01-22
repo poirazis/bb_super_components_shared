@@ -158,5 +158,16 @@
   height: 1.25rem;
 }
 .superCell.inline {
-  border: 1px solid pink;
+  border: none;
+  background-color: var(--spectrum-global-color-gray-75);
+}
+.superCell.inline.disabled {
+  background-color: var(--spectrum-global-color-gray-100);
+  color: var(--spectrum-global-color-gray-600);
+  cursor:not-allowed; 
+}
+.superCell.inline.readonly {
+  background-color: var(--spectrum-global-color-gray-100);
+  color: var(--spectrum-global-color-gray-600);
+  cursor:not-allowed; 
 }

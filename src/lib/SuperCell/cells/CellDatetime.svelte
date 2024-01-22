@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import Popover from '../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte';
+	import SuperPopover from '../../SuperPopover/SuperPopover.svelte';
 	import { DatePicker } from 'date-picker-svelte';
 	const dispatch = new createEventDispatcher();
 	import fsm from "svelte-fsm"
@@ -63,6 +63,7 @@
 	tabindex="0"
 	class="superCell"
 	class:inEdit
+	class:disabled={cellOptions.disabled}
 	class:inline={cellOptions?.role == 'inline'}
 	class:tableCell={cellOptions?.role == 'tableCell'}
 	class:formInput={cellOptions?.role == 'formInput'}
@@ -102,7 +103,7 @@
 </div>
 
 {#if inEdit}
-	<Popover {anchor} dismissible bind:open align="left" >
+	<SuperPopover {anchor} dismissible bind:open align="left" >
 		<div 
 			bind:this={picker}
 			style:--date-picker-background="var(--spectrum-alias-background-color-default)"
@@ -120,5 +121,5 @@
 			}}
 		/>
 		</div>
-	</Popover>
+	</SuperPopover>
 {/if}

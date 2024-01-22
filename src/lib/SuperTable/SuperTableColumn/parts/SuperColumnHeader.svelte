@@ -1,83 +1,102 @@
 <script>
-  import Popover from "../../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
+  import SuperPopover from "../../../SuperPopover/SuperPopover.svelte"
 
   export let columnState;
   export let columnOptions;
+  export let sortOrder
 
   let headerAnchor;
-  let showFilteringOptions
-  let cellState;
+  let picker
+  let showFilteringOptions = false
   let filterValue;
   let filterOperator = columnOptions.defaultFilteringOperator;
 
   $: cellOptions = {
-    role: "tableCell",
     align: columnOptions.align,
     color: columnOptions.color,
-    background: columnOptions.background ?? "transparent",
+    background: columnOptions.background,
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.cellPadding,
+    placeholder: columnOptions.filteringOperators.find( x => x.value == filterOperator)?.label,
+    clearValueIcon: true,
+    disabled: filterOperator == "empty" || filterOperator == "notEmpty",
+    readonly: filterOperator == "empty" || filterOperator == "notEmpty",
+    useOptionColors: true,
     controlType: "select",
     initialState: "Editing",
-    readonly: false
+    role: "inline"
   };
 
-  const handleValueChange = (e) => {
-    filterValue = e.detail;
-    if ( columnOptions.schema.type == "boolean" && !filterValue ) {
-      columnState.filter(buildFilter("notEqual", true));
-    } else if ( filterValue ) {
-      columnState.filter(buildFilter(filterOperator, filterValue));
+  const handleValueChange = ( e ) => {
+    if ( e.detail ) {
+      filterValue = e.detail;
+      if ( columnOptions.schema.type == "boolean" && !filterValue ) {
+        columnState.filter(buildFilter("notEqual", true));
+      } else {
+        columnState.filter(buildFilter(filterOperator, filterValue));
+      }
     } else {
       showFilteringOptions = false
-      columnState.cancel();
+      filterValue = null
+      columnState.clear();
     }
   };
 
   const buildFilter = (operator, value) => {
+    let temp 
+
+    if ( operator == "oneOf" && !Array.isArray(value) ) {
+      temp = value.split(",")
+    } else if ( operator != "oneOf" && operator != "containsAny" && Array.isArray(value) ) {
+      temp = value[0]
+      filterValue = temp
+    } else {
+      temp = value
+    }
+
     return {
       field: columnOptions.name,
       operator: operator,
-      value: value,
+      value: temp,
+      type: columnOptions.schema.type,
       valueType: "Value",
     };
+
   };
 
-  const handleKeyboard = (e) => {
-    if (e.key == "Enter") {
-      columnState.filter(filterOperator, filterValue);
-    }
-    if (e.key == "Escape") {
-      columnState.cancel();
-    }
-  };
-
-  const handleBlur = ( e ) => {
-    if ( !showFilteringOptions && !filterValue )
-      columnState.cancel();
+  const handleOperatorChange = op => {
+    filterOperator = op
+    if ( filterValue  ) 
+      columnState.filter(buildFilter(filterOperator, filterValue))
+    showFilteringOptions = false
   }
 
+  const handleBlur = ( e ) => {
+    if ( !headerAnchor?.contains( e.relatedTarget ) && !picker?.contains( e.relatedTarget ) )
+      columnState.cancel()
+  }
 </script>
 
+
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 {#if columnOptions.showHeader}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div
+    bind:this={headerAnchor} 
+    tabindex="0"
+    on:focusout={handleBlur}
     class="spectrum-Table-headCell"
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
     style:padding-left={ columnOptions.cellPadding }
     style:padding-right={ $columnState == "Entering" ? 0 : columnOptions.cellPadding }
-    on:keydown={handleKeyboard}
-    bind:this={headerAnchor} 
-    tabindex="0"
+
   >
-    {#if $columnState == "Idle" || $columnState == "Ascending" || $columnState == "Descending" || $columnState == "Loading" }
+    {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" }
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
-        <i class="ri-search-line icon" on:click={columnState.filter}> </i>
+        <i class="ri-search-line icon" on:click|stopPropagation={columnState.filter}> </i>
       {/if}
 
       <div
@@ -93,49 +112,47 @@
         </div>
       </div>
 
-      {#if columnOptions.isSorted}
-        <i class={ $columnState == "Ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
+      {#if $columnState == "Sorted"}
+        <i class={ sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      <i class="ri-equalizer-line" style="align-self: center; font-size: 12px;" on:click|stopPropagation={ () => showFilteringOptions = true } />
+      <i class="ri-menu-line" 
+      style="align-self: center; font-size: 14px;" 
+      on:click|preventDefault={ () => showFilteringOptions = !showFilteringOptions } 
+      />
         <svelte:component 
-          this={columnOptions.cellComponent} 
-          bind:cellState
+          this={columnOptions.cellComponent}
           {cellOptions}
+          value={filterValue}
           fieldSchema={columnOptions.schema}
-          multi={columnOptions.schema.type == "array"}
+          multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
           on:change={handleValueChange}
-          on:blur={columnState.cancel}
+          on:focusout
           />
     {/if}
   </div>
 
   <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <Popover
+  <SuperPopover
     anchor={headerAnchor}
     align="left"
-    dismissible
+    dismissible=false
     open={ showFilteringOptions }
-    on:close={ () => { showFilteringOptions = false  } }
+    on:close={ () => showFilteringOptions = false }
   >
-    <ul class="spectrum-Menu" role="menu">
+    <ul bind:this={picker} class="spectrum-Menu" role="menu" style="background-color: var(--spectrum-global-color-gray-75 );">
       {#each columnOptions.filteringOperators as option}
         <li
           class="spectrum-Menu-item"
           class:selected={option.value == filterOperator}
           role="menuitem"
-          on:click|stopPropagation={() => {
-            filterOperator = option.value;
-            showFilteringOptions = false;
-            columnState.filter(buildFilter(filterOperator, filterValue));
-            cellState.focus();
-          }}
+          on:mousedown|preventDefault|stopPropagation={ () => handleOperatorChange(option.value) }
         >
           <span class="spectrum-Menu-itemLabel">{option.label}</span>
         </li>
       {/each}
     </ul>
-  </Popover>
+  </SuperPopover>
 {/if}
 
 <style>
@@ -156,13 +173,15 @@
 
   .enterting {
     min-width: 10rem;
+    gap: 0.5rem;
     background-color: var(
       --spectrum-textfield-m-background-color,
       var(--spectrum-global-color-gray-100)
     );
   }
   .filtered {
-    min-width: 10rem;
+    min-width: 6rem;
+    gap: 0.5rem;
     color: var(--spectrum-global-color-gray-800);
     font-weight: 600;
     background-color: var(
@@ -196,7 +215,7 @@
   }
 
   .icon {
-    font-size: 18px;
+    font-size: 16px;
     color: var(--spectrum-global-color-gray-400);
   }
   .icon:hover {

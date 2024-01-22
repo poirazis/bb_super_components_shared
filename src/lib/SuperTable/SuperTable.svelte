@@ -12,47 +12,41 @@
  
   import {
     createSuperTableDataStore,
-    createSuperTableFilterStore,
     createSuperTableStateStore,
   } from "./stores/superTableStores.js";
 
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
-	import CellAttachment from "$lib/SuperCell/cells/CellAttachment.svelte";
 
   const { API } = getContext("sdk");
 
   export let tableOptions 
-  export let sortColumn
-  export let sortOrder
-  export let limit = 100
-  export let paginate= false
 
   let timer
   let anchor
-  let columnStates = [];
   let columns 
   let schema = {}
-  let datasource
-  let query
-  let filter
-  let stbChanges 
+  let loadedDatasource 
+  let query = {}
+  let stbChanges
+  let stbColumnFilters = []
 
   // Create Stores
   const tableDataStore = createSuperTableDataStore();
   const tableStateStore = createSuperTableStateStore();
-  const stbRowHeights = new writable({});
 
-  const tableFilterStore = createSuperTableFilterStore();
-  
+  const stbRowHeights = new writable({});  
   const tableDataChangesStore = new writable([]);
 
   const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
   const stbHovered = new writable(-1);
   const stbSettings = new writable({})
+
   let stbData = new writable({})
+  let stbSortColumn = new writable({})
+  let stbSortOrder = new writable({})
   
   const stbState = fsm("Idle", {
     "*" : {
@@ -62,18 +56,20 @@
         if ( fetch.loading )
           return "Loading" 
        },
-      applyFilter( filterObj ) {
-        tableFilterStore?.setFilter(filterObj) 
+      addFilter( filterObj ) { 
+        this.removeFilter( filterObj.id )
+        stbColumnFilters = [ ...stbColumnFilters, filterObj]
       },
-      setFilter( filterObj ) { 
-        this.applyFilter.debounce( 50, filterObj)
+      removeFilter ( id ) {
+        let pos = stbColumnFilters.find(x => x.id == id )
+        if (pos) { 
+          stbColumnFilters = stbColumnFilters.toSpliced( pos, 1)
+        }
       },
       clearFilter() { removeQueryExtension("123"); return "Idle" },
-      sortBy( column, direction ) {  
-        if (column != $tableStateStore.sortedColumn || direction != $tableStateStore.sortedDirection) {
-          $tableStateStore.sortedColumn = column
-          $tableStateStore.sortedDirection = direction
-        }
+      sortBy( column, order ) {  
+        $stbSortColumn = column
+        $stbSortOrder = order
       },
       registerColumn() {},
       unregisterColumn() {},
@@ -115,20 +111,26 @@
   });
 
   let queryExtensions = {}
+  $: $stbSortColumn = tableOptions.data.sortColumn
+  $: $stbSortOrder = tableOptions.data.sortOrder
+
+  $: console.log(tableOptions.data.filter)
+  $: console.log(stbColumnFilters)
 
   $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
-  $: queryExtension = dataFilters.buildLuceneQuery($tableFilterStore.filters)
-  $: addQueryExtension("123", queryExtension)
+  $: queryExtension = dataFilters.buildLuceneQuery(stbColumnFilters)
+  $: addQueryExtension("12332", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
-  $: stbData = createFetch(tableOptions.data.datasource)
-  $: setContext("stbData", stbData)
+  $: stbData = ( loadedDatasource != tableOptions.data.datasource?.label ) ? createFetch(tableOptions.data.datasource) : stbData
   $: schema = $stbData.schema
+
   $: stbData?.update({
     query,
-    sortColumn,
-    sortOrder,
-    limit,
-    paginate,
+    sortColumn : $stbSortColumn,
+    sortOrder : $stbSortOrder,
+    limit : tableOptions.data.limit || 50,
+    paginate: tableOptions.data.paginate,
+    state: () => { console.log("firing")}
   })
 
   $: if ( $stbData.schema && tableOptions.columns?.length > 0 )
@@ -161,10 +163,10 @@
       datasource,
       options: {
         query,
-        sortColumn,
-        sortOrder,
-        limit,
-        paginate,
+        sortColumn : tableOptions.data.sortColumn,
+        sortOrder : tableOptions.data.sortOrder,
+        limit: tableOptions.data.limit,
+        paginate: tableOptions.data.paginate,
       },
     })
   }
@@ -287,7 +289,12 @@
   setContext("tableHoverStore", stbHovered);
   setContext("tableState", stbState);
 
-  setContext("tableOptionStore", stbSettings);
+  $: setContext("stbSettings", stbSettings);
+  $: setContext("stbData", stbData)
+  $: setContext("stbSortColumn", stbSortColumn)
+  $: setContext("stbSortOrder", stbSortOrder)
+
+  $: console.log($stbSortColumn, $stbSortOrder)
 
 </script>
 
@@ -336,7 +343,6 @@
       {#if columns?.length}
         {#each columns as column, idx }
           <SuperTableColumn
-            bind:columnState={ columnStates[idx] }
             {stbState}
             columnOptions = {{
               ...column,

@@ -1,9 +1,9 @@
 <script>
-  import Popover from "../../../../node_modules/@budibase/bbui/src/Popover/Popover.svelte"
   import { createEventDispatcher } from "svelte";
 	import CellLinkPicker from "./CellLinkPicker.svelte";
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
+  import SuperPopover from "../../SuperPopover/SuperPopover.svelte";
 
   const dispatch = createEventDispatcher();
 
@@ -138,7 +138,7 @@
 </div>
 
 {#if inEdit}
-  <Popover 
+  <SuperPopover 
     {anchor} 
     align="left"
     dismissible
@@ -157,7 +157,7 @@
           on:change={ (e) => { updateValue (e.detail)} } 
         />
       </div>
-  </Popover>
+  </SuperPopover>
 {/if}
 
 <style>

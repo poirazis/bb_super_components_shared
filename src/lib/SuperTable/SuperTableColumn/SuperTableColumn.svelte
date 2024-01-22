@@ -15,7 +15,6 @@
    */
 
   import { getContext, onDestroy, onMount, setContext } from "svelte";
-  import { v4 as uuidv4 } from "uuid";
   import { writable, derived } from "svelte/store";
   import fsm from "svelte-fsm";
 
@@ -31,29 +30,38 @@
 	import CellSkeleton from "../../SuperCell/cells/CellSkeleton.svelte";
   import CellJSON from "../../SuperCell/cells/CellJSON.svelte"
 
-  const tableDataStore = getContext("tableDataStore");
+  const stbData = getContext("stbData");
+  const stbSettings = getContext("stbSettings");
+  const stbSortColumn = getContext("stbSortColumn")
+  const stbSortOrder = getContext("stbSortOrder")
+
+
   const tableStateStore = getContext("tableStateStore");
   const tableHoverStore = getContext("tableHoverStore");
+  const tableDataStore = getContext("tableDataStore");
   
   // Props
   export let columnOptions;
   export let stbState
 
   // Internal Variables
-  let id = uuidv4();
+  let id = Math.random() * 100;
   let resizing = false
   let considerResizing = false
   let startPoint 
-  let startWidth
+  let startWidth = 0
   let width
   let column
   let columnOptionsStore = new writable({})
   let lockWidth = false
 
+  let sortOrder = "ascending"
+
   // Cell Components Map
   const cellComponents = {
 		'string' : CellString,
 	  'number': CellNumber,
+	  'bigint': CellNumber,
 		'options': CellOptions,
 		'array': CellOptions,
 		'jsonarray': CellOptions,
@@ -101,7 +109,6 @@
       },
       cancel() { return "Idle"},
       lockWidth () { lockWidth = true },
-      goTo ( state ) { return state },
       startResizing ( e ) { 
         e.preventDefault();
         e.stopPropagation();
@@ -126,37 +133,40 @@
       } 
     },
     Idle: { 
-      sort () { return columnOptions.canSort ? "Ascending" : "Idle" }, 
+      sort() {
+        if ( columnOptions.canSort ) {
+          stbState.sortBy( columnOptions.name, "ascending"); 
+          return "Sorted"
+        }
+      }, 
       filter () { return columnOptions.canFilter ? "Entering" : "Idle" },
     },
     Loading :{ 
       loaded() { return "Idle" } 
     },
-    Ascending: { 
-      _enter () { tableState.sortBy( columnOptions.name, "Ascending" ); },
-      sort () { return "Descending" }, 
-      unsort: "Idle", 
-      filter: "Entering" 
-    },
-    Descending: { 
-      _enter() { tableState.sortBy( columnOptions.name, "Descending" ); },
-      sort() { return "Ascending" },  
+    Sorted: { 
+      sort () { 
+        sortOrder = sortOrder == "ascending" ? "descending" : "ascending"
+        stbState.sortBy( columnOptions.name, sortOrder); 
+      }, 
       unsort: "Idle", 
       filter: "Entering" 
     },
     Entering: { 
       filter( filterObj ) { 
-        tableState.setFilter( { ...filterObj, id: id } )  
+        stbState.removeFilter( id )
+        stbState.addFilter( { ...filterObj, id: id } )  
         return "Filtered" },
-      cancel() { return "Idle" }
+      cancel() { return "Idle" },
+      clear() { return "Idle" }
     },
     Resizing: { stop: () => { return "Idle" } },
     Dragging: { stop: () => { return "Idle" } },
     EditingCell: { stop: () => { return "Idle" } },
     Filtered: { 
-      filter( filterObj ) { tableState.setFilter( { ...filterObj, id: id } ) },
-      clear() { tableFilterStore?.clearFilter({ id: id }); return "Entering" },
-      cancel() { this.clear(); return "Idle" }
+      filter( filterObj ) { stbState.removeFilter(id); stbState.addFilter( { ...filterObj, id: id } ) },
+      clear() { stbState.removeFilter(id); return "Entering" },
+      cancel() {  }
     }
   });
 
@@ -168,9 +178,9 @@
   $: columnOptions.name ? colsStore.set(columnOptions.name.split(".")) : $colsStore = []
 
   let columnStore =
-    derived([tableDataStore, colsStore], ([$tableDataStore, $colsStore]) => {
-      return $tableDataStore?.data.map((row) => ({
-        rowKey: row[$tableDataStore.idColumn],
+    derived([stbData, colsStore], ([$stbData, $colsStore]) => {
+      return $stbData?.rows?.map((row) => ({
+        rowKey: row[$stbSettings.data.idColumn],
         rowValue: $colsStore.length > 1 ? row[$colsStore[0]]?.[$colsStore[1]] : row[$colsStore[0]]
       }));
     }) || null;
@@ -180,13 +190,11 @@
   $: if (!columnOptions.hasChildren) { tableStateStore?.removeRowHeights(id); }
   
   $: tableDataStore?.updateColumn({ id: id, field: columnOptions.name });
-  $: if ($tableStateStore.sortedColumn == columnOptions.name ) {
-    columnOptions["isSorted"] = $tableStateStore.sortedDirection
+  $: if ($stbSortColumn == columnOptions.name && $columnState == "Idle" ) {
+    columnState.sort( $stbSortOrder )
+  } else if ($stbSortColumn != columnOptions.name && $columnState == "Sorted" ) {
+    columnState.unsort();
   }
-
-  // Pass Context to possible Super Table Cell Component Children
-  $: $columnOptionsStore = columnOptions
-  setContext ("superColumnOptions", columnOptionsStore );
 
   onDestroy( () => tableDataStore?.unregisterColumn({ id: id, field: columnOptions.name }) );
   onMount( () => startWidth = column ? column.clientWidth : null )
@@ -196,6 +204,8 @@
   on:mouseup={ ( e ) => { if ( resizing ) columnState.stopResizing( e ) } } 
   on:mousemove={ ( e ) => { if ( resizing ) columnState.resize( e ) } }
   />
+
+
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
@@ -208,14 +218,20 @@
   style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.maxWidth || "auto"} 
   on:mouseleave={() => $tableHoverStore = null }
 >
-  <div 
-    class="grabber" 
-    on:mousedown={ columnState.startResizing }
-    on:dblclick={ columnState.resetSize }
-    on:mouseenter={ () => ( considerResizing = true ) } on:mouseleave={ () => ( considerResizing = false ) } 
-  /> 
+  {#if $columnState != "Entering"}
+    <div 
+      class="grabber" 
+      on:mousedown={ columnState.startResizing }
+      on:dblclick={ columnState.resetSize }
+      on:mouseenter={ () => ( considerResizing = true ) } on:mouseleave={ () => ( considerResizing = false ) } 
+    /> 
+  {/if}
 
-  <SuperColumnHeader {columnState} {columnOptions} />
+  <SuperColumnHeader 
+    {columnState} 
+    {columnOptions}
+    {sortOrder}
+  />
 
   <SuperColumnBody 
     on:rowClicked={(e) => stbState.rowClicked( e.detail )} 

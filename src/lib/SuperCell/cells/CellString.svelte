@@ -17,6 +17,7 @@
   const dispatch = createEventDispatcher();
   export let cellState = fsm( cellOptions.initialState ?? "View" , {
     "*": {
+      lostFocus() { return "View" },
       goTo( state ) { return state }
     },
     View: { 
@@ -25,13 +26,11 @@
       }
     },
     Hovered: { cancel: () => { return "View" }},
-    Focused: { 
-      unfocus() { return "View" },
-    },
+    Focused: { },
     Error: { check : "View" },
+    Readonly: { check : "View" },
     Editing: { 
-      unfocus() { return "View" },
-      lostFocus() { return "View" },
+      _enter() { if (cellOptions.readonly) return "Readonly" },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
@@ -72,6 +71,7 @@
   class:tableCell={ cellOptions.role == "tableCell" } 
   class:formInput={ cellOptions.role == "formInput" } 
   class:disabled={ cellOptions.disabled }
+  class:reeadonly={ $cellState == "Readonly" }
   class:error={ cellOptions.error }
   style:color={ cellOptions.color }
   style:background={ cellOptions.background }
@@ -115,23 +115,3 @@
   {/if}
 
 </div>
-
-{#if cellOptions.showSuggestions}
-  <div class="spectrum-Popover spectrum-Popover--bottom" id="popover-default" class:is-open={cellOptions.suggestions}>
-    <ul class="spectrum-Menu" role="listbox">
-      <li class="spectrum-Menu-item is-selected" role="option" aria-selected="true" tabindex="0">
-        <span class="spectrum-Menu-itemLabel">Ballard</span>
-      </li>
-      <li class="spectrum-Menu-item" role="option" tabindex="0">
-        <span class="spectrum-Menu-itemLabel">Fremont</span>
-      </li>
-      <li class="spectrum-Menu-item" role="option" tabindex="0">
-        <span class="spectrum-Menu-itemLabel">Greenwood</span>
-      </li>
-      <li class="spectrum-Menu-divider" role="separator"></li>
-      <li class="spectrum-Menu-item is-disabled" role="option" aria-disabled="true">
-        <span class="spectrum-Menu-itemLabel">United States of America</span>
-      </li>
-    </ul>
-  </div>
-{/if}

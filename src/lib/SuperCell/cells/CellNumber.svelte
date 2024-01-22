@@ -1,5 +1,4 @@
 <script>
-	import { error } from '@sveltejs/kit';
   import { createEventDispatcher, getContext} from 'svelte'
   import fsm from "svelte-fsm"
 
@@ -14,7 +13,7 @@
 
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 
-  export let cellState = fsm( "View" , {
+  export let cellState = fsm( cellOptions.initialState ?? "View" , {
     "*": {
       goTo( state ) { return state }
     },
