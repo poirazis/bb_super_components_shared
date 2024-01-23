@@ -9,6 +9,7 @@
   let bodyContainer
   let mouseOver
   export let tableOptions
+  export let stbData
 
   function handleScroll( e ) {
     if ( mouseOver ) {
@@ -19,6 +20,7 @@
   beforeUpdate( () => { if ( bodyContainer ) bodyContainer.scrollTop = $tableScrollPosition } )
 </script>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="superTableScroller" on:mouseenter={() => mouseOver = true } on:mouseleave={() => mouseOver = false } >
 
   {#if tableOptions.showHeader}
@@ -26,7 +28,7 @@
   {/if}
 
   <div bind:this={bodyContainer} class="spectrum-Table-body" on:scroll={handleScroll}>
-    {#each $tableDataStore.data as _ , idx }
+    {#each $stbData.rows as _ , idx }
       <div class="spectrum-Table-row" style:height={ $tableStateStore.rowHeights[idx] + "px" } style:border-color={"transparent"} ></div>
     {/each}
   </div>

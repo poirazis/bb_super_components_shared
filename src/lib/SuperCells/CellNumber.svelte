@@ -2,14 +2,16 @@
   import { createEventDispatcher, getContext} from 'svelte'
   import fsm from "svelte-fsm"
 
-
   const { processStringSync } = getContext("sdk")
-
+  const dispatch = createEventDispatcher()
 
   export let value = 0
   export let formattedValue
   export let cellOptions
 
+  let originalValue
+  let cell
+  let lockWidth
 
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 
@@ -28,36 +30,42 @@
     },
     Error: { check : "View" },
     Editing: { 
-      unfocus() { return "View" },
-      lostFocus() { return "View" },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
-      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+      _enter() { 
+        originalValue = value;
+      },
+      focusout() {
+        if ( originalValue !== value && !cellOptions.debounce)
+          dispatch("change", value);
+
+        dispatch("focusout");
+
+        if ( !cellOptions.lockState ) 
+          return "View";
+      },
+      cancel() { value = originalValue }
     }
   })
-
-  const dispatch = createEventDispatcher()
 
   let timer;
 	const debounce = e => {
     value = e.target.value
-
     if (cellOptions.debounce) {    
       clearTimeout(timer);
       timer = setTimeout(() => {
         dispatch("change", value )
-      }, cellOptions.debounce  ?? 0 );
-    }
-    else {
-     dispatch("change", value )
+      }, cellOptions.debounce ?? 0 );
     }
 	}
 
   function focus(element) {
-    element.focus()
+    console.log("h")
+    element?.focus()
   }
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+<!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   class="superCell"
   class:error={cellOptions.error}
@@ -79,15 +87,13 @@
     <input 
       class="editor"
       type="text"
-      inputmode="numeric" 
-      pattern="[0-9]*"
-      style:padding-left={ cellOptions?.iconFront ? "32px" : cellOptions?.padding }
+      style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
       style:padding-right={ cellOptions?.clearValueIcon ? "32px" : cellOptions?.padding }
-      style:text-align="right"
-      placeholder={ cellOptions?.placeholder ? cellOptions.placeholder : 0 }
-      {value}
+      style:text-align={"right"}
+      placeholder={ cellOptions?.placeholder ?? 0 }
+      value={value ?? ""}
       on:input={debounce}
-      on:blur={() => dispatch("blur")}
+      on:focusout={cellState.focusout}
       use:focus
     />
     {#if cellOptions.clearValueIcon}
@@ -98,7 +104,12 @@
       </i>
     {/if}
   {:else}
-   <div class="value"> {formattedValue || value || "" } </div>
+    <div class="value"
+      tabIndex="0"
+      on:focusin={cellState.focus}
+    > 
+      {formattedValue || value || "" } 
+    </div>
   {/if}
 
 

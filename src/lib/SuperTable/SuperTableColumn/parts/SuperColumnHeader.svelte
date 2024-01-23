@@ -17,11 +17,12 @@
     background: columnOptions.background,
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.cellPadding,
-    placeholder: columnOptions.filteringOperators.find( x => x.value == filterOperator)?.label,
+    placeholder: columnOptions.filteringOperators?.find( x => x.value == filterOperator)?.label,
     clearValueIcon: true,
     disabled: filterOperator == "empty" || filterOperator == "notEmpty",
     readonly: filterOperator == "empty" || filterOperator == "notEmpty",
     useOptionColors: true,
+    debounce: 250,
     controlType: "select",
     initialState: "Editing",
     role: "inline"
@@ -71,9 +72,9 @@
     showFilteringOptions = false
   }
 
-  const handleBlur = ( e ) => {
-    if ( !headerAnchor?.contains( e.relatedTarget ) && !picker?.contains( e.relatedTarget ) )
-      columnState.cancel()
+  const handleBlur = e => {
+    if ( !headerAnchor?.contains(e.explicitOriginalTarget) )
+      columnState.cancel();
   }
 </script>
 
@@ -84,8 +85,6 @@
 {#if columnOptions.showHeader}
   <div
     bind:this={headerAnchor} 
-    tabindex="0"
-    on:focusout={handleBlur}
     class="spectrum-Table-headCell"
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
@@ -127,7 +126,7 @@
           fieldSchema={columnOptions.schema}
           multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
           on:change={handleValueChange}
-          on:focusout
+          on:focusout={handleBlur}
           />
     {/if}
   </div>

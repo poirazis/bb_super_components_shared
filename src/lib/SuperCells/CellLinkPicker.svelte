@@ -2,7 +2,7 @@
     import CellSkeleton from "./CellSkeleton.svelte";
     import { getContext , createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition"
-    import { fetchData } from "../../Fetch"
+    import { fetchData } from "../Fetch"
     import { dataFilters } from "@budibase/shared-core"
 
 
@@ -82,7 +82,7 @@
 <div class="control"> 
 
   <div class="searchControl">
-    <input class="input" on:input={debounce} type="text" placeholder="Search..."/>
+    <input class="input" on:input={debounce} on:focusout type="text" placeholder="Search..."/>
   </div>
 
   {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}

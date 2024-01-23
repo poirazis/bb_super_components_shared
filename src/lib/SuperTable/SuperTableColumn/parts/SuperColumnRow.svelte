@@ -31,9 +31,9 @@
 		cellHeight = Math.ceil (parseFloat(contents?.scrollHeight))
 		if ( cellHeight > height ) 
 		{
-			dispatch( "resize" , { height : cellHeight })
+			dispatch( "resize" , cellHeight)
 		} else if ( cellHeight < minHeight) {
-			dispatch( "resize" , { height : minHeight })
+			dispatch( "resize" , minHeight )
 		}
 	}
 
@@ -53,25 +53,23 @@
 	style:height={ height + "px" }
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
-	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowID : row?.rowKey })} }
-	on:dblclick={ () => dispatch("rowDblClicked", { rowID : row?.rowKey }) } 
-	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row?.rowKey }) }
+	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowID : row.rowID })} }
+	on:dblclick={ () => dispatch("rowDblClicked", { rowID : row.rowID }) } 
+	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row.rowID }) }
 	>
 		{#if !columnOptions.hasChildren }
 			<svelte:component 
 				this={columnOptions.cellComponent} 
-				bind:cellState
 				cellOptions={columnOptions.cellOptions}
 				fieldSchema={columnOptions.schema}
 				value={row.rowValue}
 				formattedValue={getCellValue(row.rowValue)}
 				multi={columnOptions.schema.type == "array"}
-				on:blur={cellState.lostFocus}
-				on:change
+				on:change={ (e) => dispatch("cellChanged", {rowID : row.rowID, previousValue: row.rowValue, value: e.detail, field : columnOptions.name })}
 			/>
 		{:else}
 			<div bind:this={contents} class="contentsWrapper"> 
-				<Provider data={ { rowKey: row?.rowKey, Value: row?.rowValue } }>
+				<Provider data={ { rowID: row?.rowID, value : row?.rowValue } }>
 					<slot /> 
 				</Provider>
 			</div>	

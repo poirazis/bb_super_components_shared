@@ -1,13 +1,16 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import SuperPopover from '../../SuperPopover/SuperPopover.svelte';
+	import SuperPopover from '../SuperPopover/SuperPopover.svelte';
 	import { DatePicker } from 'date-picker-svelte';
 	const dispatch = new createEventDispatcher();
 	import fsm from "svelte-fsm"
+	import "./CellCommon.css"
 
 	export let value;
 	export let formattedValue;
 	export let cellOptions;
+
+	let originalValue
 
 	export let cellState = fsm( "View" , {
     "*": {
@@ -24,9 +27,23 @@
     },
     Error: { check : "View" },
     Editing: { 
-      unfocus() { return "View" },
-      lostFocus() { return "View" },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+			_enter () { originalValue = value },
+      handleKeyboard (e)  {
+				if (e.keyCode == 32) {
+					e.stopPropagation();
+					e.preventDefault();
+					open = !open;
+				}
+			},
+      focusout( e ) { 
+				if ( !picker?.contains(e.relatedTarget) ) {
+					open = false;
+					if ( value != originalValue ) {
+						dispatch ("change", value)
+					};
+					return "View";
+				};
+			},
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
   })
@@ -35,24 +52,8 @@
 	let picker;
 	let open;
 
-	$: innerDate = value ? new Date(value) : null;
+	$: innerDate = value ? new Date(value) : new Date();
 	$: inEdit = $cellState == 'Editing';
-
-	const handleKeyboard = (e) => {
-		if (e.keyCode == 32) {
-			e.stopPropagation();
-			e.preventDefault();
-			open = !open;
-		}
-	};
-
-	const handleBlur = (e) => {
-    if (!picker?.contains(e.relatedTarget)) {
-			open = false
-      dispatch("blur")
-    }
-  }
-
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -71,12 +72,12 @@
 	style:background={cellOptions?.background}
 	style:font-weight={cellOptions?.fontWeight}
   style:min-width={"8rem"}
-	on:focusin={cellState.focus}
-	on:focusout={ handleBlur }
-	on:keypress={handleKeyboard}
+	on:focus={cellState.focus}
+	on:focusout={cellState.focusout}
+	on:keypress={cellState.handleKeyboard}
 >
-	{#if cellOptions?.iconFront}
-		<i class={cellOptions.iconFront + ' frontIcon'}></i>
+	{#if cellOptions?.icon}
+		<i class={cellOptions.icon + ' frontIcon'}></i>
 	{/if}
 
 	{#if inEdit}
@@ -94,16 +95,18 @@
 		<div
 			class="value"
 			class:placeholder={!value}
-			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+			style:padding-left={cellOptions?.icon ? '32px' : cellOptions?.padding}
 			style:justify-content={cellOptions.align ?? "flex-end"}
-		>
-			{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}	
+		> 
+			<span>
+				{formattedValue || value ? innerDate.toDateString() : null || cellOptions?.placeholder || ""}	
+			</span>
 		</div>
   {/if}
 </div>
 
 {#if inEdit}
-	<SuperPopover {anchor} dismissible bind:open align="left" >
+	<SuperPopover {anchor} dismissible={false} open={open} align="right" >
 		<div 
 			bind:this={picker}
 			style:--date-picker-background="var(--spectrum-alias-background-color-default)"
@@ -112,11 +115,9 @@
 		>
 		<DatePicker
 			bind:value={innerDate}
-			browseWithoutSelecting
-			on:focusout={() => open = false }
 			on:select={(e) => {
-				dispatch('change', e.detail);
-				anchor.focus();
+				value = e.detail;
+				anchor?.focus();
 				open = false;
 			}}
 		/>

@@ -6,10 +6,12 @@
   export let formattedValue
   export let cellOptions
 
+  let originalValue
+
   const dispatch = createEventDispatcher()
   const { processStringSync } = getContext("sdk")
 
-  export let cellState = fsm( "View" , {
+  export let cellState = fsm( cellOptions.initialState ?? "View", {
     "*": {
       goTo( state ) { return state }
     },
@@ -23,23 +25,15 @@
       unfocus() { return "View" },
     },
     Error: { check : "View" },
-    Editing: { 
-      unfocus() { return "View" },
-      lostFocus() { return "View" },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+    Editing: {
+      _enter() { originalValue = value },
+      submit() { 
+        if ( value !== originalValue ) dispatch("change", value);
+        return "View" 
+      }, 
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
   })
-
-  const handleKeyboard = ( e ) => {
-    if ( e.keyCode == 32 ) {
-      e.stopPropagation();
-      e.preventDefault();
-      value = !value
-    }
-  }
-
-  let anchor
 
   $: inEdit = $cellState == "Editing"
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
@@ -76,12 +70,10 @@
         <div class="spectrum-Switch spectrum-Switch--emphasized " style="margin: 0;">
           <input
             class="spectrum-Switch-input"
-            bind:this={anchor}
             bind:checked={value}
-            on:change={ (e) => dispatch("change", value ) }
             type="checkbox"
             disabled = {cellOptions.disabled || cellOptions.readonly }
-            on:blur={() => dispatch("blur")}
+            on:focusout={cellState.submit}
             use:focus
           />
           <span class="spectrum-Switch-switch" />
@@ -89,6 +81,8 @@
       </div>
     {:else}
       <div class="value"
+        tabIndex="0"
+        on:focusin={cellState.focus}
         style:justify-content={ cellOptions.align ?? "center" }
         style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }> 
         {#if formattedValue}

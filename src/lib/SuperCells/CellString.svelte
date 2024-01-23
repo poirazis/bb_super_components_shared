@@ -1,20 +1,20 @@
 <script>
-  /**
-   * @typedef {import('../SuperCell.svelte').cellOptions} cellOptions
-   */
   import { createEventDispatcher, getContext } from "svelte";
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
 
   const { processStringSync } = getContext("sdk")
 
-  export let value = null
+  export let value
   export let formattedValue
-  
-  /** @type {cellOptions} */
   export let cellOptions
 
   const dispatch = createEventDispatcher();
+
+  let timer;
+  let suggestions = []
+  let originalValue
+
   export let cellState = fsm( cellOptions.initialState ?? "View" , {
     "*": {
       lostFocus() { return "View" },
@@ -30,16 +30,34 @@
     Error: { check : "View" },
     Readonly: { check : "View" },
     Editing: { 
-      _enter() { if (cellOptions.readonly) return "Readonly" },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
-      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+      _enter() { if (cellOptions.readonly) { 
+          return "Readonly";
+        } else {
+          originalValue = value
+        }
+      },
+      submit() { 
+        if ( originalValue !== value && !cellOptions.debounce)
+          dispatch("change", value);
+
+        dispatch("focusout");
+
+        if ( !cellOptions.lockState ) 
+          return "View";
+      }, 
+      cancel() { value = originalValue; return "View"},
+      handleKeyboard(e) {
+        if ( e.key == "Enter" )
+          this.submit();
+
+        if ( e.key == "Escape" )
+          this.cancel();
+      }
     }
   })
 
-  let timer;
-  let suggestions = []
-
   $: inEdit = $cellState == "Editing"
+  $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 
 	const debounce = e => {
     value = e.target.value
@@ -49,23 +67,19 @@
         dispatch("change", value )
       }, cellOptions.debounce ?? 0 );
     }
-    else {
-     dispatch("change", value )
-    }
 	}
   
   const focus = ( node ) => {
     node.focus();
   }
 
-  $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y-click-events-have-key-events -->
 <div 
   class="superCell"
-  tabindex="0"
   class:inEdit
   class:inline={ cellOptions.role == "inline" }  
   class:tableCell={ cellOptions.role == "tableCell" } 
@@ -76,7 +90,6 @@
   style:color={ cellOptions.color }
   style:background={ cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
-  on:focus={cellState.focus}
 > 
 
   {#if cellOptions.icon}
@@ -89,10 +102,10 @@
       class:placeholder={!value}
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
       style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
-      value={ value ?? "" }
+      value={value ?? ""}
       placeholder={ cellOptions.placeholder ?? "Enter..." }
       on:input={debounce}
-      on:blur={() => dispatch("blur")}
+      on:focusout={cellState.submit}
       use:focus
     />
     {#if cellOptions.clearValueIcon}  
@@ -104,6 +117,8 @@
   {:else}
     <div 
       class="value"
+      tabIndex="0"
+      on:focusin={cellState.focus}
       class:placeholder={!value}
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
       style:justify-content={cellOptions.align}

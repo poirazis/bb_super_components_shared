@@ -11,7 +11,6 @@
   import { themeMap } from "./themes/superTableThemes.js"
  
   import {
-    createSuperTableDataStore,
     createSuperTableStateStore,
   } from "./stores/superTableStores.js";
 
@@ -27,15 +26,13 @@
   let anchor
   let columns 
   let schema = {}
-  let loadedDatasource 
   let query = {}
   let stbChanges
   let stbColumnFilters = []
+  let datasource = tableOptions.data.datasource
 
   // Create Stores
-  const tableDataStore = createSuperTableDataStore();
   const tableStateStore = createSuperTableStateStore();
-
   const stbRowHeights = new writable({});  
   const tableDataChangesStore = new writable([]);
 
@@ -43,19 +40,11 @@
   const stbScrollPos = new writable(0);
   const stbHovered = new writable(-1);
   const stbSettings = new writable({})
-
-  let stbData = new writable({})
-  let stbSortColumn = new writable({})
-  let stbSortOrder = new writable({})
+  const stbSortColumn = new writable({})
+  const stbSortOrder = new writable({})
   
-  const stbState = fsm("Idle", {
+  const stbState = fsm("Loading", {
     "*" : {
-      refresh( fetch ) { 
-        if ( fetch.loaded ) 
-          return "Idle"
-        if ( fetch.loading )
-          return "Loading" 
-       },
       addFilter( filterObj ) { 
         this.removeFilter( filterObj.id )
         stbColumnFilters = [ ...stbColumnFilters, filterObj]
@@ -76,34 +65,58 @@
       exportData() {},
       deleteRow() {},
       addRow() {},
-      toggleSelectRow( rowID ) { 
-         
-      },
-      toggleSelectRow( rowKey ) {
-        if ($stbSelected.includes(rowKey)) {
-          $stbSelected.splice($stbSelected.indexOf(rowKey), 1)
-          $stbSelected = $stbSelected
-        } else {
-          $stbSelected = [ ...$stbSelected, rowKey ] 
+      toggleSelectRow( rowID ) {
+        if ($stbSettings.rowSelectMode == "multi") {
+          if ($stbSelected.includes(rowID)) {
+            $stbSelected.splice($stbSelected.indexOf(rowID), 1)
+            $stbSelected = $stbSelected
+          } else {
+            $stbSelected = [ ...$stbSelected, rowID ] 
+          }
+        } else { 
+          if ($stbSelected.includes(rowID)) 
+            $stbSelected = []
+          else
+           $stbSelected = [rowID]
         }
-        console.log($stbSelected)
+        tableOptions.events.onRowSelect?.( { rows: $stbSelected })
       },
-      unselectRow() {},
-      editCell() {},
+      toggleSelectAllRows () {
+        if ($stbSettings.rowSelectMode == "multi") {
+          if ( $stbSelected.length != $stbData.rows.length ) 
+            $stbSelected = $stbData.rows.map ( x => x[$stbSettings.data.idColumn])
+          else
+            $stbSelected = []
+        }
+      },
+      cellChanged( change ) {
+        console.log( "Change", change )
+
+        tableOptions.events.onCellChange?.({
+          rowID : change.rowID,
+          field : change.field,
+          value : change.value,
+          previousValue : change.previousValue
+        })
+      },
       cellClicked( columnID, rowID ) { },
       rowDblClicked ( context ) { 
         tableOptions.events.onRowDblClick?.( context )
       },
       rowClicked( context ) { 
         tableOptions.events.onRowClick?.( context );
-       },
-      setState( state ) { return state } 
+        if ( tableOptions.rowSelectMode != "off" && !tableOptions.selectionColumn )
+          this.toggleSelectRow ( context.rowID )
+      },
+      setState( state ) { if (state?.loaded ) return "Idle" } 
     },
     Idle: { 
       filtering: "Loading",
+      synch( fetchState ) { if (fetchState.loading) return "Loading" },
      },
     Loading: { 
-      loaded: "Idle"
+      loaded: "Idle",
+      synch( fetchState ) { if (fetchState.loaded) return "Idle" },
     },
     Filtered: { },
     Sorted: { },
@@ -113,24 +126,24 @@
   let queryExtensions = {}
   $: $stbSortColumn = tableOptions.data.sortColumn
   $: $stbSortOrder = tableOptions.data.sortOrder
-
-  $: console.log(tableOptions.data.filter)
-  $: console.log(stbColumnFilters)
-
+  $: stbData = createFetch(datasource)
   $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
   $: queryExtension = dataFilters.buildLuceneQuery(stbColumnFilters)
   $: addQueryExtension("12332", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
-  $: stbData = ( loadedDatasource != tableOptions.data.datasource?.label ) ? createFetch(tableOptions.data.datasource) : stbData
-  $: schema = $stbData.schema
+  $: if (tableOptions.data.autoRefresh ) {
+    timer = setInterval(() => {
+      stbData.refresh();
+    }, tableOptions.data.autoRefreshRate * 1000);
+  }
 
+  $: schema = $stbData.schema
   $: stbData?.update({
     query,
     sortColumn : $stbSortColumn,
     sortOrder : $stbSortOrder,
     limit : tableOptions.data.limit || 50,
     paginate: tableOptions.data.paginate,
-    state: () => { console.log("firing")}
   })
 
   $: if ( $stbData.schema && tableOptions.columns?.length > 0 )
@@ -141,9 +154,6 @@
         columns = getAllColumns(false)
 
   $: tableTheme = themeMap[tableOptions.appearance.theme]
-  $: $tableDataStore.data = $stbData?.rows ?? [];
-  $: $tableDataStore.schema = $stbData?.datasource?.schema
-
   $: $tableStateStore.rowCount = $stbData.rows.length
     ? $stbData.rows.length
     : tableOptions.visibleRowCount;
@@ -151,10 +161,9 @@
   // Initialize Store with appropriate row heights to avoid flicker when they load
   $: tableStateStore.setRowMinHeight(tableOptions.rowHeight);
   $: maxBodyHeight = tableOptions.visibleRowCount * $tableStateStore.rowHeights[0];
-
-
-  $: $tableDataStore.idColumn = tableOptions.idColumn;
   $: $stbSettings = tableOptions
+  $: stbState.synch($stbData)
+  $: console.log($stbState)
 
 
   const createFetch = datasource => {
@@ -264,6 +273,7 @@
       fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth,
       maxWidth: tableOptions.columnMaxWidth,
       minWidth: tableOptions.columnMinWidth,
+      canResize: tableOptions.canResize,
       showFooter: tableOptions.showFooter,
       showHeader: tableOptions.showHeader,
       canEdit: tableOptions.canEdit && supportEditingMap[schema[bbcolumn.name].type],
@@ -280,22 +290,16 @@
     return superColumn
   }
 
-  setContext("tableDataStore", tableDataStore);
   setContext("tableStateStore", tableStateStore);
-
-  setContext("tableSelectionStore", stbSelected);
   setContext("tableScrollPosition", stbScrollPos);
-
-  setContext("tableHoverStore", stbHovered);
+  
+  setContext("stbHovered", stbHovered);
+  setContext("stbSelected", stbSelected);
   setContext("tableState", stbState);
-
-  $: setContext("stbSettings", stbSettings);
+  setContext("stbSettings", stbSettings);
+  setContext("stbSortColumn", stbSortColumn)
+  setContext("stbSortOrder", stbSortOrder)
   $: setContext("stbData", stbData)
-  $: setContext("stbSortColumn", stbSortColumn)
-  $: setContext("stbSortOrder", stbSortOrder)
-
-  $: console.log($stbSortColumn, $stbSortOrder)
-
 </script>
 
 
@@ -323,7 +327,7 @@
     ? "1px solid var(--spectrum-table-border-color, var(--spectrum-alias-border-color-mid))"
     : "none"}
 >
-  {#if $stbSettings.rowSelectMode != "off"}
+  {#if $stbSettings.rowSelectMode && $stbSettings.selectionColumn }
     <div class="st-master-control" >
       <SuperTableRowSelect 
         {stbState} 
@@ -355,7 +359,7 @@
 
 
   {#if $stbData?.rows.length > tableOptions.visibleRowCount}
-    <div class="st-master-scroll"> <SuperTableVerticalScroller {tableOptions} /></div>
+    <div class="st-master-scroll"> <SuperTableVerticalScroller {tableOptions} {stbData}/></div>
   {/if}
 </div>
 {/if}

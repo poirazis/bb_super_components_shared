@@ -1,16 +1,17 @@
 <script>
   import { getContext } from "svelte";
-
   import SuperColumnRow from "./SuperColumnRow.svelte";
 
-  const tableStateStore = getContext("tableStateStore");
-  const tableSelectionStore = getContext("tableSelectionStore");
+  const stbSelected = getContext("stbSelected");
   const tableScrollPosition = getContext("tableScrollPosition");
-  const tableHoverStore = getContext("tableHoverStore");
+  const stbHovered = getContext("stbHovered");
 
   export let rows = []
   export let columnState
   export let columnOptions
+
+  // for output
+  export let rowHeights
 
   let columnBodyAnchor
   let mouseOver
@@ -45,13 +46,13 @@
         {row} 
         {index} 
         {columnOptions}
-        isLoading={ $columnState == "Loading" }
-        isHovered={ $tableHoverStore == index }
-        isSelected={ $tableSelectionStore.includes(row.rowKey) }
-        on:resize={ (event) => tableStateStore.resizeRow(columnOptions.id, index, event.detail.height)}
-        on:hovered={() => ($tableHoverStore = index)}
+        isHovered={ $stbHovered == index }
+        isSelected={ $stbSelected.includes(row.rowID) }
+        on:resize={ ( e ) => rowHeights[index] = e.detail }
+        on:hovered={ () => ($stbHovered = index)}
         on:rowClicked
         on:rowDblClicked
+        on:cellChanged
       >
         <slot />
       </SuperColumnRow>

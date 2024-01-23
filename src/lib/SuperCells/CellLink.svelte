@@ -3,7 +3,7 @@
 	import CellLinkPicker from "./CellLinkPicker.svelte";
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
-  import SuperPopover from "../../SuperPopover/SuperPopover.svelte";
+  import SuperPopover from "../SuperPopover/SuperPopover.svelte";
 
   const dispatch = createEventDispatcher();
 
@@ -11,6 +11,10 @@
   export let fieldSchema;
   export let cellOptions
   export let simpleView = true
+
+  let localValue = [...value]
+
+
   export let cellState = fsm( "View" , {
     "*": {
       goTo( state ) { return state }
@@ -27,7 +31,13 @@
     Error: { check : "View" },
     Editing: { 
       unfocus() { return "View" },
-      lostFocus() { return "View" },
+      focusout( e ) {
+        if ( !picker?.contains(e.relatedTarget) ) {
+          open = false;
+          dispatch("change", localValue);
+          return "View";
+        }
+      },
       submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
@@ -39,7 +49,6 @@
 
   $: inEdit = $cellState == "Editing"
   $: if ( value == "" || value == undefined ) value = []
-  $: if ( inEdit && anchor && !open) anchor?.focus() 
   $: simpleView = cellOptions.relViewMode == "text"
 
   const unselectRow = ( val ) => {
@@ -62,13 +71,6 @@
     dispatch("change", value)
     if ( fieldSchema.relationshipType == "one-to-many" ) open = false;   
   }
-
-  const handleBlur = (event) => {
-    if (!picker?.contains(event.relatedTarget)) {
-      open = false
-      dispatch("blur")
-    }
-  }
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -86,8 +88,8 @@
   style:color={ cellOptions?.color }
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
-  on:focusin={cellState.focus}
-  on:blur={handleBlur}
+  on:focus={cellState.focus}
+  on:focusout={cellState.focusout}
   on:keydown={handleKeyboard}
 >
   {#if cellOptions?.icon}
@@ -141,11 +143,9 @@
   <SuperPopover 
     {anchor} 
     align="left"
-    dismissible
+    dismissible={false}
     useAnchorWidth
     open={ open }
-    
-    on:close={() => open = false} 
     >
       <div bind:this={picker} style="display: contents">
         <CellLinkPicker 
@@ -155,6 +155,7 @@
           labelColumn={fieldSchema.labelColumn}
           datasourceType={fieldSchema.tableId ? "table" : "user" }
           on:change={ (e) => { updateValue (e.detail)} } 
+          on:focusout={ cellState.focusout }
         />
       </div>
   </SuperPopover>

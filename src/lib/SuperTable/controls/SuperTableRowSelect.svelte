@@ -8,7 +8,6 @@
   export let stbData
   export let stbScrollPos
   export let stbRowHeights
-  export let tableStateStore
 
   let bodyContainer
   let mouseover
@@ -23,14 +22,21 @@
 </script>
 
   <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div class="spectrum-Table" on:mouseleave={() => ($stbHovered = null)} >
     {#if $stbSettings.showHeader}
         <div style:min-height={"2.5rem"} class="spectrum-Table-headCell">
-          <div class="loope" style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
-            {#if 0 == 1}
-              <i class="ri-check-line" />
-            {/if}
-          </div>
+          {#if $stbSettings.rowSelectMode == "multi"}
+            <div class="loope" 
+              on:click={stbState.toggleSelectAllRows}
+              style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
+              {#if  $stbSelected.length > 0 && $stbSelected.length < $stbData.rows.length}
+                -
+              {:else if ( $stbData.rows.length && $stbSelected.length == $stbData.rows.length) }
+                <i class="ri-check-line" />
+              {/if}
+            </div>
+          {/if}
         </div>
     {/if}
 
@@ -42,13 +48,13 @@
       on:mouseleave={ () => mouseover = false } 
     >
       {#each $stbData.rows as row, index (index) }
-      {@const rowKey = row[$stbSettings.idColumn]}
-      {@const selected = $stbSelected.includes(rowKey)}
+      {@const rowID = row[$stbSettings.data.idColumn]}
+      {@const selected = $stbSelected.includes(rowID)}
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div 
           class="spectrum-Table-row" 
           on:mouseenter={ () => $stbHovered = index }
-          on:click={ () => stbState.toggleSelectRow(rowKey) }
+          on:click={ () => stbState.toggleSelectRow(rowID) }
           class:is-selected={ selected } 
           class:is-hovered={ $stbHovered === index }
           style:min-height={ $stbSettings.rowHeight + "px"  }

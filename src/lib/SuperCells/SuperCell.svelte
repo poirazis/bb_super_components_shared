@@ -20,14 +20,14 @@
   import { getContext , createEventDispatcher } from "svelte";
   import fsm from "svelte-fsm"
 
-  import CellString from "./cells/CellString.svelte";
-  import CellLink from "./cells/CellLink.svelte";
-  import CellDatetime from "./cells/CellDatetime.svelte";
-  import CellBoolean from "./cells/CellBoolean.svelte"
-  import CellAttachment from "./cells/CellAttachment.svelte";
-  import CellOptions from "./cells/CellOptions.svelte";
-  import CellNumber from "./cells/CellNumber.svelte";
-  import CellJson from "./cells/CellJSON.svelte";
+  import CellString from "CellString.svelte";
+  import CellLink from "CellLink.svelte";
+  import CellDatetime from "CellDatetime.svelte";
+  import CellBoolean from "CellBoolean.svelte"
+  import CellAttachment from "CellAttachment.svelte";
+  import CellOptions from "CellOptions.svelte";
+  import CellNumber from "CellNumber.svelte";
+  import CellJson from "CellJSON.svelte";
 
   const { processStringSync } = getContext("sdk");
   const dispatch = createEventDispatcher();

@@ -2,10 +2,10 @@
 	import fsm from 'svelte-fsm';
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { fetchData } from "../../Fetch"
+	import { fetchData } from "../Fetch"
 	import { dataFilters } from "@budibase/shared-core"
 	import { elementSizeStore } from "svelte-legos";
-	import SuperPopover from '../../SuperPopover/SuperPopover.svelte';
+	import SuperPopover from '../SuperPopover/SuperPopover.svelte';
 
 	import "./CellCommon.css"
 
@@ -28,8 +28,17 @@
 	let searchTerm = ""
 	let picker
 	let anchorSize
+	let popover
+	let originalValue
 
-	export let cellState = fsm( "View" , {
+	const arrayEquals = (a, b) => {
+				return Array.isArray(a) &&
+					Array.isArray(b) &&
+					a.length === b.length &&
+					a.every((val, index) => val === b[index]); 
+			}
+
+	export let cellState = fsm("View" , {
     "*": {
       goTo( state ) { return state }
     },
@@ -47,22 +56,40 @@
     Error: { check : "View" },
     Editing: { 
 			_enter() {
-				 if (!cellOptions.autocomplete) 
+				 originalValue = [...localValue]
+
+				if (!cellOptions.autocomplete && !cellOptions.role == "tableCell") 
 				 	editorState.open() 
 				else 
 					searchTerm = localValue[0]		
 			},
 			handleKeyboard( e ) {
-				if ( e.key == "Backspace" || e.key == "Delete"  ){
+				if ( e.key == "Backspace" || e.key == "Delete"  ) {
 						e.stopPropagation();
-						dispatch("change", null )
-					}
-					editorState.handleKeyboard( e )
+						localValue = [];
+				} 
+
+				if ( e.key == "Escape" ) {
+				 editorState.close();
+				 this.cancel();
+				}
+
+				editorState.handleKeyboard(e)
 			},
-      unfocus() { return "View" },
-      lostFocus() { return "View" },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
-      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+      focusout() { 
+				if ( !arrayEquals(originalValue, localValue) ) {
+					if (multi )
+						dispatch("change", localValue);
+					else 
+						dispatch("change", localValue[0]);
+				};
+				editorState.close();
+				return "View";
+			}, 
+      cancel() { 
+				localValue = [...originalValue] ; 
+				editorState.close();
+				return "View" },
     }
   })
 
@@ -86,8 +113,7 @@
 				}
 
 				if ( cellOptions.autocomplete ) searchTerm = localValue[0]
-				dispatch("change", localValue)
-				if ( !multi ) return "Closed"
+				if ( !multi ) this.close();
 			}
 		},
 		Open: {
@@ -100,27 +126,27 @@
 			handleKeyboard ( e ) {
 				if ( e.keyCode == 32 ) {
 					if ( focusedOptionIdx > -1 ) {
-						this.toggleOption(focusedOptionIdx)
-						if ( !multi ) this.close()
+						this.toggleOption(focusedOptionIdx, e.preventDefault())
+						if ( !multi ) this.close(e.preventDefault())
 					} else {
-						this.close();
+						this.close(e.preventDefault());
 					}
 				}
-
 
 				if ( e.key == "Enter" ) {
-					if ( multi )
+					if ( multi ) {
+						this.toggleOption(focusedOptionIdx, e.preventDefault());
 						this.close();
+					}
 					else {
 						this.toggleOption(focusedOptionIdx);
-						this.close()
 					}
 				}
 
-				if (e.key == 'ArrowDown') this.highlightNext(e.stopPropagation());
-				if (e.key == 'ArrowUp') this.highlightPrevious(e.stopPropagation());
-				if (e.key == 'ArrowLeft') this.highlightLeft(e.stopPropagation());
-				if (e.key == 'ArrowRight') this.highlightRight(e.stopPropagation());
+				if (e.key == 'ArrowDown') this.highlightNext(e.preventDefault(), e.stopPropagation());
+				if (e.key == 'ArrowUp') this.highlightPrevious(e.preventDefault(), e.stopPropagation());
+				if (e.key == 'ArrowLeft') this.highlightLeft(e.preventDefault(), e.stopPropagation());
+				if (e.key == 'ArrowRight') this.highlightRight(e.preventDefault(), e.stopPropagation());
 			},
 			highlightNext() {
 				if ( cellOptions.coltrolType == "select" ) {
@@ -175,23 +201,23 @@
 		Closed: {
 			_enter() { },
 			toggle() {
-				return $cellState == "Editing" ? 'Open' : "Closed"
+				return 'Open'
 			},
 			open() {
 				return 'Open';
 			},
 			handleKeyboard( e ) {
-				if ( cellOptions.autocomplete )
+				if ( cellOptions.autocomplete ) {
+					e.stopPropagation();
 					return "Open"
+				}
 				else {
 					if (e.keyCode == 32) {
+						e.preventDefault();
 						e.stopPropagation();
-						return "Open"
+						this.toggle();
 					}
 				}
-			},
-			highlightNext() {
-				return $cellState == "Editing" ? 'Open' : "Closed"
 			}
 		}
 	});
@@ -264,14 +290,14 @@
 
 		if (!picker?.contains(e.relatedTarget) && !anchor?.contains(e.relatedTarget)) {
 			focusedOptionIdx = -1;
-			editorState.close();
-			dispatch('blur');
+			editorState.submit();
 		} 
 	};
 
 	const focus = node => {
 		node?.focus()
 	}
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -292,8 +318,9 @@
 	style:font-weight={cellOptions.fontWeight}
 	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
 	on:keydown={cellState.handleKeyboard}
-	on:blur={(e) => setTimeout(handleBlur, 20, e)}
-	on:focusin={cellState.focus}
+	on:focusout={cellState.focusout}
+	on:focus={cellState.focus}
+	on:click|preventDefault={cellState.focus}
 >
 	{#if cellOptions.icon && cellOptions.controlType == "select"}
 		<i class={cellOptions.icon + ' frontIcon'}></i>
@@ -482,46 +509,47 @@
 	{/if}
 </div>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 {#if cellOptions.controlType == "select" && inEdit}
-<SuperPopover
-	anchor={anchor}
-	useAnchorWidth
-	dismissible=false
-	open={ $editorState == "Open" }
-	>
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1}>
-			{#if options.length < 1}
-				<div class="option">
-						<i class="ri-close-line" />
-						No Available Options
-				</div>
-			{:else}
-				{#each options as option, idx (idx)}
-				{@const color = getOptionColor(option)}
-				{@const label = getOptionLabel(option)}
-				{@const icon = getOptionIcon(option)}
-					<div
-						class="option"
-						class:focused={focusedOptionIdx === idx}
-						on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
-						on:mouseenter={() => (focusedOptionIdx = idx)}
-					>
-						{#if multi || color }
-							<div class="loope small" style:background-color={color}>
-								{#if localValue?.includes(option)}
-									<i class="ri-check-line" />
-								{/if}
-							</div>
-						{/if}
-						{#if icon}
-							<i class={icon} />
-						{/if}
-						{label}
+	<SuperPopover
+		bind:thid={popover}
+		anchor={anchor}
+		useAnchorWidth
+		dismissible={false}
+		open={ $editorState == "Open" }
+		>
+			<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1} >
+				{#if options.length < 1}
+					<div class="option">
+							<i class="ri-close-line"></i>
+							No Available Options
 					</div>
-				{/each}
-			{/if}
-		</div>
+				{:else}
+					{#each options as option, idx (idx)}
+					{@const color = getOptionColor(option)}
+					{@const label = getOptionLabel(option)}
+					{@const icon = getOptionIcon(option)}
+						<div
+							class="option"
+							class:focused={focusedOptionIdx === idx}
+							on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+							on:mouseenter={() => (focusedOptionIdx = idx)}
+						>
+							{#if multi || color }
+								<div class="loope small" style:background-color={color}>
+									{#if localValue?.includes(option)}
+										<i class="ri-check-line" />
+									{/if}
+								</div>
+							{/if}
+							{#if icon}
+								<i class={icon} />
+							{/if}
+							{label}
+						</div>
+					{/each}
+				{/if}
+			</div>
 	</SuperPopover>
 {/if}
 
@@ -557,8 +585,8 @@
 	}
 
 	.loope {
-		height: 14px;
-		width: 14px;
+		min-height: 14px;
+		min-width: 14px;
 		line-height: 12px;
 		border-radius: 2px;
 		display: grid;
@@ -572,8 +600,8 @@
 		border-radius: 50%;
 	}
 	.loope.small {
-		height: 12px;
-		width: 12px;
+		min-height: 12px;
+		min-width: 12px;
 		line-height: 10px;
 		font-size: 10px;
 		font-weight: 700;
