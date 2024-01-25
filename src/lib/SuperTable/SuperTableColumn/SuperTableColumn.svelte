@@ -198,7 +198,7 @@
   class="superTableColumn"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 1 auto" }
+  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 0 auto" }
   style:min-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.minWidth || "auto"} 
   style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.maxWidth || "auto"} 
   on:mouseleave={() => $stbHovered = null }

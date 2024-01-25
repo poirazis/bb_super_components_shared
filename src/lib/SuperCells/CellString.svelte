@@ -117,7 +117,7 @@
   {:else}
     <div 
       class="value"
-      tabIndex="0"
+      tabIndex={cellOptions.readonly ? "-1" : "0"}
       on:focusin={cellState.focus}
       class:placeholder={!value}
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }

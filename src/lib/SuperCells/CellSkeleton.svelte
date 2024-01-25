@@ -5,17 +5,14 @@
 
 <style>
   .skeleton {
-    height: 40%;
-    width: 80%;
-    margin-left: 10%;
-    margin-right: 10%;
+    height: 100%;
+    width:100%;
     align-self: center;
     opacity: 0;
     display: flex;
     align-items: stretch;
     justify-content: stretch;
     background-color: var(--spectrum-global-color-gray-200) !important;
-    border-radius: 7px;
     overflow: hidden;
     position: relative;
     animation: fadeIn 130ms ease 0s 1 normal forwards;

@@ -3,7 +3,7 @@
 	import { elementSizeStore } from "svelte-legos";
 
 	const { Provider, processStringSync } = getContext("sdk")
-	const tableOptionStore = getContext("tableOptionStore");
+	const stbSettings = getContext("stbSettings");
 	const tableStateStore = getContext("tableStateStore");
 
 	const dispatch = createEventDispatcher();
@@ -20,8 +20,8 @@
 
 	let contents, size, cellHeight, rowElement, cellState 
 
-	$: height = $tableStateStore?.rowHeights[index] || $tableOptionStore?.rowHeight
-	$: minHeight = $tableOptionStore?.rowHeight
+	$: height = $stbSettings?.rowHeight
+	$: minHeight = $stbSettings?.rowHeight
 
 	$: if ( columnOptions.hasChildren && contents ) size = elementSizeStore(contents) 
 
@@ -53,8 +53,8 @@
 	style:height={ height + "px" }
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
-	on:click={ () => {cellState?.focus(); dispatch("rowClicked", { rowID : row.rowID })} }
-	on:dblclick={ () => dispatch("rowDblClicked", { rowID : row.rowID }) } 
+	on:click={ () => {cellState?.focus(); dispatch("rowClicked",  row.rowID )} }
+	on:dblclick={ () => dispatch("rowDblClicked", row.rowID ) } 
 	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row.rowID }) }
 	>
 		{#if !columnOptions.hasChildren }

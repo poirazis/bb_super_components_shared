@@ -1,5 +1,7 @@
 <script>
-  import { beforeUpdate } from "svelte"
+  import { getContext } from "svelte"
+  const stbVerticalScroll = getContext("stbVerticalScroll")
+  const stbVerticalRange = getContext("stbVerticalRange")
 
   export let stbSettings
   export let stbState
@@ -8,31 +10,39 @@
   export let stbData
   export let stbScrollPos
   export let stbRowHeights
+  export let loading
 
-  let bodyContainer
+  let columnBodyAnchor
   let mouseover
   let color 
 
-  function handleScroll( e ) {
-      if ( mouseover )
-        $stbScrollPos = bodyContainer?.scrollTop;
-    }
+  $: synchScrollPosition($stbScrollPos)
 
-  beforeUpdate( () => { if ( bodyContainer ) bodyContainer.scrollTop = $stbScrollPos } )
+  const synchScrollPosition = ( position ) => { 
+    if (columnBodyAnchor) 
+      columnBodyAnchor.scrollTop = position 
+  }
+
+  const syncScroll = e => {
+    $stbScrollPos = columnBodyAnchor.scrollTop;
+    $stbVerticalScroll = columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax
+  }
 </script>
 
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div class="spectrum-Table" on:mouseleave={() => ($stbHovered = null)} >
     {#if $stbSettings.showHeader}
-        <div style:min-height={"2.5rem"} class="spectrum-Table-headCell">
-          {#if $stbSettings.rowSelectMode == "multi"}
+        <div class="spectrum-Table-headCell">
+          {#if loading}
+            <div class="loader" />
+          {:else if $stbSettings.rowSelectMode == "multi"}
             <div class="loope" 
               on:click={stbState.toggleSelectAllRows}
               style:background-color={color ? color : "var(--spectrum-global-color-gray-200)"}>
-              {#if  $stbSelected.length > 0 && $stbSelected.length < $stbData.rows.length}
+              {#if  $stbSelected.length > 0 && $stbSelected.length < $stbData?.rows.length}
                 -
-              {:else if ( $stbData.rows.length && $stbSelected.length == $stbData.rows.length) }
+              {:else if ( $stbData?.rows.length && $stbSelected.length == $stbData?.rows.length) }
                 <i class="ri-check-line" />
               {/if}
             </div>
@@ -41,35 +51,35 @@
     {/if}
 
     <div 
-      bind:this={bodyContainer} 
+      bind:this={columnBodyAnchor} 
       class="spectrum-Table-body"
-      on:scroll={handleScroll} 
-      on:mouseenter={ () => mouseover = true } 
-      on:mouseleave={ () => mouseover = false } 
+      on:scroll={syncScroll} 
     >
-      {#each $stbData.rows as row, index (index) }
-      {@const rowID = row[$stbSettings.data.idColumn]}
-      {@const selected = $stbSelected.includes(rowID)}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <div 
-          class="spectrum-Table-row" 
-          on:mouseenter={ () => $stbHovered = index }
-          on:click={ () => stbState.toggleSelectRow(rowID) }
-          class:is-selected={ selected } 
-          class:is-hovered={ $stbHovered === index }
-          style:min-height={ $stbSettings.rowHeight + "px"  }
-          >
+      {#if $stbData?.rows.length}
+        {#each $stbData.rows as row, index}
+        {@const rowID = row[$stbSettings.data.idColumn] }
+        {@const selected = $stbSelected.includes(rowID) }
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
           <div 
-            class="loope" 
-            style:background-color={selected ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-50)"}
+            class="spectrum-Table-row" 
+            on:mouseenter={ () => $stbHovered = index }
+            on:click={ () => stbState.toggleSelectRow(rowID) }
+            class:is-selected={ selected } 
+            class:is-hovered={ $stbHovered === index }
+            style:min-height={ $stbSettings.rowHeight + "px"  }
             >
-            {#if selected }
-              <i class="ri-check-line" style:color="var(--spectrum-global-color-gray-50)" />
-            {/if}
-          </div>
+            <div 
+              class="loope" 
+              style:background-color={selected ? "var(--primaryColor)" : "var(--spectrum-global-color-gray-50)"}
+              >
+              {#if selected }
+                <i class="ri-check-line" style:color="var(--spectrum-global-color-gray-50)" />
+              {/if}
+            </div>
 
-        </div>
-      {/each}
+          </div>
+        {/each}
+      {/if}
     </div>
 
     {#if $stbSettings.showFooter}
@@ -147,4 +157,21 @@
 		border: 1px solid var(--spectrum-global-color-gray-800);
     cursor: pointer;
 	}
+
+  /* HTML: <div class="loader"></div> */
+/* HTML: <div class="loader"></div> */
+/* HTML: <div class="loader"></div> */
+.loader {
+  width: 20px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: 
+    radial-gradient(farthest-side,var(--spectrum-global-color-gray-500) 94%,#0000) top/4px 4px no-repeat,
+    conic-gradient(#0000 30%,var(--spectrum-global-color-gray-500));
+  -webkit-mask: radial-gradient(farthest-side,#0000 calc(100% - 4px),#000 0);
+  animation: l13 1s infinite linear;
+}
+@keyframes l13{ 
+  100%{transform: rotate(1turn)}
+}
 </style>

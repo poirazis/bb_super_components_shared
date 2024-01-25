@@ -3,7 +3,7 @@
    * @typedef {Object} stbSettings
   */
 
-  import { getContext, setContext } from "svelte";
+  import { getContext, setContext, onMount } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
   import { dataFilters } from "@budibase/shared-core/";
@@ -17,6 +17,8 @@
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
+  import CellSkeleton from "../SuperCells/CellSkeleton.svelte";
+  import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
   const { API } = getContext("sdk");
 
@@ -29,20 +31,32 @@
   let query = {}
   let stbChanges
   let stbColumnFilters = []
-  let datasource = tableOptions.data.datasource
+  let highlighted
+  let columnsBodyAnchor
+
+
+  let loadedDatasource
 
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
-  const stbRowHeights = new writable({});  
   const tableDataChangesStore = new writable([]);
 
   const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
+
   const stbHovered = new writable(-1);
   const stbSettings = new writable({})
   const stbSortColumn = new writable({})
   const stbSortOrder = new writable({})
-  
+  const stbRowHeights = new writable(new Array(tableOptions.visibleRowCount));  
+
+
+  const stbVerticalScroll = new writable(0);
+  const stbVerticalRange = new writable(1);
+
+  const stbHorizontalScroll = new writable(0);
+  const stbHorizontalRange = new writable(1);
+
   const stbState = fsm("Loading", {
     "*" : {
       addFilter( filterObj ) { 
@@ -57,6 +71,8 @@
       },
       clearFilter() { removeQueryExtension("123"); return "Idle" },
       sortBy( column, order ) {  
+        sortColumn = column
+        sortOrder = order
         $stbSortColumn = column
         $stbSortOrder = order
       },
@@ -79,7 +95,7 @@
           else
            $stbSelected = [rowID]
         }
-        tableOptions.events.onRowSelect?.( { rows: $stbSelected })
+        tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
       },
       toggleSelectAllRows () {
         if ($stbSettings.rowSelectMode == "multi") {
@@ -100,23 +116,25 @@
         })
       },
       cellClicked( columnID, rowID ) { },
-      rowDblClicked ( context ) { 
-        tableOptions.events.onRowDblClick?.( context )
+      rowDblClicked ( rowID ) { 
+        tableOptions.events.onRowDblClick?.( $stbData.rows.find( x => x[tableOptions.data.idColumn] == rowID ) )
       },
-      rowClicked( context ) { 
-        tableOptions.events.onRowClick?.( context );
+      rowClicked( rowID ) { 
+        tableOptions.events.onRowClick?.( $stbData.rows.find( x => x[tableOptions.data.idColumn] == rowID ) );
         if ( tableOptions.rowSelectMode != "off" && !tableOptions.selectionColumn )
-          this.toggleSelectRow ( context.rowID )
+          this.toggleSelectRow ( rowID)
       },
       setState( state ) { if (state?.loaded ) return "Idle" } 
     },
     Idle: { 
-      filtering: "Loading",
-      synch( fetchState ) { if (fetchState.loading) return "Loading" },
+      _enter() {
+        $stbRowHeights = tableOptions.visibleRowCount > $stbData.rows.length ? new Array(tableOptions.visibleRowCount) : new Array($stbData.rows.length)
+      },
+      synch( fetchState ) { if (fetchState?.loading) return "Loading" },
      },
     Loading: { 
       loaded: "Idle",
-      synch( fetchState ) { if (fetchState.loaded) return "Idle" },
+      synch( fetchState ) { if (fetchState?.loaded) return "Idle" },
     },
     Filtered: { },
     Sorted: { },
@@ -124,29 +142,43 @@
   });
 
   let queryExtensions = {}
-  $: $stbSortColumn = tableOptions.data.sortColumn
-  $: $stbSortOrder = tableOptions.data.sortOrder
+  $: limit = tableOptions.data.limit
+  $: if ( tableOptions.data.fetchOnScroll && $stbVerticalScroll > 0.8)
+      if ( limit == $stbData?.rows.length ) {
+        limit += tableOptions.data.fetchPageSize
+      }
+
+  $: sortColumn = tableOptions.data.sortColumn
+  $: sortOrder = tableOptions.data.sortOrder
+  $: datasource = tableOptions.data.datasource
+  $: paginate = tableOptions.data.paginate
+
   $: stbData = createFetch(datasource)
+  $: schema = $stbData?.schema
+
   $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
   $: queryExtension = dataFilters.buildLuceneQuery(stbColumnFilters)
   $: addQueryExtension("12332", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
+
+  $: stbData.update({
+    query,
+    sortColumn,
+    sortOrder,
+    limit,
+    paginate: tableOptions.data.paginate,
+  })
+
+  $: $stbSortColumn = tableOptions.data.sortColumn
+  $: $stbSortOrder = tableOptions.data.sortOrder
+
   $: if (tableOptions.data.autoRefresh ) {
     timer = setInterval(() => {
       stbData.refresh();
     }, tableOptions.data.autoRefreshRate * 1000);
   }
 
-  $: schema = $stbData.schema
-  $: stbData?.update({
-    query,
-    sortColumn : $stbSortColumn,
-    sortOrder : $stbSortOrder,
-    limit : tableOptions.data.limit || 50,
-    paginate: tableOptions.data.paginate,
-  })
-
-  $: if ( $stbData.schema && tableOptions.columns?.length > 0 )
+  $: if ( $stbData?.schema && tableOptions.columns?.length > 0 )
         columns = tableOptions.columns.map( (column) => makeSuperColumn (column) )
       else if ( tableOptions.hasChildren )
         columns = []
@@ -154,30 +186,31 @@
         columns = getAllColumns(false)
 
   $: tableTheme = themeMap[tableOptions.appearance.theme]
-  $: $tableStateStore.rowCount = $stbData.rows.length
-    ? $stbData.rows.length
-    : tableOptions.visibleRowCount;
 
-  // Initialize Store with appropriate row heights to avoid flicker when they load
-  $: tableStateStore.setRowMinHeight(tableOptions.rowHeight);
-  $: maxBodyHeight = tableOptions.visibleRowCount * $tableStateStore.rowHeights[0];
+  $: maxBodyHeight = tableOptions.visibleRowCount * tableOptions.rowHeight
   $: $stbSettings = tableOptions
   $: stbState.synch($stbData)
-  $: console.log($stbState)
 
+  const syncScroll = (e) => {
+    if ( columnsBodyAnchor ) {
+      const { scrollLeftMax, scrollLeft , scrollWidth , clientWidth } = columnsBodyAnchor
+      $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1
+      $stbHorizontalScroll = scrollLeft / scrollLeftMax
+    }
+  }
 
   const createFetch = datasource => {
-    return fetchData({
-      API,
-      datasource,
-      options: {
-        query,
-        sortColumn : tableOptions.data.sortColumn,
-        sortOrder : tableOptions.data.sortOrder,
-        limit: tableOptions.data.limit,
-        paginate: tableOptions.data.paginate,
-      },
-    })
+      return fetchData({
+        API,
+        datasource,
+        options: {
+          query,
+          sortColumn,
+          sortOrder,
+          limit,
+          paginate,
+        },
+      })
   }
 
   const extendQuery = (defaultQuery, extensions) => {
@@ -290,9 +323,18 @@
     return superColumn
   }
 
+  onMount( () => {
+    if ( columnsBodyAnchor ) {
+      const { scrollLeftMax, scrollLeft , scrollWidth , clientWidth } = columnsBodyAnchor
+        $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1
+    }
+  })
+
   setContext("tableStateStore", tableStateStore);
-  setContext("tableScrollPosition", stbScrollPos);
-  
+
+  setContext("stbScrollPos", stbScrollPos);
+  setContext("stbVerticalScroll", stbVerticalScroll);
+  setContext("stbVerticalRange", stbVerticalRange);
   setContext("stbHovered", stbHovered);
   setContext("stbSelected", stbSelected);
   setContext("tableState", stbState);
@@ -300,15 +342,16 @@
   setContext("stbSortColumn", stbSortColumn)
   setContext("stbSortOrder", stbSortOrder)
   $: setContext("stbData", stbData)
+
+  $: console.log(sortColumn,sortOrder)
 </script>
 
-
-{#if schema}
 <!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={anchor}
+  tabindex="0"
   class="st-master-wrapper"
-  class:refreshing={$tableStateStore.refreshing}
   style:--super-table-footer-height={"2.5rem"}
   style:--super-table-body-height={maxBodyHeight + "px"}
   style:--super-table-header-color={tableTheme.headerColor}
@@ -326,8 +369,11 @@
   tableOptions.dividers == "vertical"
     ? "1px solid var(--spectrum-table-border-color, var(--spectrum-alias-border-color-mid))"
     : "none"}
+
+  on:mouseenter={ () => highlighted = true }
+  on:mouseleave={ () => highlighted = false }
 >
-  {#if $stbSettings.rowSelectMode && $stbSettings.selectionColumn }
+  {#if $stbSettings.rowSelectMode != "off" && $stbSettings.selectionColumn }
     <div class="st-master-control" >
       <SuperTableRowSelect 
         {stbState} 
@@ -337,12 +383,16 @@
         {stbHovered}
         {stbScrollPos}
         {tableStateStore}
+        {stbRowHeights}
+        loading={$stbData?.loading}
         />
     </div>
   {/if}
   
-    <div class="st-master-columns">
-
+  <div bind:this={columnsBodyAnchor} class="st-master-columns" on:scroll={syncScroll}>
+    {#if $stbData?.loading && !$stbData?.loaded}
+      <CellSkeleton > Loading ... </CellSkeleton>
+    {:else}
       {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
       {#if columns?.length}
         {#each columns as column, idx }
@@ -355,27 +405,27 @@
         {/each}
       {/if}
       {#if $stbSettings.superColumnsPos != "first"} <slot /> {/if}
-    </div>
+    {/if}
+  </div>
 
-
-  {#if $stbData?.rows.length > tableOptions.visibleRowCount}
-    <div class="st-master-scroll"> <SuperTableVerticalScroller {tableOptions} {stbData}/></div>
-  {/if}
+  <SuperTableHorizontalScroller {stbHorizontalScroll} {stbHorizontalRange} {highlighted} offset={"2.5rem"} />
+  <SuperTableVerticalScroller 
+    {stbVerticalScroll}
+    {highlighted}
+    clientHeight={maxBodyHeight}
+    clientScrollHeight = {$stbData?.rows.length > tableOptions.visibleRowCount ? $stbData?.rows.length  * tableOptions.rowHeight : maxBodyHeight}
+    offset={"2.5rem"}
+  />
 </div>
-{/if}
 
 <style>
   .st-master-wrapper {
+    position: relative;
     display: flex;
     flex-direction: row;
     justify-content: stretch;
     align-items: stretch;
-    transition: opacity 750ms ease-in-out;
     border: 1px solid var(--spectrum-global-color-gray-300);
-  }
-  .refreshing {
-    filter: blur(10);
-    opacity: 0.75;
   }
   .st-master-control {
     display: flex;
@@ -390,12 +440,14 @@
     flex-direction: row;
     align-items: stretch;
     justify-content: stretch;
-    overflow-x: auto;
+    overflow-x: scroll;
+    scrollbar-width: none;
     background-color: transparent;
+    min-height: var(--super-table-body-height);
   }
 
-  .st-master-scroll {
-    background-color: transparent;
+  .st-master-columns::-webkit-scrollbar {
+    display: none;
   }
-  
+
 </style>

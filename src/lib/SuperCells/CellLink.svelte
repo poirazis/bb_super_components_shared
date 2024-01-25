@@ -1,19 +1,31 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, getContext } from "svelte";
 	import CellLinkPicker from "./CellLinkPicker.svelte";
+  import CellSkeleton from "./CellSkeleton.svelte";
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
 
   const dispatch = createEventDispatcher();
 
+  const { API } = getContext ("sdk")
+
   export let value = []
+  export let linkValueType = "link"
   export let fieldSchema;
   export let cellOptions
   export let simpleView = true
 
-  let localValue = [...value]
+  export let tableId
+  export let valueColumn = "_id"
+  export let labelColumn
+  export let pickerColumns
+  export let searchColumns
+  export let filter
+  export let limit
+  export let multi = false
 
+  let localValue = [...value]
 
   export let cellState = fsm( "View" , {
     "*": {
@@ -30,15 +42,10 @@
     },
     Error: { check : "View" },
     Editing: { 
-      unfocus() { return "View" },
       focusout( e ) {
-        if ( !picker?.contains(e.relatedTarget) ) {
           open = false;
           dispatch("change", localValue);
-          return "View";
-        }
-      },
-      submit() { if ( value != originalValue ) acceptChange() ; return "View" }, 
+        },
       cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
     }
   })
@@ -46,17 +53,18 @@
   let anchor;
   let open
   let picker
+  let searchTerm
+  let definition
+  let loaded
 
   $: inEdit = $cellState == "Editing"
+  $: fetchDefinition(fieldSchema?.tableId)
+  $: if ( definition ) {
+    labelColumn = definition.primaryDisplay 
+    pickerColumns = !pickerColumns?.length ? [{"name": labelColumn}] : pickerColumns
+  }
   $: if ( value == "" || value == undefined ) value = []
   $: simpleView = cellOptions.relViewMode == "text"
-
-  const unselectRow = ( val ) => {
-    if ( value ) {
-      value.splice( value.findIndex ( (e) => e._id === val._id  ), 1 );
-      value = value
-    }
-  }
 
   const handleKeyboard = ( e ) => {
     if ( e.keyCode == 32 && $cellState == "Editing") {
@@ -66,10 +74,22 @@
     }
   }
 
+  const fetchDefinition = async tableId => {
+    try {
+      definition = await API.fetchTableDefinition(tableId)
+    } catch (error) {
+      definition = null
+    }
+
+    if (!loaded) {
+      loaded = true
+    }
+  }
+
   const updateValue = ( newValue ) => {
-    value = newValue
+    value = [ ...newValue ]
     dispatch("change", value)
-    if ( fieldSchema.relationshipType == "one-to-many" ) open = false;   
+    if (!multi) open = false;  
   }
 </script>
 
@@ -77,10 +97,9 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
-  bind:this={anchor} 
-  tabindex="0"
+  bind:this={anchor}
   class="superCell"
-  class:disabled={ cellOptions.disabled }
+  class:disabled={ !loaded || cellOptions.disabled }
   class:inEdit
   class:inline={ cellOptions?.role == "inline" }  
   class:tableCell={ cellOptions?.role == "tableCell" } 
@@ -88,53 +107,75 @@
   style:color={ cellOptions?.color }
   style:background={ cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
-  on:focus={cellState.focus}
-  on:focusout={cellState.focusout}
   on:keydown={handleKeyboard}
 >
-  {#if cellOptions?.icon}
-    <i class={cellOptions.icon + " frontIcon"}></i>
-  {/if}
+  {#if loaded}
+    {#if cellOptions?.icon}
+      <i class={cellOptions.icon + " frontIcon"}></i>
+    {/if}
 
-  {#if inEdit}
-    <div 
-      class="editor" class:placeholder={value?.length < 1} 
-      style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
-      on:click={(e) => open = !open}
-    >
-      <div class="items" class:simpleView >
-        {#if value?.length < 1}
-          { cellOptions?.placeholder || "Select " + fieldSchema.name }
-        {:else if value?.length > 0}
-          {#each value as val}
-            <div class="item" class:rel-pills={!simpleView} >
-              {#if !simpleView}
-                <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
-              {/if}
-              <span>{val.primaryDisplay}</span>
-            </div>
-          {/each}
-        {/if}
+    {#if inEdit && cellOptions.autocomplete}
+        <input
+          class="editor"
+          class:placeholder={!searchTerm}
+          style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
+          style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
+          style:padding-top={0}
+          style:padding-bottom={0}
+          style:border={"none"}
+          bind:value={searchTerm}
+          placeholder={ cellOptions.placeholder ?? "Enter..." }
+          use:focus
+        />
+          <i class="ri-add-line actionIcon" on:click={(e) => open = true }></i>
+    {:else if inEdit}
+      <div 
+        class="editor" class:placeholder={value?.length < 1} 
+        style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
+        on:click|preventDefault={(e) => open = true }
+      >
+        <div class="items" class:simpleView >
+          {#if value?.length < 1}
+            { cellOptions?.placeholder || "Select " + fieldSchema.name }
+          {:else if value?.length > 0}
+            {#each value as val}
+              <div class="item" class:rel-pills={!simpleView} >
+                {#if !simpleView}
+                  <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+                {/if}
+                <span>{val.primaryDisplay}</span>
+              </div>
+            {/each}
+          {/if}
+        </div>
+          <i class="ri-add-line"></i>
       </div>
-        <i class="ri-add-line"></i>
-    </div>
+    {:else}
+      <div
+        tabindex="0"
+        on:focus={cellState.focus}
+        class="value" 
+        class:placeholder={value?.length < 1} 
+        style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
+        >
+          <div class="items" class:simpleView >
+            {#if value?.length < 1}
+              { cellOptions?.placeholder || "Select " + fieldSchema.name }
+            {:else if value?.length > 0}
+              {#each value as val}
+                <div class="item" class:rel-pills={!simpleView} >
+                  {#if !simpleView}
+                    <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+                  {/if}              
+                  <span>{val.primaryDisplay}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+      </div>
+    {/if}
   {:else}
-    <div class="value" class:placeholder={value?.length < 1} style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }>
-      <div class="items" class:simpleView >
-        {#if value?.length < 1}
-          { cellOptions?.placeholder || "Select " + fieldSchema.name }
-        {:else if value?.length > 0}
-          {#each value as val}
-            <div class="item" class:rel-pills={!simpleView} >
-              {#if !simpleView}
-                <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
-              {/if}              
-              <span>{val.primaryDisplay}</span>
-            </div>
-          {/each}
-        {/if}
-      </div>
-    </div>
+    <CellSkeleton> Initializing ... </CellSkeleton>
   {/if}
 
 </div>
@@ -143,19 +184,24 @@
   <SuperPopover 
     {anchor} 
     align="left"
-    dismissible={false}
+    dismissible
     useAnchorWidth
     open={ open }
+    on:close = { open = false }
     >
-      <div bind:this={picker} style="display: contents">
-        <CellLinkPicker 
+      <div bind:this={picker}>
+        <CellLinkPicker
           {value} 
-          schema={fieldSchema} 
-          tableId={fieldSchema.tableId} 
-          labelColumn={fieldSchema.labelColumn}
-          datasourceType={fieldSchema.tableId ? "table" : "user" }
+          datasource={{tableId: tableId || fieldSchema.tableId, type:"table"}}
+          {filter}
+          {labelColumn}
+          {valueColumn}
+          {pickerColumns}
+          {searchColumns}
+          {limit}
+          {searchTerm}
+          {multi}
           on:change={ (e) => { updateValue (e.detail)} } 
-          on:focusout={ cellState.focusout }
         />
       </div>
   </SuperPopover>
@@ -165,4 +211,35 @@
   .rel-pills {
     background-color: var(--spectrum-global-color-gray-300);
   }
+
+  .actionIcon {
+		height: 100%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		border-left: 1px solid var(--spectrum-global-color-blue-500);
+		min-width: 2rem;
+		font-size: 16px;
+		transition: all 130ms;
+	}
+	.actionIcon:hover {
+		cursor: pointer;
+		background-color: var(--spectrum-global-color-gray-75);
+		font-weight: 800;
+	}
+
+  /* HTML: <div class="loader"></div> */
+/* HTML: <div class="loader"></div> */
+.loader {
+  width: 120px;
+  height: 20px;
+  background: 
+    linear-gradient(90deg,#0001 33%,#0005 50%,#0001 66%)
+    #f2f2f2;
+  background-size:300% 100%;
+  animation: l1 1s infinite linear;
+}
+@keyframes l1 {
+  0% {background-position: right}
+}
 </style>

@@ -158,7 +158,7 @@
   .spectrum-Table-headCell {
     display: flex;
     align-items: center;
-    height: 2.5rem;
+    min-height: 2.5rem;
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
     background-color: var(--super-table-header-bg-color);

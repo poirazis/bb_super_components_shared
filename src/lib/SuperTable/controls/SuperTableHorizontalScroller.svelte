@@ -1,33 +1,31 @@
 <script>
-  export let stbVerticalScroll
+  export let stbHorizontalScroll
+  export let stbHorizontalRange
   export let highlighted
   export let offset = "0px"
 
-  export let clientHeight
-  export let clientScrollHeight
-
-  $: top = ($stbVerticalScroll * 100 * ( 1 - clientHeight / clientScrollHeight )) + "%"
-  $: height = (clientHeight / clientScrollHeight * 100) + "%"
-
-  $: console.log(top, height, clientHeight, clientScrollHeight)
+  $: left = ($stbHorizontalScroll * 100 * ( 1 - $stbHorizontalRange )) + "%"
+  $: width = ($stbHorizontalRange * 100) + "%"
 </script>
 
+{#if $stbHorizontalRange < 1}
   <div class="stb-scrollbar" class:highlighted style:--offset={offset}>
     <div 
       class="stb-scrollbar-indicator"
-      style:top
-      style:height
+      style:left
+      style:width
     />
   </div>
+{/if}
 
 
 <style>
   .stb-scrollbar {
     position: absolute;
-    right: 8px;
-    top: calc(var(--offset) + 20px);
-    height: calc( 100% - 40px - var(--offset));
-    width: 8px;
+    bottom: 8px;
+    left: calc(var(--offset) + 20px);
+    width: calc( 100% - 40px - var(--offset));
+    height: 8px;
     border-radius: 4px;
     opacity: 0.2;
     transition: opacity 230ms;
@@ -38,7 +36,7 @@
   }
   .stb-scrollbar-indicator {
     position: relative;
-    width: 100%;
+    height: 100%;
     border-radius: 4px;
     background-color: var(--spectrum-global-color-gray-500);
   }

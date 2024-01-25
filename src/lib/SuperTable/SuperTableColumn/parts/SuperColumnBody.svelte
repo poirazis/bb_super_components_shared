@@ -3,7 +3,8 @@
   import SuperColumnRow from "./SuperColumnRow.svelte";
 
   const stbSelected = getContext("stbSelected");
-  const tableScrollPosition = getContext("tableScrollPosition");
+  const stbScrollPos = getContext("stbScrollPos");
+  const stbVerticalScroll = getContext("stbVerticalScroll")
   const stbHovered = getContext("stbHovered");
 
   export let rows = []
@@ -12,22 +13,24 @@
 
   // for output
   export let rowHeights
+  let id = Math.random();
+  let hovered
 
   let columnBodyAnchor
-  let mouseOver
-    
-  const handleScroll = () => {
-    if (mouseOver) {
-      $tableScrollPosition = columnBodyAnchor?.scrollTop;
-    }
-  }
+
+  $: synchScrollPosition($stbScrollPos)
 
   const synchScrollPosition = ( position ) => { 
-    if (columnBodyAnchor && position != columnBodyAnchor.scrollTop ) 
+    if (columnBodyAnchor) 
       columnBodyAnchor.scrollTop = position 
   }
 
-  $: synchScrollPosition($tableScrollPosition)
+  const syncScroll = e => {
+    if ( $stbScrollPos != columnBodyAnchor.scrollTop ) { 
+      $stbScrollPos = columnBodyAnchor.scrollTop;
+      $stbVerticalScroll = columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -35,11 +38,12 @@
   bind:this={columnBodyAnchor}
   class="spectrum-Table-body"
   tabindex="-1"
+  id={id}
   style:background-color={columnOptions.background}
   class:filtered={$columnState == "Filtered"}
-  on:scroll={handleScroll}
-  on:mouseenter={ () => (mouseOver = true) }
-  on:mouseleave={ () => (mouseOver = false) }
+  on:scroll={ syncScroll }
+  on:mouseenter={ () => hovered = true }
+  on:mouseleave={ () => hovered = false }
   >
     {#each rows as row, index}
       <SuperColumnRow
