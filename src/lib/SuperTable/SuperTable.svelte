@@ -59,7 +59,7 @@
 
   const stbState = fsm("Loading", {
     "*" : {
-      handleKeyboard( e ) { console.log(e.key) },
+      handleKeyboard( e ) { },
       addFilter( filterObj ) { 
         this.removeFilter( filterObj.id )
         stbColumnFilters = [ ...stbColumnFilters, filterObj]

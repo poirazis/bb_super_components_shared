@@ -54,7 +54,6 @@
       _enter() { dispatch("enteredit") },
       _exit() { dispatch("exitedit") },
       focusout( e ) { 
-        console.log(e)
         if (!picker?.contains(e.relatedTarget)) {
           this.submit();
         }

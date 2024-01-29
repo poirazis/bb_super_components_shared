@@ -33,9 +33,9 @@
     "*": {
       goTo( state ) { return state },
 			syncFetch( fetch ) {
+				if ( cellOptions.optionsSource != "data" ) return;
 				if ( fetch?.loaded ) {
-					this.fetchOptions();
-					return "View"
+					return "View";
 				}
 			},
 			fetchOptions() {
@@ -63,8 +63,7 @@
 			_enter() { }
 		},
     View: { 
-			_enter() {
-			},
+			_enter() { 	this.fetchOptions(); },
       focus () { 
         if (!cellOptions.readonly && !cellOptions.disabled) {
 				 	return "Editing" 
@@ -78,7 +77,6 @@
     Error: { check : "View" },
     Editing: { 
 			_enter() {
-				this.fetchOptions();
 				if (!cellOptions.autocomplete && !cellOptions.role == "tableCell")
 				 	editorState.open();
 
@@ -106,7 +104,7 @@
 			},
       focusout( e ) {
 				if (anchor.contains(e.explicitOriginalTarget) && editor != e.explicitOriginalTarget ) return;
-
+				
 				if ( !arrayEquals(originalValue, localValue ) && originalValue != localValue[0]) {
 					if (multi)
 						dispatch("change", localValue);
@@ -151,6 +149,9 @@
 					editor?.focus();
 				}
 				if ( !multi ) this.close();
+			},
+			focusout( e ) {
+				cellState.focusout(e);
 			}
 		},
 		Open: {
@@ -277,7 +278,7 @@
 	$: inEdit = $cellState == 'Editing';
 	$: simpleView = cellOptions.optionsViewMode != 'pills';
 
-	$: fetch =  createFetch ( cellOptions.optionsSource == "data" ? cellOptions.datasource : null )
+	$: fetch = createFetch ( cellOptions.optionsSource == "data" ? cellOptions.datasource : null )
 	$: cellState.syncFetch($fetch)
 
 	const createFetch = ( datasource ) => {
@@ -323,8 +324,6 @@
 		node?.focus()
 	}
 
-
-	$: console.log(options)
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -344,7 +343,6 @@
 	style:background={ inEdit ? "var(--spectrum-global-color-gray-50" : cellOptions.background}
 	style:font-weight={cellOptions.fontWeight}
 	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
-	on:keydown={cellState.handleKeyboard}
 >
 	{#if $cellState == "Loading"}
 		<CellSkeleton> Initializing .. </CellSkeleton>
@@ -500,12 +498,13 @@
 				<div
 					class="editor"
 					tabindex="0"
-					use:focus
-					on:focusout={cellState.focusout}
 					class:placeholder={localValue?.length < 1}
 					style:padding-left={cellOptions.icon ? '32px' : cellOptions.padding}
 					style:padding-right={cellOptions.padding}
-					on:click|stopPropagation={() => {if (!cellOptions.addNew) editorState.toggle()}}
+					on:click={editorState.toggle}
+					on:keypress={editorState.handleKeyboard}
+					on:focusout={cellState.focusout}
+					use:focus
 				>
 					<div class="items" class:simpleView style:justify-content={cellOptions.align ?? 'flex-start'}>
 						{#if localValue.length < 1}
@@ -528,13 +527,13 @@
 							{/each}
 						{/if}
 					</div>
-					<i class="ri-arrow-down-s-line" on:click|stopPropagation={editorState.toggle}></i>
+					<i class="ri-arrow-down-s-line" on:click={editorState.toggle}></i>
 				</div>
-				{/if}
+			{/if}
 		{:else}
 			<div
 				class="value"
-				tabindex={ cellOptions.disabled ? "-1" : "0"}
+				tabindex="0"
 				on:focusin={cellState.focus}
 				class:placeholder={localValue?.length < 1}
 				style:padding-left={cellOptions?.icon ? '32px' : cellOptions.padding}
