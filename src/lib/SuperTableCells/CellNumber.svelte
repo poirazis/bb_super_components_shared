@@ -10,10 +10,11 @@
   export let cellOptions
 
   let originalValue
-  let cell
-  let lockWidth
+  let inEdit
 
+  $: inEdit = $cellState == "Editing"
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
+
 
   export let cellState = fsm( cellOptions.initialState ?? "View" , {
     "*": {
@@ -32,7 +33,9 @@
     Editing: { 
       _enter() { 
         originalValue = value;
+        dispatch("enteredit")
       },
+      _exit() { dispatch("exitedit") },
       focusout() {
         if ( originalValue !== value && !cellOptions.debounce)
           dispatch("change", value);
@@ -45,7 +48,6 @@
       cancel() { value = originalValue }
     }
   })
-
   let timer;
 	const debounce = e => {
     value = e.target.value
@@ -58,7 +60,6 @@
 	}
 
   function focus(element) {
-    console.log("h")
     element?.focus()
   }
 </script>
@@ -75,7 +76,7 @@
   class:tableCell={ cellOptions?.role == "tableCell" } 
   class:formInput={ cellOptions?.role == "formInput" } 
   style:color={ cellOptions?.color }
-  style:background={ cellOptions?.background }
+  style:background={ inEdit ? "var(--spectrum-global-color-gray-50)" : cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
   >
 
@@ -105,6 +106,8 @@
     {/if}
   {:else}
     <div class="value"
+    style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
+      style:padding-right={cellOptions.padding}
       tabIndex="0"
       on:focusin={cellState.focus}
     > 

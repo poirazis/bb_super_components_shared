@@ -1,5 +1,5 @@
 <script>
-  import SuperPopover from "../../../SuperPopover/SuperPopover.svelte"
+  import SuperPopover from "../../SuperPopover/SuperPopover.svelte"
 
   export let columnState;
   export let columnOptions;
@@ -16,7 +16,7 @@
     color: columnOptions.color,
     background: columnOptions.background,
     fontWeight: columnOptions.fontWeight,
-    padding: columnOptions.cellPadding,
+    padding: columnOptions.cellOptions.cellPadding,
     placeholder: columnOptions.filteringOperators?.find( x => x.value == filterOperator)?.label,
     clearValueIcon: true,
     disabled: filterOperator == "empty" || filterOperator == "notEmpty",
@@ -89,11 +89,12 @@
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:padding-left={ columnOptions.cellPadding }
-    style:padding-right={ $columnState == "Entering" ? 0 : columnOptions.cellPadding }
+    style:height={"2.4rem"}
+    style:padding-left={ columnOptions.cellOptions.padding }
+    style:padding-right={ columnOptions.cellOptions.padding }
 
   >
-    {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" }
+    {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
         <i class="ri-search-line icon" on:click|stopPropagation={columnState.filter}> </i>
       {/if}
@@ -115,10 +116,12 @@
         <i class={ sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      <i class="ri-menu-line" 
-      style="align-self: center; font-size: 14px;" 
-      on:click|preventDefault={ () => showFilteringOptions = !showFilteringOptions } 
-      />
+      {#if columnOptions.showFilterOperators}
+        <i class="ri-settings-line" 
+        style="align-self: center; font-size: 14px;" 
+        on:click|preventDefault={ () => showFilteringOptions = !showFilteringOptions } 
+        />
+      {/if}
         <svelte:component 
           this={columnOptions.cellComponent}
           {cellOptions}
@@ -131,39 +134,40 @@
     {/if}
   </div>
 
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <SuperPopover
-    anchor={headerAnchor}
-    align="left"
-    dismissible=false
-    open={ showFilteringOptions }
-    on:close={ () => showFilteringOptions = false }
-  >
-    <ul bind:this={picker} class="spectrum-Menu" role="menu" style="background-color: var(--spectrum-global-color-gray-75 );">
-      {#each columnOptions.filteringOperators as option}
-        <li
-          class="spectrum-Menu-item"
-          class:selected={option.value == filterOperator}
-          role="menuitem"
-          on:mousedown|preventDefault|stopPropagation={ () => handleOperatorChange(option.value) }
-        >
-          <span class="spectrum-Menu-itemLabel">{option.label}</span>
-        </li>
-      {/each}
-    </ul>
-  </SuperPopover>
+  {#if columnOptions.canFilter}
+    <SuperPopover
+      anchor={headerAnchor}
+      align="left"
+      dismissible=false
+      open={ showFilteringOptions }
+      on:close={ () => showFilteringOptions = false }
+    >
+      <ul bind:this={picker} class="spectrum-Menu" role="menu" style="background-color: var(--spectrum-global-color-gray-75 );">
+        {#each columnOptions.filteringOperators as option}
+          <li
+            class="spectrum-Menu-item"
+            class:selected={option.value == filterOperator}
+            role="menuitem"
+            on:mousedown|preventDefault|stopPropagation={ () => handleOperatorChange(option.value) }
+          >
+            <span class="spectrum-Menu-itemLabel">{option.label}</span>
+          </li>
+        {/each}
+      </ul>
+    </SuperPopover>
+  {/if}
 {/if}
 
 <style>
   .spectrum-Table-headCell {
     display: flex;
     align-items: center;
-    min-height: 2.5rem;
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
-    background-color: var(--super-table-header-bg-color);
+    background-color: var(--spectrum-global-color-gray-200);
     padding-top: none;
     padding-bottom: none;
+    font-size: 12px;
   }
 
   .spectrum-Table-headCell.idle {
@@ -173,20 +177,13 @@
   .enterting {
     min-width: 10rem;
     gap: 0.5rem;
-    background-color: var(
-      --spectrum-textfield-m-background-color,
-      var(--spectrum-global-color-gray-100)
-    );
   }
   .filtered {
     min-width: 6rem;
     gap: 0.5rem;
     color: var(--spectrum-global-color-gray-800);
     font-weight: 600;
-    background-color: var(
-      --spectrum-textfield-m-background-color,
-      var(--spectrum-global-color-gray-100)
-    );
+    background-color: var(--spectrum-global-color-gray-100);
   }
 
   .headerLabel {

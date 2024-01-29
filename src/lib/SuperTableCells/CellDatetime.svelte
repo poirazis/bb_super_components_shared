@@ -64,6 +64,7 @@
 	tabindex="0"
 	class="superCell"
 	class:inEdit
+	class:focused={open}
 	class:disabled={cellOptions.disabled}
 	class:inline={cellOptions?.role == 'inline'}
 	class:tableCell={cellOptions?.role == 'tableCell'}
@@ -71,7 +72,6 @@
 	style:color={cellOptions?.color}
 	style:background={cellOptions?.background}
 	style:font-weight={cellOptions?.fontWeight}
-  style:min-width={"8rem"}
 	on:focus={cellState.focus}
 	on:focusout={cellState.focusout}
 	on:keypress={cellState.handleKeyboard}
@@ -84,6 +84,7 @@
 		<div class="editor"
 			class:placeholder={!value}
 			style:padding-left={cellOptions?.iconFront ? '32px' : cellOptions?.padding}
+			style:padding-right={cellOptions?.padding}
 			on:click={() => open = !open }
 		>
 			<div class="items" style:justify-content={cellOptions.align ?? "flex-end"}>
@@ -96,7 +97,8 @@
 			class="value"
 			class:placeholder={!value}
 			style:padding-left={cellOptions?.icon ? '32px' : cellOptions?.padding}
-			style:justify-content={cellOptions.align ?? "flex-end"}
+			style:padding-right={cellOptions.padding}
+			style:justify-content={cellOptions.align ?? "flex-start"}
 		> 
 			<span>
 				{formattedValue || value ? innerDate.toDateString() : null || cellOptions?.placeholder || ""}	

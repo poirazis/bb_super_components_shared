@@ -58,12 +58,8 @@
         fromAnchor = node === anchor
         node = node.parentNode
       }
-      if (fromAnchor) {
-        e.stopPropagation()
-      }
-
       // Hide the popover
-      hide()
+      if (!fromAnchor) hide()
     }
   }
 

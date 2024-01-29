@@ -21,20 +21,24 @@
   import SuperColumnHeader from "./parts/SuperColumnHeader.svelte";
   import SuperColumnBody from "./parts/SuperColumnBody.svelte";
   import SuperColumnFooter from "./parts/SuperColumnFooter.svelte";
-  import CellOptions from "../../SuperCells/CellOptions.svelte";
-	import CellString from "../../SuperCells/CellString.svelte";
-	import CellNumber from "../../SuperCells/CellNumber.svelte";
-	import CellBoolean from "../../SuperCells/CellBoolean.svelte";
-	import CellDatetime from "../../SuperCells/CellDatetime.svelte";
-	import CellLink from "../../SuperCells/CellLink.svelte";
-	import CellSkeleton from "../../SuperCells/CellSkeleton.svelte";
-  import CellJSON from "../../SuperCells/CellJSON.svelte"
+
+  import CellOptions from "../SuperTableCells/CellOptions.svelte";
+	import CellString from "../SuperTableCells/CellString.svelte";
+	import CellNumber from "../SuperTableCells/CellNumber.svelte";
+	import CellBoolean from "../SuperTableCells/CellBoolean.svelte";
+	import CellDatetime from "../SuperTableCells/CellDatetime.svelte";
+	import CellLink from "../SuperTableCells/CellLink.svelte";
+	import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
+  import CellJSON from "../SuperTableCells/CellJSON.svelte"
 
   const stbData = getContext("stbData");
   const stbSettings = getContext("stbSettings");
   const stbSortColumn = getContext("stbSortColumn")
   const stbSortOrder = getContext("stbSortOrder")
   const stbHovered = getContext("stbHovered");
+  const stbEditing = getContext("stbEditing");
+  const stbRowHeights = getContext("stbRowHeights")
+  const stbRowColors = getContext("stbRowColors")
   
   // Props
   export let columnOptions;
@@ -48,6 +52,7 @@
   let startWidth = 0
   let width
   let columnAnchor
+  let lockWidth = new writable(0)
 
   let sortOrder = "ascending"
 
@@ -73,32 +78,43 @@
       initializeColumn ( field ) {     
         if (!field) return;
       },
+      enteredit ( index ) {
+        $stbEditing = index;
+        return "EditingCell"
+      },
+      exitedit ( index ) {
+        $stbEditing = -1;
+        return "Idle"
+      },
       cancel() { return "Idle"},
       lockWidth () { lockWidth = true },
       startResizing ( e ) { 
-        e.preventDefault();
         e.stopPropagation();
+        e.preventDefault();
         resizing = true;
         startPoint = e.clientX;
         startWidth = columnAnchor.clientWidth;
-        width = startWidth;
+        $lockWidth = startWidth;
       },
       resize ( e ) {
-        width = startWidth + e.clientX - startPoint
+        $lockWidth = startWidth + e.clientX - startPoint
       },
       stopResizing ( e ) {
         e.preventDefault();
         e.stopPropagation();
         resizing = false;
-        startPoint = undefined
+        startPoint = undefined;
+        width = $lockWidth;
       },
       resetSize ( e ) {
         e.preventDefault();
         e.stopPropagation();
-        width = undefined;
+        $lockWidth = 0
+        width = 0
       } 
     },
     Idle: { 
+      _enter() { $lockWidth = width },
       sort() {
         if ( columnOptions.canSort ) {
           stbState.sortBy( columnOptions.name, "ascending"); 
@@ -119,18 +135,19 @@
       filter: "Entering" 
     },
     Entering: { 
-      _enter() { },
+      _enter() { $lockWidth = columnAnchor.clientWidth },
       filter( filterObj ) { 
         stbState.removeFilter( id )
         stbState.addFilter( { ...filterObj, id: id } )  
         return "Filtered" },
       cancel() { return "Idle" },
-      clear() { return "Idle" },
-      _exit() {  }
+      clear() { return "Idle" }
     },
     Resizing: { stop: () => { return "Idle" } },
     Dragging: { stop: () => { return "Idle" } },
-    EditingCell: { stop: () => { return "Idle" } },
+    EditingCell: { 
+      _enter() { $lockWidth = columnAnchor.clientWidth },
+     },
     Filtered: { 
       filter( filterObj ) { stbState.removeFilter(id); stbState.addFilter( { ...filterObj, id: id } ) },
       clear() { stbState.removeFilter(id); return "Entering" },
@@ -183,24 +200,33 @@
   } else if ($stbSortColumn != columnOptions.name && $columnState == "Sorted" ) {
     columnState.unsort();
   }
+
+  const getMinWidth = ( val ) => {
+    if ( val > 0 )
+      return val
+    else
+      return columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.minWidth || "unset"
+  }
+  const getMaxWidth = ( val ) => {
+    if ( val > 0 )
+      return val
+    else
+      return columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.maxWidth || "unset"
+  }
 </script>
 
 <svelte:window
   on:mouseup={ ( e ) => { if ( resizing ) columnState.stopResizing( e ) } } 
   on:mousemove={ ( e ) => { if ( resizing ) columnState.resize( e ) } }
   />
-
-
-
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnAnchor}
   class="superTableColumn"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:flex={ width ? "0 0" : columnOptions.sizing == "fixed" ? "0 0" : "1 0 auto" }
-  style:min-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.minWidth || "auto"} 
-  style:max-width={ width ? width : columnOptions.sizing == "fixed" ? columnOptions.fixedWidth : columnOptions.maxWidth || "auto"} 
+  style:min-width={getMinWidth($lockWidth)} 
+  style:max-width={getMaxWidth($lockWidth)} 
   on:mouseleave={() => $stbHovered = null }
 >
   {#if $columnState != "Entering" && columnOptions.showHeader && columnOptions.canResize}
@@ -224,7 +250,10 @@
     on:cellChanged={(e) => stbState.cellChanged( e.detail )}
     {columnState} 
     {columnOptions} 
-    rows={$columnStore}>
+    rows={$columnStore}
+    rowHeights={$stbRowHeights}
+    rowColors={$stbRowColors}
+    >
     <slot />
   </SuperColumnBody>
 
@@ -233,6 +262,7 @@
 
 <style>
   .superTableColumn {
+    flex: 1 1 auto;
     position: relative;
     border-right: var(--super-table-vertical-dividers);
     color: var(--super-table-color);

@@ -16,16 +16,13 @@
     export let searchColumns = []
     export let multi
 
+    export let picker
+
     $: tableOptions = {
       idColumn: valueColumn,
       superColumnsPos: "first",
-      canFilter: true,
-      canSort: true,
-      canEdit: false,
-      canDelete: false,
-      canInsert: false,
-      canResize: true,
       columnSizing : "flexible",
+      columnMaxWidth: "auto",
       debounce: 500,
       visibleRowCount: 7,
       rowSelectMode: multi ? "multi" : "single",
@@ -47,11 +44,12 @@
         footer : { }
       },
       features: {
-        canInsert:false,
-        canEdit:false,
-        canDelete:false,
-        canFilter:false,
-        canSort:true
+        canFilter: true,
+        canSort: true,
+        canEdit: false,
+        canDelete: false,
+        canInsert: false,
+        canResize: false,
       },
       data: { 
         datasource,
@@ -76,7 +74,7 @@
       events: {
         onRowSelect : ( arr ) => {
           var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
-          dispatch("change", val) 
+          dispatch("change", val)
         }
       }
   };
@@ -84,7 +82,7 @@
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="control">   
+<div bind:this={picker} class="control">   
   <SuperTable
     on:change
     {tableOptions}>

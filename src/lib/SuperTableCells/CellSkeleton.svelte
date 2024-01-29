@@ -20,7 +20,7 @@
   .children {
     flex: auto;
     pointer-events: none;
-    opacity: 0.85;
+    opacity: 0.65;
     background-image: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0) 0,
@@ -36,7 +36,7 @@
       opacity: 0;
     }
     100% {
-      opacity: 0.75;
+      opacity: 0.55;
     }
   }
   @keyframes shimmer {

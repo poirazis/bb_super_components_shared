@@ -23,8 +23,8 @@
   .stb-scrollbar {
     position: absolute;
     bottom: 8px;
-    left: calc(var(--offset) + 20px);
-    width: calc( 100% - 40px - var(--offset));
+    left: calc(var(--offset) + 8px);
+    width: calc( 100% - 32px - var(--offset));
     height: 8px;
     border-radius: 4px;
     opacity: 0.2;

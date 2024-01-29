@@ -3,12 +3,12 @@
    * @typedef {Object} stbSettings
   */
 
-  import { getContext, setContext, onMount } from "svelte";
+  import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
   import { dataFilters } from "@budibase/shared-core/";
   import { fetchData } from "./../Fetch"
-  import { themeMap } from "./themes/superTableThemes.js"
+  import { sizingMap, defaultOperatorMap, supportFilteringMap, supportSortingMap, supportEditingMap } from "./constants.js"
  
   import {
     createSuperTableStateStore,
@@ -16,11 +16,11 @@
 
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
-  import SuperTableColumn from "./SuperTableColumn/SuperTableColumn.svelte";
-  import CellSkeleton from "../SuperCells/CellSkeleton.svelte";
+  import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
+  import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
-  const { API } = getContext("sdk");
+  const { API , processStringSync, notificationStore } = getContext("sdk");
 
   export let tableOptions 
 
@@ -29,27 +29,27 @@
   let columns 
   let schema = {}
   let query = {}
-  let stbChanges
+  let queryExtensions = {}
   let stbColumnFilters = []
   let highlighted
   let columnsBodyAnchor
 
 
-  let loadedDatasource
-
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
-  const tableDataChangesStore = new writable([]);
 
+ 
   const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
 
   const stbHovered = new writable(-1);
+  const stbEditing = new writable(-1)
   const stbSettings = new writable({})
   const stbSortColumn = new writable({})
   const stbSortOrder = new writable({})
-  const stbRowHeights = new writable(new Array(tableOptions.visibleRowCount));  
 
+  const stbRowHeights = new writable([]); 
+  const stbRowColors = new writable([]);
 
   const stbVerticalScroll = new writable(0);
   const stbVerticalRange = new writable(1);
@@ -59,6 +59,7 @@
 
   const stbState = fsm("Loading", {
     "*" : {
+      handleKeyboard( e ) { console.log(e.key) },
       addFilter( filterObj ) { 
         this.removeFilter( filterObj.id )
         stbColumnFilters = [ ...stbColumnFilters, filterObj]
@@ -69,12 +70,16 @@
           stbColumnFilters = stbColumnFilters.toSpliced( pos, 1)
         }
       },
-      clearFilter() { removeQueryExtension("123"); return "Idle" },
+      clearFilter() { 
+        stbColumnFilters = [];
+        removeQueryExtension("123"); 
+        return "Idle" 
+      },
       sortBy( column, order ) {  
-        sortColumn = column
-        sortOrder = order
-        $stbSortColumn = column
-        $stbSortOrder = order
+        sortColumn = column;
+        sortOrder = order;
+        $stbSortColumn = column;
+        $stbSortOrder = order;
       },
       registerColumn() {},
       unregisterColumn() {},
@@ -87,22 +92,26 @@
             $stbSelected.splice($stbSelected.indexOf(rowID), 1)
             $stbSelected = $stbSelected
           } else {
-            $stbSelected = [ ...$stbSelected, rowID ] 
+            if ($stbSelected.length < tableOptions.selectionLimit || !tableOptions.selectionLimit )
+              $stbSelected = [ ...$stbSelected, rowID ]
+            else
+              notificationStore.actions.warning("Cannot select more than " + tableOptions.selectionLimit + " rows")
           }
-        } else { 
-          if ($stbSelected.includes(rowID)) 
-            $stbSelected = []
-          else
-           $stbSelected = [rowID]
+          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
+        } else if ($stbSettings.rowSelectMode == "single") { 
+          if ($stbSelected.includes(rowID)) { $stbSelected = []}           
+          else { $stbSelected = [rowID] };
+          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
         }
-        tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
       },
       toggleSelectAllRows () {
         if ($stbSettings.rowSelectMode == "multi") {
           if ( $stbSelected.length != $stbData.rows.length ) 
             $stbSelected = $stbData.rows.map ( x => x[$stbSettings.data.idColumn])
           else
-            $stbSelected = []
+            $stbSelected = [];
+            
+          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
         }
       },
       cellChanged( change ) {
@@ -121,53 +130,101 @@
       },
       rowClicked( rowID ) { 
         tableOptions.events.onRowClick?.( $stbData.rows.find( x => x[tableOptions.data.idColumn] == rowID ) );
-        if ( tableOptions.rowSelectMode != "off" && !tableOptions.selectionColumn )
+        if ( tableOptions.rowSelectMode != "off" && !tableOptions.features.canEdit )
           this.toggleSelectRow ( rowID)
       },
-      setState( state ) { if (state?.loaded ) return "Idle" } 
+      getRowColors() {
+        if ($stbData?.loading) return;
+
+        if ( tableOptions.appearance.rowBGColorTemplate || tableOptions.appearance.rowColorTemplate ) {
+          $stbRowColors = []
+          $stbRowColors = $stbData.rows.map ( ( row ) => {
+            return { bgcolor : processStringSync( tableOptions.appearance.rowBGColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-50)",
+                     color : processStringSync( tableOptions.appearance.rowColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-800)"}
+          })  
+        } else if ( tableOptions.appearance.zebraColors ) {
+          $stbRowColors = $stbRowHeights.map ( ( row, idx ) => {
+            return { bgcolor : ( idx % 2 == 1) ? "var(--spectrum-global-color-gray-75)" : "inherit",
+                     color : "var(--spectrum-global-color-gray-800)" };
+          })
+        } else {
+          $stbRowColors = $stbRowHeights.map ( ( row ) => {
+            return { bgcolor : "inherit",
+                     color : "var(--spectrum-global-color-gray-800)"}
+          }) 
+        }
+      },
+      setState( state ) { 
+        if (state?.loaded) {
+          this.getRowColors();
+          return "Idle"
+        }
+       } 
     },
     Idle: { 
       _enter() {
-        $stbRowHeights = tableOptions.visibleRowCount > $stbData.rows.length ? new Array(tableOptions.visibleRowCount) : new Array($stbData.rows.length)
+        $stbRowHeights = tableOptions.visibleRowCount > $stbData.rows.length 
+          ? new Array( tableOptions.visibleRowCount).fill(defaultRowHeight) 
+          : new Array($stbData.rows.length).fill(defaultRowHeight);
+
+        this.getRowColors();
       },
-      synch( fetchState ) { if (fetchState?.loading) return "Loading" },
+      synch( fetchState ) { 
+        this.getRowColors();
+        if (fetchState?.loading) return "Loading" 
+      },
      },
     Loading: { 
       loaded: "Idle",
-      synch( fetchState ) { if (fetchState?.loaded) return "Idle" },
+      synch( fetchState ) { 
+        if (fetchState?.loaded && stbColumnFilters?.length > 0) 
+          return "Filtered";
+        else  
+          return "Idle"
+        },
     },
-    Filtered: { },
+    Filtered: { 
+      _enter() { this.getRowColors() },
+      synch( fetchState ) { 
+        if (fetchState?.loaded && stbColumnFilters?.length > 0) 
+          this.getRowColors();
+        else  
+          return "Idle"
+        },
+    },
+    Editing: { },
+    Empty: { },
     Sorted: { },
     Empty: { }
   });
 
-  let queryExtensions = {}
+  // Generate Layout required variables first so we can render early on
+  $: defaultRowHeight = tableOptions.appearance.size == "custom" ? tableOptions.appearance.customRowHeight : sizingMap[tableOptions.appearance.size].rowHeight
+  $: if ( tableOptions.appearance.size == "custom" ) {
+    $stbRowHeights = [ ... new Array(tableOptions.visibleRowCount).fill(defaultRowHeight) ]
+  } else {
+    $stbRowHeights = [ ... new Array(tableOptions.visibleRowCount).fill(defaultRowHeight) ]
+  }
+
+  $: maxBodyHeight = tableOptions.visibleRowCount * defaultRowHeight
+
   $: limit = tableOptions.data.limit
-  $: if ( tableOptions.data.fetchOnScroll && $stbVerticalScroll > 0.8)
-      if ( limit == $stbData?.rows.length ) {
-        limit += tableOptions.data.fetchPageSize
-      }
+  $: if ( tableOptions.data.fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
+    limit = limit + tableOptions.data.fetchPageSize < 1000 ? limit + tableOptions.data.fetchPageSize : 1000;
+    $stbVerticalScroll = 0.8
+  }
 
   $: sortColumn = tableOptions.data.sortColumn
   $: sortOrder = tableOptions.data.sortOrder
   $: datasource = tableOptions.data.datasource
   $: paginate = tableOptions.data.paginate
-
   $: stbData = createFetch(datasource)
   $: schema = $stbData?.schema
 
   $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
   $: queryExtension = dataFilters.buildLuceneQuery(stbColumnFilters)
-  $: addQueryExtension("12332", queryExtension)
+  $: addQueryExtension("1000", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
-
-  $: stbData.update({
-    query,
-    sortColumn,
-    sortOrder,
-    limit,
-    paginate: tableOptions.data.paginate,
-  })
 
   $: $stbSortColumn = tableOptions.data.sortColumn
   $: $stbSortOrder = tableOptions.data.sortOrder
@@ -185,10 +242,15 @@
       else 
         columns = getAllColumns(false)
 
-  $: tableTheme = themeMap[tableOptions.appearance.theme]
-
-  $: maxBodyHeight = tableOptions.visibleRowCount * tableOptions.rowHeight
   $: $stbSettings = tableOptions
+  $: stbData?.update({
+    query,
+    sortColumn,
+    sortOrder,
+    limit,
+    paginate,
+  })
+
   $: stbState.synch($stbData)
 
   const syncScroll = (e) => {
@@ -200,17 +262,17 @@
   }
 
   const createFetch = datasource => {
-      return fetchData({
-        API,
-        datasource,
-        options: {
-          query,
-          sortColumn,
-          sortOrder,
-          limit,
-          paginate,
-        },
-      })
+    return fetchData({
+      API,
+      datasource,
+      options: {
+        query,
+        sortColumn,
+        sortOrder,
+        limit,
+        paginate,
+      },
+    })
   }
 
   const extendQuery = (defaultQuery, extensions) => {
@@ -243,50 +305,6 @@
     queryExtensions = newQueryExtensions
   }
 
-  const defaultOperatorMap = {
-    "string" : "fuzzy",
-    "formula" : "fuzzy",
-    "array" : "contains",
-    "options" : "equal",
-    "datetime" : "rangeLow",
-    "boolean" : "equal",
-    "number" : "equal",
-    "bigint" : "equal",
-	}
-
-  const supportFilteringMap = {
-    "string" : true,
-    "array" : true,
-    "options" : true,
-    "datetime" : true,
-    "boolean" : true,
-    "number" : true,
-    "bigint" : true,
-	}
-
-  const supportSortingMap = {
-    "string" : true,
-    "formula" : true,
-    "array" : true,
-    "options" : true,
-    "datetime" : true,
-    "boolean" : true,
-    "number" : true,
-    "bigint" : true,
-	}
-
-  const supportEditingMap = {
-		 "string" : true,
-		 "array" : true,
-     "link" : true,
-     "bb_reference" : true,
-		 "options" : true,
-		 "datetime" : true,
-     "boolean" : true,
-     "number" : true,
-     "bigint" : true,
-	}
-
   const getAllColumns = ( includeAuto ) => {
     let allColumns = []
     if (schema) 
@@ -303,31 +321,34 @@
       hasChildren: false,
       schema: schema[bbcolumn.name] ?? {},
       sizing: bbcolumn.width ? "fixed" : tableOptions.columnSizing,
-      fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth,
-      maxWidth: tableOptions.columnMaxWidth,
-      minWidth: tableOptions.columnMinWidth,
-      canResize: tableOptions.canResize,
+      fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth ?? "8rem",
+      maxWidth: tableOptions.columnMaxWidth ?? "16rem",
+      minWidth: tableOptions.columnMinWidth ?? "6rem",
+      canResize: tableOptions.features.canResize,
       showFooter: tableOptions.showFooter,
       showHeader: tableOptions.showHeader,
-      canEdit: tableOptions.canEdit && supportEditingMap[schema[bbcolumn.name].type],
-      canFilter: tableOptions.canFilter && supportFilteringMap[schema[bbcolumn.name].type],
-      canSort: tableOptions.canSort && supportSortingMap[schema[bbcolumn.name].type],
+      canEdit: tableOptions.features.canEdit && supportEditingMap[schema[bbcolumn.name].type],
+      canFilter: tableOptions.features.canFilter && supportFilteringMap[schema[bbcolumn.name].type],
+      showFilterOperators: tableOptions.features.showFilterOperators,
+      canSort: tableOptions.features.canSort && supportSortingMap[schema[bbcolumn.name].type],
       filteringOperators: dataFilters.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
-      cellPadding: tableOptions.appearance.cellPadding,
+      cellPadding: tableOptions.appearance.size == "custom" ? tableOptions.appearance.cellPadding : sizingMap[tableOptions.appearance.size].cellPadding,
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
       useOptionColors: tableOptions.appearance.useOptionColors, 
       optionsViewMode: tableOptions.appearance.optionsViewMode,
-      relViewMode: tableOptions.appearance.relViewMode
+      relViewMode: tableOptions.appearance.relViewMode,
+      zebraColors: tableOptions.appearance.zebraColors
     }
     return superColumn
   }
 
-  onMount( () => {
+  beforeUpdate( () => {
     if ( columnsBodyAnchor ) {
-      const { scrollLeftMax, scrollLeft , scrollWidth , clientWidth } = columnsBodyAnchor
-        $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1
+      const { scrollWidth , clientWidth } = columnsBodyAnchor
+      $stbHorizontalRange = scrollWidth > clientWidth ? clientWidth / scrollWidth : 1
     }
+
   })
 
   setContext("tableStateStore", tableStateStore);
@@ -337,13 +358,15 @@
   setContext("stbVerticalRange", stbVerticalRange);
   setContext("stbHovered", stbHovered);
   setContext("stbSelected", stbSelected);
+  setContext("stbEditing", stbEditing);
   setContext("tableState", stbState);
   setContext("stbSettings", stbSettings);
   setContext("stbSortColumn", stbSortColumn)
   setContext("stbSortOrder", stbSortOrder)
+  setContext("stbRowHeights", stbRowHeights)
+  setContext("stbRowColors", stbRowColors)
   $: setContext("stbData", stbData)
 
-  $: console.log(sortColumn,sortOrder)
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -352,19 +375,7 @@
   bind:this={anchor}
   tabindex="0"
   class="st-master-wrapper"
-  style:--super-table-footer-height={"2.5rem"}
   style:--super-table-body-height={maxBodyHeight + "px"}
-  style:--super-table-header-color={tableTheme.headerColor}
-  style:--super-table-header-bg-color={tableTheme.headerBgColor}
-  style:--super-table-color={tableTheme.tableColor}
-  style:--super-table-base-font-size={tableOptions.baseFontSize}
-  style:--super-table-bg-color={tableTheme.tableBgColor}
-  style:--super-table-footer-color={tableTheme.footerColor}
-  style:--super-table-footer-bg-color={tableTheme.footerBgCoßlor}
-  style:--super-table-relItem-color={tableTheme.relationshipItemColor}
-  style:--super-table-relItem-bg-color={tableTheme.relationshipItemBgColor}
-  style:--super-table-column-width={tableOptions.columnSizing == "fixed" ? tableOptions.columnWidth : null }
-  style:--super-table-cell-padding={tableOptions.appearance.cellPadding + "px"}
   style:--super-table-vertical-dividers={tableOptions.dividers == "both" ||
   tableOptions.dividers == "vertical"
     ? "1px solid var(--spectrum-table-border-color, var(--spectrum-alias-border-color-mid))"
@@ -372,21 +383,23 @@
 
   on:mouseenter={ () => highlighted = true }
   on:mouseleave={ () => highlighted = false }
+  on:keydown={stbState.handleKeyboard}
 >
-  {#if $stbSettings.rowSelectMode != "off" && $stbSettings.selectionColumn }
-    <div class="st-master-control" >
-      <SuperTableRowSelect 
-        {stbState} 
-        {stbSettings}
-        {stbData} 
-        {stbSelected}
-        {stbHovered}
-        {stbScrollPos}
-        {tableStateStore}
-        {stbRowHeights}
-        loading={$stbData?.loading}
-        />
-    </div>
+  {#if tableOptions.selectionColumn || (tableOptions.features.canEdit && tableOptions.rowSelectMode != "off") }
+    <SuperTableRowSelect 
+      {stbState} 
+      {stbSettings}
+      {stbData} 
+      {stbSelected}
+      {stbHovered}
+      {stbEditing}
+      {stbScrollPos}
+      {stbVerticalScroll}
+      {tableStateStore}
+      {stbRowHeights}
+      {stbRowColors}
+      loading={$stbData?.loading}      
+    />
   {/if}
   
   <div bind:this={columnsBodyAnchor} class="st-master-columns" on:scroll={syncScroll}>
@@ -404,16 +417,22 @@
           />
         {/each}
       {/if}
-      {#if $stbSettings.superColumnsPos != "first"} <slot /> {/if}
+      {#if $stbSettings.superColumnsPos == "last"} <slot /> {/if}
     {/if}
   </div>
 
-  <SuperTableHorizontalScroller {stbHorizontalScroll} {stbHorizontalRange} {highlighted} offset={"2.5rem"} />
+  <SuperTableHorizontalScroller
+    {stbHorizontalScroll} 
+    {stbHorizontalRange} 
+    {highlighted} 
+    offset={ $stbSettings.rowSelectMode != "off" && $stbSettings.selectionColumn  ? "2.5rem" : "0rem"} 
+  />
+
   <SuperTableVerticalScroller 
     {stbVerticalScroll}
     {highlighted}
     clientHeight={maxBodyHeight}
-    clientScrollHeight = {$stbData?.rows.length > tableOptions.visibleRowCount ? $stbData?.rows.length  * tableOptions.rowHeight : maxBodyHeight}
+    clientScrollHeight = {$stbData?.rows.length > tableOptions.visibleRowCount ? $stbData?.rows.length  * defaultRowHeight : maxBodyHeight}
     offset={"2.5rem"}
   />
 </div>
@@ -426,12 +445,6 @@
     justify-content: stretch;
     align-items: stretch;
     border: 1px solid var(--spectrum-global-color-gray-300);
-  }
-  .st-master-control {
-    display: flex;
-    flex-direction: row;
-    justify-content: stretch;
-    align-items: stretch;
   }
   .st-master-columns {
     position: relative;

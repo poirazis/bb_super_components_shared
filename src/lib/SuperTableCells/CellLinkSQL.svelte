@@ -72,8 +72,6 @@
   const loadDefaultValue = val => {
 
   }
-
-  $: console.log(value)
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->

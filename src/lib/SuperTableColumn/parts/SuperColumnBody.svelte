@@ -8,12 +8,11 @@
   const stbHovered = getContext("stbHovered");
 
   export let rows = []
+  export let rowHeights
+  export let rowColors
   export let columnState
   export let columnOptions
 
-  // for output
-  export let rowHeights
-  let id = Math.random();
   let hovered
 
   let columnBodyAnchor
@@ -38,29 +37,35 @@
   bind:this={columnBodyAnchor}
   class="spectrum-Table-body"
   tabindex="-1"
-  id={id}
   style:background-color={columnOptions.background}
   class:filtered={$columnState == "Filtered"}
-  on:scroll={ syncScroll }
+  on:scroll|self={ syncScroll }
   on:mouseenter={ () => hovered = true }
   on:mouseleave={ () => hovered = false }
   >
-    {#each rows as row, index}
-      <SuperColumnRow
-        {row} 
-        {index} 
-        {columnOptions}
-        isHovered={ $stbHovered == index }
-        isSelected={ $stbSelected.includes(row.rowID) }
-        on:resize={ ( e ) => rowHeights[index] = e.detail }
-        on:hovered={ () => ($stbHovered = index)}
-        on:rowClicked
-        on:rowDblClicked
-        on:cellChanged
-      >
-        <slot />
-      </SuperColumnRow>
-    {/each}
+  {#if rowHeights?.length}
+      {#each rows as row, index}
+        <SuperColumnRow
+          {row} 
+          odd={columnOptions.zebraColors && ( index % 2 == 1) }
+          {columnOptions}
+          height={rowHeights[index]}
+          bgColor={rowColors[index]?.bgcolor}
+          color={rowColors[index]?.color}
+          isHovered={ $stbHovered == index }
+          isSelected={ $stbSelected.includes(row.rowID) }
+          on:resize={ ( e ) => rowHeights[index] = e.detail }
+          on:hovered={ () => ($stbHovered = index)}
+          on:rowClicked
+          on:rowDblClicked
+          on:cellChanged
+          on:enteredit = {() => columnState.enteredit(index)}
+          on:exitedit = {columnState.exitedit}
+        >
+          <slot />
+        </SuperColumnRow>
+      {/each}
+    {/if}
 </div>
 
 <style>

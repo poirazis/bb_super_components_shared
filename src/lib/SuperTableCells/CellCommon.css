@@ -1,6 +1,5 @@
 .superCell {
   width: 100%;
-  min-height: 2rem;
   display: flex;
   align-items: center;
   position: relative;
@@ -13,6 +12,9 @@
 .superCell.tableCell.inEdit:focus-within {
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
 }
+.superCell.tableCell.focused {
+  border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
+}
 .superCell > .value {
   flex: 1 1 auto;
   padding: 0.3rem 0.5rem;
@@ -21,6 +23,7 @@
   align-items: center;
   overflow: hidden;
   min-width: 0;
+  height: 100%;
 }
 .superCell.formInput.disabled {
   background-color: var(--spectrum-global-color-gray-100);
@@ -137,7 +140,11 @@
 .superCell.tableCell {
   border: 1px solid transparent;
 }
+.superCell.tableCell.superCell.inEdit {
+  background-color: var(--spectrum-global-color-gray-50);
+}
 .superCell.formInput {
+  min-height: 2rem;
   min-width: 120px;
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
@@ -145,6 +152,11 @@
 .superCell.formInput.error {
   border: 1px solid var(--spectrum-global-color-red-500);
   background: var(--spectrum-global-color-gray-50);
+}
+.superCell.formInput.focused {
+  border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
+  background: var(--spectrum-global-color-gray-50);
+
 }
 .superCell.formInput.inEdit:focus-within {
   border-color: var(--spectrum-alias-border-color-mouse-focus);
@@ -160,7 +172,10 @@
 }
 .superCell.inline {
   border: none;
-  background-color: var(--spectrum-global-color-gray-75);
+  border-radius: 2px;
+  background-color: var(--spectrum-global-color-gray-50);
+  max-height: 1.8rem;
+  min-height: 1.8rem;
 }
 .superCell.inline.disabled {
   background-color: var(--spectrum-global-color-gray-100);

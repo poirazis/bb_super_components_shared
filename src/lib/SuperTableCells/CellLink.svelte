@@ -23,15 +23,24 @@
   export let searchColumns
   export let filter
   export let limit
-  export let multi = false
+  export let multi = true
 
-  let localValue = [...value]
+  let originalValue = [ ...value ]
+  let localValue = [ ...value]
+  let anchor;
+  let open
+  let picker
+  let searchTerm
+  let definition
+  let loaded
+  let editor
 
   export let cellState = fsm( "View" , {
     "*": {
       goTo( state ) { return state }
     },
     View: { 
+      _enter() { open = false; },
       focus () { 
         if (!cellOptions.readonly && !cellOptions.disabled) return "Editing"  
       }
@@ -41,21 +50,35 @@
       unfocus() { return "View" },
     },
     Error: { check : "View" },
-    Editing: { 
-      focusout( e ) {
-          open = false;
-          dispatch("change", localValue);
-        },
-      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+    Editing: {
+      _enter() { dispatch("enteredit") },
+      _exit() { dispatch("exitedit") },
+      focusout( e ) { 
+        console.log(e)
+        if (!picker?.contains(e.relatedTarget)) {
+          this.submit();
+        }
+       },
+      submit() { 
+        dispatch("change", localValue );
+        editorState.close();
+        return "View"; 
+      },
+      cancel() { value = [...originalValue] ; return "View" },
     }
   })
 
-  let anchor;
-  let open
-  let picker
-  let searchTerm
-  let definition
-  let loaded
+  const editorState = fsm("Closed", {
+    "Open" : { 
+      close() { return "Closed" },
+      toggle() { return "Closed"},
+      lostFocus() { cellState.focusout() }
+    },
+    "Closed" : {
+      open() { return "Open"},
+      toggle() { return "Open"}
+    }
+  })
 
   $: inEdit = $cellState == "Editing"
   $: fetchDefinition(fieldSchema?.tableId)
@@ -63,14 +86,13 @@
     labelColumn = definition.primaryDisplay 
     pickerColumns = !pickerColumns?.length ? [{"name": labelColumn}] : pickerColumns
   }
-  $: if ( value == "" || value == undefined ) value = []
   $: simpleView = cellOptions.relViewMode == "text"
 
   const handleKeyboard = ( e ) => {
     if ( e.keyCode == 32 && $cellState == "Editing") {
       e.preventDefault();
       e.stopPropagation();
-      open = !open
+      editorState.toggle();
     }
   }
 
@@ -86,28 +108,30 @@
     }
   }
 
-  const updateValue = ( newValue ) => {
-    value = [ ...newValue ]
-    dispatch("change", value)
-    if (!multi) open = false;  
-  }
+  const focus = e => { e?.focus() }
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div 
-  bind:this={anchor}
+<div
   class="superCell"
+  tabindex="0"
+  bind:this={anchor}
   class:disabled={ !loaded || cellOptions.disabled }
   class:inEdit
   class:inline={ cellOptions?.role == "inline" }  
   class:tableCell={ cellOptions?.role == "tableCell" } 
-  class:formInput={ cellOptions?.role == "formInput" } 
+  class:formInput={ cellOptions?.role == "formInput" }
+  class:focused={ $editorState == "Open" }
   style:color={ cellOptions?.color }
-  style:background={ cellOptions?.background }
+  style:background={ inEdit ? "var(--spectrum-global-color-gray-50)" : cellOptions?.background }
   style:font-weight={ cellOptions?.fontWeight }
   on:keydown={handleKeyboard}
+  on:click={() => {if (inEdit) editorState.toggle(); else () => {}}}
+  on:focusout={cellState.focusout}
+  on:focus={cellState.focus}
 >
   {#if loaded}
     {#if cellOptions?.icon}
@@ -129,16 +153,16 @@
         />
           <i class="ri-add-line actionIcon" on:click={(e) => open = true }></i>
     {:else if inEdit}
-      <div 
-        class="editor" class:placeholder={value?.length < 1} 
+      <div
+        class="editor" 
+        class:placeholder={localValue?.length < 1} 
         style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
-        on:click|preventDefault={(e) => open = true }
       >
         <div class="items" class:simpleView >
-          {#if value?.length < 1}
+          {#if localValue?.length < 1}
             { cellOptions?.placeholder || "Select " + fieldSchema.name }
-          {:else if value?.length > 0}
-            {#each value as val}
+          {:else if localValue?.length > 0}
+            {#each localValue as val, idx}
               <div class="item" class:rel-pills={!simpleView} >
                 {#if !simpleView}
                   <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
@@ -152,17 +176,16 @@
       </div>
     {:else}
       <div
-        tabindex="0"
-        on:focus={cellState.focus}
         class="value" 
         class:placeholder={value?.length < 1} 
         style:padding-left={ cellOptions?.icon ? "32px" : cellOptions?.padding }
+        style:padding-right={cellOptions.padding}
         >
           <div class="items" class:simpleView >
-            {#if value?.length < 1}
+            {#if localValue?.length < 1}
               { cellOptions?.placeholder || "Select " + fieldSchema.name }
-            {:else if value?.length > 0}
-              {#each value as val}
+            {:else if localValue?.length > 0}
+              {#each localValue as val}
                 <div class="item" class:rel-pills={!simpleView} >
                   {#if !simpleView}
                     <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
@@ -174,36 +197,34 @@
           </div>
       </div>
     {/if}
+
   {:else}
     <CellSkeleton> Initializing ... </CellSkeleton>
   {/if}
-
 </div>
 
 {#if inEdit}
   <SuperPopover 
-    {anchor} 
-    align="left"
-    dismissible
-    useAnchorWidth
-    open={ open }
-    on:close = { open = false }
-    >
-      <div bind:this={picker}>
-        <CellLinkPicker
-          {value} 
-          datasource={{tableId: tableId || fieldSchema.tableId, type:"table"}}
-          {filter}
-          {labelColumn}
-          {valueColumn}
-          {pickerColumns}
-          {searchColumns}
-          {limit}
-          {searchTerm}
-          {multi}
-          on:change={ (e) => { updateValue (e.detail)} } 
-        />
-      </div>
+  {anchor} 
+  dismissible
+  useAnchorWidth
+  open={$editorState == "Open"}
+  on:close={cellState.focusout}
+  >
+    <CellLinkPicker
+      bind:picker={picker}
+      {value} 
+      datasource={{tableId: tableId || fieldSchema.tableId, type:"table"}}
+      {filter}
+      {labelColumn}
+      {valueColumn}
+      {pickerColumns}
+      {searchColumns}
+      {limit}
+      {searchTerm}
+      multi={fieldSchema?.relationshipType != "many-to-one"}
+      on:change={ ( e ) => localValue = e.detail }
+    />
   </SuperPopover>
 {/if}
 

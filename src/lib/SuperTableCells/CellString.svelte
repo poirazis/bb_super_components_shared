@@ -34,7 +34,11 @@
           return "Readonly";
         } else {
           originalValue = value
+          dispatch("enteredit")
         }
+      },
+      _exit() {
+        dispatch("exitedit")
       },
       submit() { 
         if ( originalValue !== value && !cellOptions.debounce)
@@ -88,7 +92,7 @@
   class:reeadonly={ $cellState == "Readonly" }
   class:error={ cellOptions.error }
   style:color={ cellOptions.color }
-  style:background={ cellOptions.background }
+  style:background={ inEdit ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
 > 
 
@@ -121,6 +125,7 @@
       on:focusin={cellState.focus}
       class:placeholder={!value}
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
+      style:padding-right={cellOptions.padding}
       style:justify-content={cellOptions.align}
       > 
         <span>

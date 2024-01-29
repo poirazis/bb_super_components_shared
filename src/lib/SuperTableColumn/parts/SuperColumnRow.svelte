@@ -3,25 +3,23 @@
 	import { elementSizeStore } from "svelte-legos";
 
 	const { Provider, processStringSync } = getContext("sdk")
-	const stbSettings = getContext("stbSettings");
-	const tableStateStore = getContext("tableStateStore");
 
 	const dispatch = createEventDispatcher();
 
 	export let row
-	export let index
 	export let columnOptions
 	export let isSelected
 	export let isHovered
+	export let odd
+
+	export let bgColor
+	export let color
 
 	// the proposed height
 	export let height
 	export let minHeight
 
 	let contents, size, cellHeight, rowElement, cellState 
-
-	$: height = $stbSettings?.rowHeight
-	$: minHeight = $stbSettings?.rowHeight
 
 	$: if ( columnOptions.hasChildren && contents ) size = elementSizeStore(contents) 
 
@@ -40,6 +38,7 @@
 	const getCellValue = value => {
 		return columnOptions.template ? processStringSync( columnOptions.template, { value } ) : undefined
 	}
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -50,12 +49,16 @@
 	class="spectrum-Table-row" 
 	class:is-selected={isSelected} 
 	class:is-hovered={isHovered}
+	class:odd
 	style:height={ height + "px" }
+	style:background-color={bgColor}
+	style:color
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
 	on:click={ () => {cellState?.focus(); dispatch("rowClicked",  row.rowID )} }
 	on:dblclick={ () => dispatch("rowDblClicked", row.rowID ) } 
 	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row.rowID }) }
+	on:enteredit
 	>
 		{#if !columnOptions.hasChildren }
 			<svelte:component 
@@ -65,6 +68,8 @@
 				value={row.rowValue}
 				formattedValue={getCellValue(row.rowValue)}
 				multi={columnOptions.schema.type == "array"}
+				on:enteredit
+				on:exitedit
 				on:change={ (e) => dispatch("cellChanged", {rowID : row.rowID, previousValue: row.rowValue, value: e.detail, field : columnOptions.name })}
 			/>
 		{:else}
@@ -82,6 +87,9 @@
 		align-items: stretch;
 		justify-content: stretch;	
 	}
+	.spectrum-Table-row.odd {
+		background-color: var(--spectrum-global-color-gray-75);
+	}
 	.contentsWrapper {
 		flex: 1 1 auto;
 		display: flex;
@@ -89,13 +97,15 @@
 		justify-content: stretch;	
 	}
 	.is-hovered {
-		background-color: var(--spectrum-table-m-regular-row-background-color-hover, var(--spectrum-alias-highlight-hover));
+		background-color: var(--spectrum-global-color-gray-100) !important;
 	}
 	.is-hovered.is-selected {
-		background-color: var(--spectrum-table-m-regular-row-background-color-selected-hover, var(--spectrum-alias-highlight-selected-hover));
+		background-color: var(--spectrum-table-m-regular-row-background-color-selected-hover, var(--spectrum-alias-highlight-selected-hover)) !important;
+		color: var(--spectrum-global-color-gray-900) !important;
 	}
 
 	.is-selected {
-		background-color: var(--spectrum-table-m-regular-row-background-color-selected, var(--spectrum-alias-highlight-selected));
+		background-color: var(--spectrum-table-m-regular-row-background-color-selected, var(--spectrum-alias-highlight-selected)) !important;
+		color: var(--spectrum-global-color-gray-800) !important;
 	}
 </style>
