@@ -1,12 +1,13 @@
 <script>
   import { createEventDispatcher, getContext } from 'svelte'
   import fsm from "svelte-fsm"
+  import "./CellCommon.css"
 
   export let value
   export let formattedValue
   export let cellOptions
 
-  let originalValue
+  let originalValue = value
 
   const dispatch = createEventDispatcher()
   const { processStringSync } = getContext("sdk")
@@ -26,16 +27,22 @@
     },
     Error: { check : "View" },
     Editing: {
-      _enter() { originalValue = value },
+      _enter() { originalValue = value ; dispatch("enteredit"); },
+      _exit() { dispatch("exitedit") },
+      change( e ) { 
+        if (cellOptions.debounce) dispatch("change", value ) ;
+      },
       submit() { 
-        if ( value !== originalValue ) dispatch("change", value);
+        if ( value !== originalValue ) {
+          dispatch("change", value);
+        }
+        dispatch("focusout");
         return "View" 
       }, 
-      cancel() { value = Array.isArray(originalValue) ? [ ... originalValue ] : originalValue ; return "View" },
+      cancel() { value = originalValue; return "View" },
     }
   })
 
-  $: inEdit = $cellState == "Editing"
   $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
 
   const focus = (node) => {
@@ -55,30 +62,39 @@
   style:color={ cellOptions.color }
   style:background={ cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
-  style:max-height={ cellOptions.role == "formInput" ? "2rem" : "auto"}
+  style:padding-top={"unset"}
+  style:padding-bottom={"unset"}
   >
     {#if cellOptions.icon}
       <i class={cellOptions.icon + " frontIcon"}></i>
     {/if}
 
     {#if $cellState == "Editing"}
-      <div class="editor" 
+      <div 
+      class="editor"
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
-      style:padding-right={ cellOptions.icon ? "32px" : cellOptions.padding }
+      style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
       style:justify-content={ cellOptions.align ?? "center" }
       > 
-        <div class="spectrum-Switch spectrum-Switch--emphasized " style="margin: 0;">
+        <div class="spectrum-Switch spectrum-Switch--emphasized" style:--spectrum-switch-height={"22px"} style:margin={0}>
           <input
             class="spectrum-Switch-input"
             bind:checked={value}
             type="checkbox"
             disabled = {cellOptions.disabled || cellOptions.readonly }
             on:focusout={cellState.submit}
+            on:change={cellState.change}
             use:focus
           />
-          <span class="spectrum-Switch-switch" />
+          <span class="spectrum-Switch-switch"  />
         </div>
       </div>
+      {#if cellOptions.clearValueIcon}  
+        <i 
+          class="ri-close-line endIcon"
+          on:mousedown|preventDefault={ ()=> dispatch("change", null )}>
+        </i>
+      {/if}
     {:else}
       <div class="value"
         tabIndex="0"

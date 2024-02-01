@@ -6,8 +6,6 @@
   import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
-  import { dataFilters } from "@budibase/shared-core/";
-  import { fetchData } from "./../Fetch"
   import { sizingMap, defaultOperatorMap, supportFilteringMap, supportSortingMap, supportEditingMap } from "./constants.js"
  
   import {
@@ -20,7 +18,7 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
-  const { API , processStringSync, notificationStore } = getContext("sdk");
+  const { API , processStringSync, notificationStore, ActionTypes, Provider, fetchData, LuceneUtils } = getContext("sdk");
 
   export let tableOptions 
 
@@ -221,8 +219,8 @@
   $: stbData = createFetch(datasource)
   $: schema = $stbData?.schema
 
-  $: defaultQuery = dataFilters.buildLuceneQuery(tableOptions.data.filter)
-  $: queryExtension = dataFilters.buildLuceneQuery(stbColumnFilters)
+  $: defaultQuery = LuceneUtils.buildLuceneQuery(tableOptions.data.filter)
+  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
   $: addQueryExtension("1000", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
 
@@ -327,13 +325,14 @@
       canResize: tableOptions.features.canResize,
       showFooter: tableOptions.showFooter,
       showHeader: tableOptions.showHeader,
+      highlighters: tableOptions.appearance.highlighters,
       canEdit: tableOptions.features.canEdit && supportEditingMap[schema[bbcolumn.name].type],
-      canFilter: tableOptions.features.canFilter && supportFilteringMap[schema[bbcolumn.name].type],
+      canFilter: supportFilteringMap[schema[bbcolumn.name].type] ? tableOptions.features.canFilter : false,
       showFilterOperators: tableOptions.features.showFilterOperators,
       canSort: tableOptions.features.canSort && supportSortingMap[schema[bbcolumn.name].type],
-      filteringOperators: dataFilters.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
+      filteringOperators: LuceneUtils.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
-      cellPadding: tableOptions.appearance.size == "custom" ? tableOptions.appearance.cellPadding : sizingMap[tableOptions.appearance.size].cellPadding,
+      cellPadding: tableOptions.appearance.size == "custom" ? tableOptions.appearance.customCellPadding : sizingMap[tableOptions.appearance.size].cellPadding,
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
       useOptionColors: tableOptions.appearance.useOptionColors, 
       optionsViewMode: tableOptions.appearance.optionsViewMode,
@@ -367,6 +366,49 @@
   setContext("stbRowColors", stbRowColors)
   $: setContext("stbData", stbData)
 
+  // Global Bindings 
+  $: actions = [
+    {
+      type: ActionTypes.RefreshDatasource,
+      callback: () => stbData.refresh(),
+      metadata: { datasource : $stbSettings.data.datasource },
+    },
+    {
+      type: ActionTypes.AddDataProviderQueryExtension,
+      callback: addQueryExtension,
+    },
+    {
+      type: ActionTypes.RemoveDataProviderQueryExtension,
+      callback: removeQueryExtension,
+    },
+    {
+      type: ActionTypes.SetDataProviderSorting,
+      callback: ({ column, order }) => {
+        let newOptions = {}
+        if (column) {
+          newOptions.sortColumn = column
+        }
+        if (order) {
+          newOptions.sortOrder = order
+        }
+        if (Object.keys(newOptions)?.length) {
+          fetch.update(newOptions)
+        }
+      },
+    },
+  ]
+
+  // Build our data context
+  $: dataContext = {
+    rows: $stbData.rows,
+    selectedRows: $stbSelected,
+    info: $stbData.info,
+    datasource: tableOptions.data.datasource || {},
+    schema,
+    rowsLength: $stbData.rows.length,
+    pageNumber: $stbData.pageNumber + 1
+  }
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -375,10 +417,15 @@
   bind:this={anchor}
   tabindex="0"
   class="st-master-wrapper"
+  style:--spectrum-table-border-color={tableOptions.dividersColor ?? "var(--spectrum-alias-border-color-mid)"}
   style:--super-table-body-height={maxBodyHeight + "px"}
+  style:--super-table-horizontal-dividers={tableOptions.dividers == "both" ||
+  tableOptions.dividers == "horizontal"
+    ? "1px solid var(--spectrum-table-border-color)"
+    : "1px solid transparent"}
   style:--super-table-vertical-dividers={tableOptions.dividers == "both" ||
   tableOptions.dividers == "vertical"
-    ? "1px solid var(--spectrum-table-border-color, var(--spectrum-alias-border-color-mid))"
+    ? "1px solid var(--spectrum-table-border-color)"
     : "none"}
 
   on:mouseenter={ () => highlighted = true }
@@ -425,7 +472,8 @@
     {stbHorizontalScroll} 
     {stbHorizontalRange} 
     {highlighted} 
-    offset={ $stbSettings.rowSelectMode != "off" && $stbSettings.selectionColumn  ? "2.5rem" : "0rem"} 
+    offset={ $stbSettings.rowSelectMode != "off" || $stbSettings.selectionColumn  ? "3rem" : "0rem"}
+    verticalOffset = { $stbSettings.showFooter ? "40px" : "8px" }
   />
 
   <SuperTableVerticalScroller 
@@ -433,8 +481,11 @@
     {highlighted}
     clientHeight={maxBodyHeight}
     clientScrollHeight = {$stbData?.rows.length > tableOptions.visibleRowCount ? $stbData?.rows.length  * defaultRowHeight : maxBodyHeight}
-    offset={"2.5rem"}
+    offset={$stbSettings.showHeader ? "40px" : "8px"}
+    bottomOffset={ $stbSettings.showFooter ? "32px" : "8px"}
   />
+
+  <Provider {actions} data={dataContext}></Provider>
 </div>
 
 <style>

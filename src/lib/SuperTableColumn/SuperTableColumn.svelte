@@ -229,7 +229,7 @@
   style:max-width={getMaxWidth($lockWidth)} 
   on:mouseleave={() => $stbHovered = null }
 >
-  {#if $columnState != "Entering" && columnOptions.showHeader && columnOptions.canResize}
+  {#if columnOptions.showHeader && columnOptions.canResize}
     <div 
       class="grabber" 
       on:mousedown={ columnState.startResizing }

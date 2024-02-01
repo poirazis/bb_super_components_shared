@@ -16,7 +16,7 @@
     color: columnOptions.color,
     background: columnOptions.background,
     fontWeight: columnOptions.fontWeight,
-    padding: columnOptions.cellOptions.cellPadding,
+    padding: columnOptions.cellOptions.padding,
     placeholder: columnOptions.filteringOperators?.find( x => x.value == filterOperator)?.label,
     clearValueIcon: true,
     disabled: filterOperator == "empty" || filterOperator == "notEmpty",
@@ -29,16 +29,18 @@
   };
 
   const handleValueChange = ( e ) => {
-    if ( e.detail ) {
+    if ( e.detail != undefined && e.detail != null && e.detail != "") {
       filterValue = e.detail;
-      if ( columnOptions.schema.type == "boolean" && !filterValue ) {
+      if ( columnOptions.schema.type == "boolean" && filterValue === false ) {
         columnState.filter(buildFilter("notEqual", true));
+      } else if (Array.isArray(e.detail) && e.detail.length == 0) {
+        columnState.clear();
       } else {
         columnState.filter(buildFilter(filterOperator, filterValue));
-      }
+      };
     } else {
-      showFilteringOptions = false
-      filterValue = null
+      showFilteringOptions = false;
+      filterValue = null;
       columnState.clear();
     }
   };
@@ -67,8 +69,9 @@
 
   const handleOperatorChange = op => {
     filterOperator = op
-    if ( filterValue  ) 
-      columnState.filter(buildFilter(filterOperator, filterValue))
+    if ( filterValue  || op == "empty" || op == "notEmpty") 
+      columnState.filter(buildFilter(filterOperator, filterValue ?? ""));
+
     showFilteringOptions = false
   }
 
@@ -76,6 +79,7 @@
     if ( !headerAnchor?.contains(e.explicitOriginalTarget) )
       columnState.cancel();
   }
+
 </script>
 
 
@@ -92,11 +96,10 @@
     style:height={"2.4rem"}
     style:padding-left={ columnOptions.cellOptions.padding }
     style:padding-right={ columnOptions.cellOptions.padding }
-
   >
     {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
       {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
-        <i class="ri-search-line icon" on:click|stopPropagation={columnState.filter}> </i>
+        <i class="ri-search-line icon" on:click={columnState.filter}> </i>
       {/if}
 
       <div
@@ -116,7 +119,7 @@
         <i class={ sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc" } > </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      {#if columnOptions.showFilterOperators}
+      {#if columnOptions.canFilter == "advanced"}
         <i class="ri-settings-line" 
         style="align-self: center; font-size: 14px;" 
         on:click|preventDefault={ () => showFilteringOptions = !showFilteringOptions } 
@@ -129,12 +132,13 @@
           fieldSchema={columnOptions.schema}
           multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
           on:change={handleValueChange}
-          on:focusout={handleBlur}
+          on:cancel={columnState.cancel}
+          on:exitedit={handleBlur}
           />
     {/if}
   </div>
 
-  {#if columnOptions.canFilter}
+  {#if columnOptions.canFilter == "advanced"}
     <SuperPopover
       anchor={headerAnchor}
       align="left"
@@ -148,7 +152,7 @@
             class="spectrum-Menu-item"
             class:selected={option.value == filterOperator}
             role="menuitem"
-            on:mousedown|preventDefault|stopPropagation={ () => handleOperatorChange(option.value) }
+            on:mousedown|preventDefault={ () => handleOperatorChange(option.value) }
           >
             <span class="spectrum-Menu-itemLabel">{option.label}</span>
           </li>
@@ -164,7 +168,7 @@
     align-items: center;
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
-    background-color: var(--spectrum-global-color-gray-200);
+    background-color: var(--spectrum-global-color-gray-100);
     padding-top: none;
     padding-bottom: none;
     font-size: 12px;
@@ -175,11 +179,9 @@
   }
 
   .enterting {
-    min-width: 10rem;
     gap: 0.5rem;
   }
   .filtered {
-    min-width: 6rem;
     gap: 0.5rem;
     color: var(--spectrum-global-color-gray-800);
     font-weight: 600;

@@ -66,7 +66,8 @@
     <div 
       bind:this={columnBodyAnchor} 
       class="spectrum-Table-body"
-      on:scroll={syncScroll} 
+      style:border-right="var(--super-table-vertical-dividers)"
+      on:scroll|self={syncScroll} 
     >
       {#if $stbData?.rows?.length}
         {#each $stbData.rows as row, index}              
@@ -78,6 +79,7 @@
             on:click={ () => stbState.toggleSelectRow(rowID) }
             class:is-selected={ selected } 
             class:is-hovered={ $stbHovered === index }
+            class:is-editing={ $stbEditing == index  && ($stbSettings.appearance.highlighters == "horizontal" || $stbSettings.appearance.highlighters == "both" )}
             class:odd={$stbSettings.appearance.zebraColors && ( index % 2 == 1)}
             style:min-height={ $stbRowHeights[index] }
             style:background-color={ $stbRowColors[index].bgcolor}
@@ -115,7 +117,7 @@
 
     {#if $stbSettings.showFooter}
       <div 
-        class="spectrum-Table-headCell"
+        class="spectrum-Table-footer"
         style:height={ $stbSettings?.header?.height || "2.2rem"}
         ></div>
     {/if}
@@ -126,7 +128,6 @@
   .spectrum-Table {
     background-color: transparent;
     min-width: 3rem;
-    border-right: var(--super-table-vertical-dividers);
   }
   .spectrum-Table-headCell {
     display: flex;
@@ -134,7 +135,7 @@
     justify-content: center;
     align-items: center;
     padding: unset;
-    background-color: var(--spectrum-global-color-gray-200);
+    background-color: var(--spectrum-global-color-gray-100);
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
     border-right: var(--super-table-vertical-dividers);
   }
@@ -145,18 +146,16 @@
     padding: unset;
     margin: unset;
     color: var(--spectrum-global-color-gray-400);
+    border-bottom: var(--super-table-horizontal-dividers);
   }
   .spectrum-Table-row.odd {
     background-color: var(--spectrum-global-color-gray-75);
   }
   .is-hovered {
-    background-color: var(--spectrum-global-color-gray-100) !important;
+    background-color: var(--spectrum-global-color-gray-75) !important;
     color: var(--spectrum-global-color-gray-800);
 	}
 
-  .is-hovered {
-		background-color: var(--spectrum-global-color-gray-100) !important;
-	}
 	.is-hovered.is-selected {
 		background-color: var(--spectrum-table-m-regular-row-background-color-selected-hover, var(--spectrum-alias-highlight-selected-hover)) !important;
 	}
@@ -174,6 +173,11 @@
     font-weight: 800;
     color: var(--spectrum-global-color-gray-800) ;
 	}
+
+  .is-editing {
+    background-color: var(--spectrum-global-color-gray-100) !important;
+  }
+
   .spectrum-Table-body {
     height: var(--super-table-body-height);
     border-radius: 0px;
@@ -190,9 +194,10 @@
   }
   .spectrum-Table-footer {
     width: 100%;
-    height: var(--super-table-footer-height);
-    background-color: var(--super-table-footer-bg-color);
+    max-height: 2rem;
     border-right: var(--super-table-vertical-dividers);
+    background-color: var(--spectrum-global-color-gray-100);
+    border-top: 2px solid var(--spectrum-alias-border-color-mid);
     overflow: hidden;
   }
 

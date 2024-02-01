@@ -27,7 +27,13 @@
     },
     Error: { check : "View" },
     Editing: { 
-			_enter () { originalValue = value },
+			_enter () { 
+				originalValue = value;
+				dispatch("enteredit");
+			 },
+			 _exit() {
+				dispatch("exitedit");
+			 },
       handleKeyboard (e)  {
 				if (e.keyCode == 32) {
 					e.stopPropagation();
@@ -87,7 +93,7 @@
 			style:padding-right={cellOptions?.padding}
 			on:click={() => open = !open }
 		>
-			<div class="items" style:justify-content={cellOptions.align ?? "flex-end"}>
+			<div class="items" style:justify-content={cellOptions.align ?? "flex-start"}>
 				{formattedValue || innerDate?.toDateString() || cellOptions?.placeholder || ""}
 			</div>
 			<i class="ri-calendar-line" style="font-size: 16px;"></i>

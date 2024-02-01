@@ -3,54 +3,61 @@
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
 
+  const dispatch = createEventDispatcher();
   const { processStringSync } = getContext("sdk")
 
   export let value
   export let formattedValue
   export let cellOptions
 
-  const dispatch = createEventDispatcher();
-
   let timer;
-  let suggestions = []
   let originalValue
+  let editor
+  let clearIcon
 
   export let cellState = fsm( cellOptions.initialState ?? "View" , {
     "*": {
-      lostFocus() { return "View" },
       goTo( state ) { return state }
     },
+    Loading: {},
     View: { 
       focus () { 
         if (!cellOptions.readonly) return "Editing"
       }
     },
-    Hovered: { cancel: () => { return "View" }},
-    Focused: { },
+    Disabled : {},
     Error: { check : "View" },
     Readonly: { check : "View" },
     Editing: { 
-      _enter() { if (cellOptions.readonly) { 
-          return "Readonly";
-        } else {
-          originalValue = value
+      _enter() {
+          originalValue = value;
           dispatch("enteredit")
-        }
       },
       _exit() {
-        dispatch("exitedit")
+        dispatch("exitedit");
+        dispatch("focusout");
+      },
+      clear() {
+        value = "";
+        if ( cellOptions.debounce ) dispatch("change", value);
+      },
+      focusout( e ) {
+        if ( e.explicitOriginalTarget != clearIcon )
+          this.submit();
       },
       submit() { 
-        if ( originalValue !== value && !cellOptions.debounce)
+        if ( originalValue != value ) {
           dispatch("change", value);
-
-        dispatch("focusout");
-
-        if ( !cellOptions.lockState ) 
-          return "View";
+        };
+        return "View";
       }, 
-      cancel() { value = originalValue; return "View"},
-      handleKeyboard(e) {
+      cancel() { 
+        value = originalValue; 
+        if ( cellOptions.debounce ) dispatch("change", value);
+        dispatch("cancel"); 
+        return "View" 
+      },
+      handleKeyboard( e ) {
         if ( e.key == "Enter" )
           this.submit();
 
@@ -76,7 +83,6 @@
   const focus = ( node ) => {
     node.focus();
   }
-
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -85,6 +91,7 @@
 <div 
   class="superCell"
   class:inEdit
+  class:focused={inEdit}
   class:inline={ cellOptions.role == "inline" }  
   class:tableCell={ cellOptions.role == "tableCell" } 
   class:formInput={ cellOptions.role == "formInput" } 
@@ -92,16 +99,16 @@
   class:reeadonly={ $cellState == "Readonly" }
   class:error={ cellOptions.error }
   style:color={ cellOptions.color }
-  style:background={ inEdit ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
+  style:background={ inEdit && cellOptions.role != "inline" ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
 > 
-
   {#if cellOptions.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
   {#if inEdit}
     <input
+      bind:this={editor}
       class="editor"
       class:placeholder={!value}
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
@@ -109,13 +116,16 @@
       value={value ?? ""}
       placeholder={ cellOptions.placeholder ?? "Enter..." }
       on:input={debounce}
-      on:focusout={cellState.submit}
+      on:focusout={cellState.focusout}
+      on:keydown={cellState.handleKeyboard}
       use:focus
     />
     {#if cellOptions.clearValueIcon}  
-      <i 
+      <i
+        bind:this={clearIcon} 
         class="ri-close-line endIcon"
-        on:mousedown|preventDefault={ ()=> dispatch("change", null )}>
+        on:mousedown|preventDefault={cellState.clear}
+        >
       </i>
     {/if}
   {:else}

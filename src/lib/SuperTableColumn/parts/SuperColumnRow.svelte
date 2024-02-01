@@ -10,6 +10,7 @@
 	export let columnOptions
 	export let isSelected
 	export let isHovered
+	export let isEditing
 	export let odd
 
 	export let bgColor
@@ -39,6 +40,7 @@
 		return columnOptions.template ? processStringSync( columnOptions.template, { value } ) : undefined
 	}
 
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -49,16 +51,16 @@
 	class="spectrum-Table-row" 
 	class:is-selected={isSelected} 
 	class:is-hovered={isHovered}
+	class:is-editing={isEditing}
 	class:odd
 	style:height={ height + "px" }
 	style:background-color={bgColor}
 	style:color
 	on:mouseenter={ () => dispatch("hovered") } 
 	on:mouseleave={ () => dispatch("unHovered") }
-	on:click={ () => {cellState?.focus(); dispatch("rowClicked",  row.rowID )} }
+	on:click={ () => { dispatch("rowClicked",  row.rowID )} }
 	on:dblclick={ () => dispatch("rowDblClicked", row.rowID ) } 
 	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row.rowID }) }
-	on:enteredit
 	>
 		{#if !columnOptions.hasChildren }
 			<svelte:component 
@@ -86,6 +88,7 @@
 		display: flex;
 		align-items: stretch;
 		justify-content: stretch;	
+		border-bottom: var(--super-table-horizontal-dividers);
 	}
 	.spectrum-Table-row.odd {
 		background-color: var(--spectrum-global-color-gray-75);
@@ -97,7 +100,7 @@
 		justify-content: stretch;	
 	}
 	.is-hovered {
-		background-color: var(--spectrum-global-color-gray-100) !important;
+		background-color: var(--spectrum-global-color-gray-75) !important;
 	}
 	.is-hovered.is-selected {
 		background-color: var(--spectrum-table-m-regular-row-background-color-selected-hover, var(--spectrum-alias-highlight-selected-hover)) !important;
@@ -107,5 +110,9 @@
 	.is-selected {
 		background-color: var(--spectrum-table-m-regular-row-background-color-selected, var(--spectrum-alias-highlight-selected)) !important;
 		color: var(--spectrum-global-color-gray-800) !important;
+	}
+
+	.is-editing {
+		background-color: var(--spectrum-global-color-gray-100) !important;
 	}
 </style>

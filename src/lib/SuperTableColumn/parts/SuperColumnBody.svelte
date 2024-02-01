@@ -6,6 +6,7 @@
   const stbScrollPos = getContext("stbScrollPos");
   const stbVerticalScroll = getContext("stbVerticalScroll")
   const stbHovered = getContext("stbHovered");
+  const stbEditing = getContext("stbEditing");
 
   export let rows = []
   export let rowHeights
@@ -39,6 +40,7 @@
   tabindex="-1"
   style:background-color={columnOptions.background}
   class:filtered={$columnState == "Filtered"}
+  class:is-editing={ $columnState == "EditingCell" && (columnOptions.highlighters == "vertical" || columnOptions.highlighters == "both" )}
   on:scroll|self={ syncScroll }
   on:mouseenter={ () => hovered = true }
   on:mouseleave={ () => hovered = false }
@@ -52,7 +54,8 @@
           height={rowHeights[index]}
           bgColor={rowColors[index]?.bgcolor}
           color={rowColors[index]?.color}
-          isHovered={ $stbHovered == index }
+          isHovered={ $stbHovered == index}
+          isEditing={ $stbEditing == index  && (columnOptions.highlighters == "horizontal" || columnOptions.highlighters == "both" )}
           isSelected={ $stbSelected.includes(row.rowID) }
           on:resize={ ( e ) => rowHeights[index] = e.detail }
           on:hovered={ () => ($stbHovered = index)}
@@ -84,6 +87,9 @@
     scrollbar-width: none;
   }
   .spectrum-Table-body.filtered {
+    background-color: var(--spectrum-global-color-gray-75);
+  }
+  .is-editing {
     background-color: var(--spectrum-global-color-gray-75);
   }
   .spectrum-Table-body::-webkit-scrollbar {

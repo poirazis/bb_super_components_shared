@@ -3,13 +3,18 @@
   export let stbHorizontalRange
   export let highlighted
   export let offset = "0px"
+  export let verticalOffset = "8px"
 
   $: left = ($stbHorizontalScroll * 100 * ( 1 - $stbHorizontalRange )) + "%"
   $: width = ($stbHorizontalRange * 100) + "%"
 </script>
 
 {#if $stbHorizontalRange < 1}
-  <div class="stb-scrollbar" class:highlighted style:--offset={offset}>
+  <div class="stb-scrollbar" 
+    class:highlighted 
+    style:--offset={offset}
+    style:--vertical-offset={verticalOffset}
+  >
     <div 
       class="stb-scrollbar-indicator"
       style:left
@@ -22,7 +27,7 @@
 <style>
   .stb-scrollbar {
     position: absolute;
-    bottom: 8px;
+    bottom: var(--vertical-offset);
     left: calc(var(--offset) + 8px);
     width: calc( 100% - 32px - var(--offset));
     height: 8px;
