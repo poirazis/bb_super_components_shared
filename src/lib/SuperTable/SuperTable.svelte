@@ -33,6 +33,7 @@
   let columnsBodyAnchor
 
 
+
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
 
@@ -233,12 +234,17 @@
     }, tableOptions.data.autoRefreshRate * 1000);
   }
 
-  $: if ( $stbData?.schema && tableOptions.columns?.length > 0 )
+  $: if ( $stbData?.schema && tableOptions.columns?.length > 0 ) {
+        let autocolumns = []
+        if (tableOptions.autocolumns) {
+          autocolumns = Object.keys(schema).filter ( v => schema[v].autocolumn ).map( (v) => makeSuperColumn( schema[v]) )
+        }
         columns = tableOptions.columns.map( (column) => makeSuperColumn (column) )
-      else if ( tableOptions.hasChildren )
+        columns = [ ...columns,  ...autocolumns ]
+      } else if ( tableOptions.hasChildren )
         columns = []
       else 
-        columns = getAllColumns(false)
+        columns = getAllColumns(tableOptions.autocolumns)
 
   $: $stbSettings = tableOptions
   $: stbData?.update({
@@ -307,8 +313,9 @@
     let allColumns = []
     if (schema) 
       allColumns = Object.keys(schema)
-        .filter( v => schema[v].autocolumn !== !includeAuto)
-        .map( (v) => makeSuperColumn( { name: v, displayName: v }) )
+        .filter( v => schema[v]?.autocolumn != !includeAuto )
+        .filter( v => schema[v]?.visible  != false )
+        .map( (v) => makeSuperColumn( schema[v] ) )
       
     return allColumns
   }
@@ -317,8 +324,9 @@
     let superColumn = {
       ...bbcolumn,
       hasChildren: false,
+      autocolumn: bbcolumn.autocolumn,
       schema: schema[bbcolumn.name] ?? {},
-      sizing: bbcolumn.width ? "fixed" : tableOptions.columnSizing,
+      sizing: tableOptions.columnSizing,
       fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth ?? "8rem",
       maxWidth: tableOptions.columnMaxWidth ?? "16rem",
       minWidth: tableOptions.columnMinWidth ?? "6rem",
@@ -326,7 +334,7 @@
       showFooter: tableOptions.showFooter,
       showHeader: tableOptions.showHeader,
       highlighters: tableOptions.appearance.highlighters,
-      canEdit: tableOptions.features.canEdit && supportEditingMap[schema[bbcolumn.name].type],
+      canEdit: bbcolumn.autocolumn ? false : tableOptions.features.canEdit && supportEditingMap[schema[bbcolumn.name].type],
       canFilter: supportFilteringMap[schema[bbcolumn.name].type] ? tableOptions.features.canFilter : false,
       showFilterOperators: tableOptions.features.showFilterOperators,
       canSort: tableOptions.features.canSort && supportSortingMap[schema[bbcolumn.name].type],
@@ -408,7 +416,6 @@
     rowsLength: $stbData.rows.length,
     pageNumber: $stbData.pageNumber + 1
   }
-
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->

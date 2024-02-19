@@ -60,7 +60,7 @@
   class:formInput={ cellOptions.role == "formInput" } 
   class:disabled = { cellOptions.disabled }
   style:color={ cellOptions.color }
-  style:background={ cellOptions.background }
+  style:background={ $cellState == "Editing" && cellOptions.role != "inline" ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
   style:font-weight={ cellOptions.fontWeight }
   style:padding-top={"unset"}
   style:padding-bottom={"unset"}

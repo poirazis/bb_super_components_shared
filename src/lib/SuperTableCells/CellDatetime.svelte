@@ -76,7 +76,7 @@
 	class:tableCell={cellOptions?.role == 'tableCell'}
 	class:formInput={cellOptions?.role == 'formInput'}
 	style:color={cellOptions?.color}
-	style:background={cellOptions?.background}
+	style:background={ $cellState == "Editing" && cellOptions.role != "inline" ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
 	style:font-weight={cellOptions?.fontWeight}
 	on:focus={cellState.focus}
 	on:focusout={cellState.focusout}

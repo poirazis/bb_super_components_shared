@@ -5,6 +5,7 @@
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
+  import { sdk } from "@budibase/shared-core"
 
   const dispatch = createEventDispatcher();
 
@@ -34,6 +35,7 @@
   let definition
   let loaded
   let editor
+  let datasource
 
   export let cellState = fsm( "View" , {
     "*": {
@@ -80,11 +82,19 @@
   })
 
   $: inEdit = $cellState == "Editing"
-  $: fetchDefinition(fieldSchema?.tableId)
+  $: if ( fieldSchema.type == "link" ) fetchDefinition(fieldSchema.tableId)
+
   $: if ( definition ) {
     labelColumn = definition.primaryDisplay 
     pickerColumns = !pickerColumns?.length ? [{"name": labelColumn}] : pickerColumns
+    datasource = {tableId: tableId || fieldSchema.tableId, type:"table"}
+  } else if ( fieldSchema.type == "bb_reference") {
+    labelColumn = "email"
+    valueColumn = "email"
+    datasource = { type : "user" }
+    loaded = true
   }
+
   $: simpleView = cellOptions.relViewMode == "text"
 
   const handleKeyboard = ( e ) => {
@@ -108,7 +118,6 @@
   }
 
   const focus = e => { e?.focus() }
-
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -164,7 +173,7 @@
             {#each localValue as val, idx}
               <div class="item" class:rel-pills={!simpleView} >
                 {#if !simpleView}
-                  <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+                  <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-line" } />
                 {/if}
                 <span>{val.primaryDisplay}</span>
               </div>
@@ -185,9 +194,9 @@
               { cellOptions?.placeholder || "Select " + fieldSchema.name }
             {:else if localValue?.length > 0}
               {#each localValue as val}
-                <div class="item" class:rel-pills={!simpleView} >
+                <div class="item" class:rel-pills={!simpleView} class:rel-bb-reference={!simpleView && fieldSchema.type != "link"}>
                   {#if !simpleView}
-                    <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-fill" } />
+                    <i class={ fieldSchema.type == "link" ? "ri-links-line" : "ri-user-line" } />
                   {/if}              
                   <span>{val.primaryDisplay}</span>
                 </div>
@@ -213,7 +222,7 @@
     <CellLinkPicker
       bind:picker={picker}
       {value} 
-      datasource={{tableId: tableId || fieldSchema.tableId, type:"table"}}
+      {datasource}
       {filter}
       {labelColumn}
       {valueColumn}
@@ -229,7 +238,10 @@
 
 <style>
   .rel-pills {
-    background-color: var(--spectrum-global-color-gray-300);
+    background-color: var(--spectrum-global-color-gray-200);
+  }
+  .rel-bb-reference {
+    background-color: var(--spectrum-global-color-gray-200);
   }
 
   .actionIcon {

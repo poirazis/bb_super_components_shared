@@ -47,4 +47,5 @@ export const supportEditingMap = {
 	 "boolean" : true,
 	 "number" : true,
 	 "bigint" : true,
+	 "attachment" : true,
 }

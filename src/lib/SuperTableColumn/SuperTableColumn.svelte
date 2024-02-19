@@ -30,6 +30,7 @@
 	import CellLink from "../SuperTableCells/CellLink.svelte";
 	import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import CellJSON from "../SuperTableCells/CellJSON.svelte"
+  import CellAttachment from "../SuperTableCells/CellAttachment.svelte";
 
   const stbData = getContext("stbData");
   const stbSettings = getContext("stbSettings");
@@ -68,6 +69,7 @@
 		'datetime': CellDatetime,
 		'link': CellLink,
 		'json': CellJSON,
+    'attachment' : CellAttachment,
 		"bb_reference": CellLink
   };
 

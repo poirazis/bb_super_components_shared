@@ -82,7 +82,7 @@
             class:is-editing={ $stbEditing == index  && ($stbSettings.appearance.highlighters == "horizontal" || $stbSettings.appearance.highlighters == "both" )}
             class:odd={$stbSettings.appearance.zebraColors && ( index % 2 == 1)}
             style:min-height={ $stbRowHeights[index] }
-            style:background-color={ $stbRowColors[index].bgcolor}
+            style:background-color={ $stbRowColors[index]?.bgcolor}
             >
 
             {#if $stbEditing == index}
