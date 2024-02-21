@@ -19,25 +19,9 @@
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
   const { API , processStringSync, notificationStore, ActionTypes, Provider, fetchData, LuceneUtils } = getContext("sdk");
-
-  export let tableOptions 
-
-  let timer
-  let anchor
-  let columns 
-  let schema = {}
-  let query = {}
-  let queryExtensions = {}
-  let stbColumnFilters = []
-  let highlighted
-  let columnsBodyAnchor
-
-
-
+  
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
-
- 
   const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
 
@@ -55,6 +39,143 @@
 
   const stbHorizontalScroll = new writable(0);
   const stbHorizontalRange = new writable(1);
+
+  export let datasource
+  export let idColumn;
+  export let sortColumn
+  export let sortOrder
+  export let limit
+  export let fetchOnScroll
+  export let fetchPageSize
+  export let autoRefresh
+  export let autoRefreshRate
+  export let paginate
+  export let filter
+  export let columnList = []
+  export let autocolumns 
+
+  export let visibleRowCount;
+  export let showFooter;
+  export let showHeader;
+  export let size;
+  export let canInsert, canDelete, canEdit, canSort, canResize, canFilter
+  export let showFilterOperators
+  export let superColumnsPos;
+
+  export let debounce = 750
+
+  export let rowSelectMode
+  export let selectionColumn
+  export let selectionLimit
+
+  export let columnSizing
+  export let columnMinWidth = "6rem"
+  export let columnMaxWidth
+  export let columnFixedWidth
+
+  export let headerFontSize, headerColor, headerBgColor, headerAlign;
+  export let dividers, dividersColor;
+
+  export let rowVerticalAlign,
+    rowHorizontalAlign,
+    rowFontSize,
+    rowColorTemplate,
+    rowBGColorTemplate;
+
+  export let footerAlign, footerFontSize, footerColorTemplate, footerBGColorTemplate;
+
+  export let customCellPadding
+  export let customBaseFont
+  export let customRowHeight
+  export let useOptionColors = true
+  export let optionsViewMode = "pills"
+  export let relViewMode = "pills"
+  export let zebraColors = false
+  export let highlighters 
+
+  // Events
+  export let onRowSelect;
+  export let onCellChange;
+  export let onRowClick;
+  export let onRowDblClick;
+
+  let timer
+  let anchor
+  let columns 
+  let schema = {}
+  let query = {}
+  let queryExtensions = {}
+  let stbColumnFilters = []
+  let highlighted
+  let columnsBodyAnchor
+
+  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter)
+  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
+  $: addQueryExtension("1000", queryExtension)
+  $: query = extendQuery(defaultQuery, queryExtensions)
+  $: stbData = createFetch(datasource)
+  $: tableOptions = {
+    superColumnsPos,
+    columnSizing,
+    columnMaxWidth,
+    columnMinWidth,
+    columnFixedWidth,
+    debounce,
+    visibleRowCount,
+    rowSelectMode,
+    selectionLimit,
+    selectionColumn,
+    dividers,
+    dividersColor,
+    showFooter,
+    showHeader,
+    features: {
+      canFilter,
+      showFilterOperators,
+      canSort,
+      canEdit,
+      canDelete,
+      canInsert,
+      canResize,
+    },
+    data: { 
+      datasource,
+      idColumn,
+      filter,
+      sortColumn,
+      sortOrder,
+      limit,
+      paginate,
+      autoRefresh,
+      autoRefreshRate,
+      fetchOnScroll,
+      fetchPageSize
+    },
+    columns: columnList,
+    autocolumns,
+    appearance: {
+      size,
+      useOptionColors,
+      optionsViewMode,
+      relViewMode,
+      customCellPadding,
+      customRowHeight,
+      customBaseFont,
+      zebraColors,
+      dynamicColors: true,
+      highlighters,
+      rowColorTemplate,
+      rowBGColorTemplate,
+      footerColorTemplate,
+      footerBGColorTemplate
+    },
+    events: {
+      onRowClick,
+      onRowDblClick,
+      onCellChange,
+      onRowSelect,
+    }
+  };
 
   const stbState = fsm("Loading", {
     "*" : {
@@ -137,7 +258,7 @@
 
         if ( tableOptions.appearance.rowBGColorTemplate || tableOptions.appearance.rowColorTemplate ) {
           $stbRowColors = []
-          $stbRowColors = $stbData.rows.map ( ( row ) => {
+          $stbRowColors = $stbData?.rows.map ( ( row ) => {
             return { bgcolor : processStringSync( tableOptions.appearance.rowBGColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-50)",
                      color : processStringSync( tableOptions.appearance.rowColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-800)"}
           })  
@@ -162,9 +283,9 @@
     },
     Idle: { 
       _enter() {
-        $stbRowHeights = tableOptions.visibleRowCount > $stbData.rows.length 
+        $stbRowHeights = tableOptions.visibleRowCount > $stbData?.rows.length 
           ? new Array( tableOptions.visibleRowCount).fill(defaultRowHeight) 
-          : new Array($stbData.rows.length).fill(defaultRowHeight);
+          : new Array($stbData?.rows.length).fill(defaultRowHeight);
 
         this.getRowColors();
       },
@@ -207,45 +328,33 @@
 
   $: maxBodyHeight = tableOptions.visibleRowCount * defaultRowHeight
 
-  $: limit = tableOptions.data.limit
-  $: if ( tableOptions.data.fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
-    limit = limit + tableOptions.data.fetchPageSize < 1000 ? limit + tableOptions.data.fetchPageSize : 1000;
+  $: if ( fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
+    limit = limit + fetchPageSize < 1000 ? limit + fetchPageSize : 1000;
     $stbVerticalScroll = 0.8
   }
 
-  $: sortColumn = tableOptions.data.sortColumn
-  $: sortOrder = tableOptions.data.sortOrder
-  $: datasource = tableOptions.data.datasource
-  $: paginate = tableOptions.data.paginate
-  $: stbData = createFetch(datasource)
+
   $: schema = $stbData?.schema
+  $: $stbSortColumn = sortColumn
+  $: $stbSortOrder = sortOrder
 
-  $: defaultQuery = LuceneUtils.buildLuceneQuery(tableOptions.data.filter)
-  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
-  $: addQueryExtension("1000", queryExtension)
-  $: query = extendQuery(defaultQuery, queryExtensions)
-
-  $: $stbSortColumn = tableOptions.data.sortColumn
-  $: $stbSortOrder = tableOptions.data.sortOrder
-
-  $: if (tableOptions.data.autoRefresh ) {
+  $: if (autoRefresh ) {
     timer = setInterval(() => {
       stbData.refresh();
-    }, tableOptions.data.autoRefreshRate * 1000);
+    }, autoRefreshRate * 1000);
   }
 
-  $: if ( $stbData?.schema && tableOptions.columns?.length > 0 ) {
+  $: if ( $stbData?.schema && columns?.length > 0 ) {
         let autocolumns = []
-        if (tableOptions.autocolumns) {
+        if (autocolumns) {
           autocolumns = Object.keys(schema).filter ( v => schema[v].autocolumn ).map( (v) => makeSuperColumn( schema[v]) )
         }
-        columns = tableOptions.columns.map( (column) => makeSuperColumn (column) )
+        columns = columns.map( (column) => makeSuperColumn (column) )
         columns = [ ...columns,  ...autocolumns ]
-      } else if ( tableOptions.hasChildren )
-        columns = []
-      else 
-        columns = getAllColumns(tableOptions.autocolumns)
+      } else 
+        columns = getAllColumns(autocolumns)
 
+        
   $: $stbSettings = tableOptions
   $: stbData?.update({
     query,
@@ -358,22 +467,6 @@
 
   })
 
-  setContext("tableStateStore", tableStateStore);
-
-  setContext("stbScrollPos", stbScrollPos);
-  setContext("stbVerticalScroll", stbVerticalScroll);
-  setContext("stbVerticalRange", stbVerticalRange);
-  setContext("stbHovered", stbHovered);
-  setContext("stbSelected", stbSelected);
-  setContext("stbEditing", stbEditing);
-  setContext("tableState", stbState);
-  setContext("stbSettings", stbSettings);
-  setContext("stbSortColumn", stbSortColumn)
-  setContext("stbSortOrder", stbSortOrder)
-  setContext("stbRowHeights", stbRowHeights)
-  setContext("stbRowColors", stbRowColors)
-  $: setContext("stbData", stbData)
-
   // Global Bindings 
   $: actions = [
     {
@@ -408,14 +501,31 @@
 
   // Build our data context
   $: dataContext = {
-    rows: $stbData.rows,
+    rows: $stbData?.rows,
     selectedRows: $stbSelected,
-    info: $stbData.info,
-    datasource: tableOptions.data.datasource || {},
+    info: $stbData?.info,
+    datasource: datasource || {},
     schema,
-    rowsLength: $stbData.rows.length,
-    pageNumber: $stbData.pageNumber + 1
+    rowsLength: $stbData?.rows.length,
+    pageNumber: $stbData?.pageNumber + 1
   }
+
+
+  setContext("tableStateStore", tableStateStore);
+  setContext("stbScrollPos", stbScrollPos);
+  setContext("stbVerticalScroll", stbVerticalScroll);
+  setContext("stbVerticalRange", stbVerticalRange);
+  setContext("stbHovered", stbHovered);
+  setContext("stbSelected", stbSelected);
+  setContext("stbEditing", stbEditing);
+  setContext("tableState", stbState);
+  setContext("stbSettings", stbSettings);
+  setContext("stbSortColumn", stbSortColumn)
+  setContext("stbSortOrder", stbSortOrder)
+  setContext("stbRowHeights", stbRowHeights)
+  setContext("stbRowColors", stbRowColors)
+  $: setContext("stbData", stbData)
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
