@@ -1,8 +1,4 @@
 <script>
-  /**
-   * @typedef {Object} stbSettings
-  */
-
   import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
@@ -101,19 +97,32 @@
 
   let timer
   let anchor
-  let columns 
+  let columns = []
+  let autocolumnsList = []
   let schema = {}
   let query = {}
   let queryExtensions = {}
   let stbColumnFilters = []
   let highlighted
   let columnsBodyAnchor
+  let loadedDatasource
+  let stbData
 
   $: defaultQuery = LuceneUtils.buildLuceneQuery(filter)
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
   $: addQueryExtension("1000", queryExtension)
   $: query = extendQuery(defaultQuery, queryExtensions)
   $: stbData = createFetch(datasource)
+  $: stbData?.update({
+    query,
+    sortColumn,
+    sortOrder,
+    limit,
+    paginate,
+  })
+
+  $: populateColumns( $stbData, columnList, autocolumns )
+
   $: tableOptions = {
     superColumnsPos,
     columnSizing,
@@ -151,7 +160,7 @@
       fetchOnScroll,
       fetchPageSize
     },
-    columns: columnList,
+    columns,
     autocolumns,
     appearance: {
       size,
@@ -177,6 +186,32 @@
     }
   };
 
+  // Generate Layout required variables first so we can render early on
+  $: defaultRowHeight = size == "custom" ? customRowHeight : sizingMap[size].rowHeight
+  $: if ( size == "custom" ) {
+    $stbRowHeights = [ ... new Array(visibleRowCount).fill(defaultRowHeight) ]
+  } else {
+    $stbRowHeights = [ ... new Array(visibleRowCount).fill(defaultRowHeight) ]
+  }
+
+  $: maxBodyHeight = visibleRowCount * defaultRowHeight
+
+  $: if ( fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
+    limit = limit + fetchPageSize < 1000 ? limit + fetchPageSize : 1000;
+    $stbVerticalScroll = 0.8
+  }
+
+
+  $: if (autoRefresh ) {
+    timer = setInterval(() => {
+      stbData.refresh();
+    }, autoRefreshRate * 1000);
+  }
+        
+  $: $stbSettings = tableOptions
+  $: stbState.synch($stbData)
+
+  // Super Table State Machine 
   const stbState = fsm("Loading", {
     "*" : {
       handleKeyboard( e ) { },
@@ -212,16 +247,16 @@
             $stbSelected.splice($stbSelected.indexOf(rowID), 1)
             $stbSelected = $stbSelected
           } else {
-            if ($stbSelected.length < tableOptions.selectionLimit || !tableOptions.selectionLimit )
+            if ($stbSelected.length < selectionLimit || selectionLimit )
               $stbSelected = [ ...$stbSelected, rowID ]
             else
-              notificationStore.actions.warning("Cannot select more than " + tableOptions.selectionLimit + " rows")
+              notificationStore.actions.warning("Cannot select more than " + selectionLimit + " rows")
           }
-          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
+          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ) )
         } else if ($stbSettings.rowSelectMode == "single") { 
           if ($stbSelected.includes(rowID)) { $stbSelected = []}           
           else { $stbSelected = [rowID] };
-          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
+          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ) )
         }
       },
       toggleSelectAllRows () {
@@ -231,13 +266,13 @@
           else
             $stbSelected = [];
             
-          tableOptions.events.onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
+          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
         }
       },
       cellChanged( change ) {
         console.log( "Change", change )
 
-        tableOptions.events.onCellChange?.({
+        onCellChange?.({
           rowID : change.rowID,
           field : change.field,
           value : change.value,
@@ -246,23 +281,23 @@
       },
       cellClicked( columnID, rowID ) { },
       rowDblClicked ( rowID ) { 
-        tableOptions.events.onRowDblClick?.( $stbData.rows.find( x => x[tableOptions.data.idColumn] == rowID ) )
+        onRowDblClick?.( $stbData.rows.find( x => x[idColumn] == rowID ) )
       },
       rowClicked( rowID ) { 
-        tableOptions.events.onRowClick?.( $stbData.rows.find( x => x[tableOptions.data.idColumn] == rowID ) );
-        if ( tableOptions.rowSelectMode != "off" && !tableOptions.features.canEdit )
+        onRowClick?.( $stbData.rows.find( x => x[idColumn] == rowID ) );
+        if ( rowSelectMode != "off" && !canEdit )
           this.toggleSelectRow ( rowID)
       },
       getRowColors() {
         if ($stbData?.loading) return;
 
-        if ( tableOptions.appearance.rowBGColorTemplate || tableOptions.appearance.rowColorTemplate ) {
+        if ( rowBGColorTemplate || rowColorTemplate ) {
           $stbRowColors = []
           $stbRowColors = $stbData?.rows.map ( ( row ) => {
-            return { bgcolor : processStringSync( tableOptions.appearance.rowBGColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-50)",
-                     color : processStringSync( tableOptions.appearance.rowColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-800)"}
+            return { bgcolor : processStringSync( rowBGColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-50)",
+                     color : processStringSync( rowColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-800)"}
           })  
-        } else if ( tableOptions.appearance.zebraColors ) {
+        } else if (zebraColors ) {
           $stbRowColors = $stbRowHeights.map ( ( row, idx ) => {
             return { bgcolor : ( idx % 2 == 1) ? "var(--spectrum-global-color-gray-75)" : "inherit",
                      color : "var(--spectrum-global-color-gray-800)" };
@@ -283,8 +318,8 @@
     },
     Idle: { 
       _enter() {
-        $stbRowHeights = tableOptions.visibleRowCount > $stbData?.rows.length 
-          ? new Array( tableOptions.visibleRowCount).fill(defaultRowHeight) 
+        $stbRowHeights = visibleRowCount > $stbData?.rows.length 
+          ? new Array( visibleRowCount).fill(defaultRowHeight) 
           : new Array($stbData?.rows.length).fill(defaultRowHeight);
 
         this.getRowColors();
@@ -318,54 +353,6 @@
     Empty: { }
   });
 
-  // Generate Layout required variables first so we can render early on
-  $: defaultRowHeight = tableOptions.appearance.size == "custom" ? tableOptions.appearance.customRowHeight : sizingMap[tableOptions.appearance.size].rowHeight
-  $: if ( tableOptions.appearance.size == "custom" ) {
-    $stbRowHeights = [ ... new Array(tableOptions.visibleRowCount).fill(defaultRowHeight) ]
-  } else {
-    $stbRowHeights = [ ... new Array(tableOptions.visibleRowCount).fill(defaultRowHeight) ]
-  }
-
-  $: maxBodyHeight = tableOptions.visibleRowCount * defaultRowHeight
-
-  $: if ( fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
-    limit = limit + fetchPageSize < 1000 ? limit + fetchPageSize : 1000;
-    $stbVerticalScroll = 0.8
-  }
-
-
-  $: schema = $stbData?.schema
-  $: $stbSortColumn = sortColumn
-  $: $stbSortOrder = sortOrder
-
-  $: if (autoRefresh ) {
-    timer = setInterval(() => {
-      stbData.refresh();
-    }, autoRefreshRate * 1000);
-  }
-
-  $: if ( $stbData?.schema && columns?.length > 0 ) {
-        let autocolumns = []
-        if (autocolumns) {
-          autocolumns = Object.keys(schema).filter ( v => schema[v].autocolumn ).map( (v) => makeSuperColumn( schema[v]) )
-        }
-        columns = columns.map( (column) => makeSuperColumn (column) )
-        columns = [ ...columns,  ...autocolumns ]
-      } else 
-        columns = getAllColumns(autocolumns)
-
-        
-  $: $stbSettings = tableOptions
-  $: stbData?.update({
-    query,
-    sortColumn,
-    sortOrder,
-    limit,
-    paginate,
-  })
-
-  $: stbState.synch($stbData)
-
   const syncScroll = (e) => {
     if ( columnsBodyAnchor ) {
       const { scrollLeftMax, scrollLeft , scrollWidth , clientWidth } = columnsBodyAnchor
@@ -375,17 +362,22 @@
   }
 
   const createFetch = datasource => {
-    return fetchData({
-      API,
-      datasource,
-      options: {
-        query,
-        sortColumn,
-        sortOrder,
-        limit,
-        paginate,
-      },
-    })
+    if ( loadedDatasource != datasource ) {
+      loadedDatasource = datasource
+      return fetchData({
+        API,
+        datasource,
+        options: {
+          query,
+          sortColumn,
+          sortOrder,
+          limit,
+          paginate,
+        },
+      })
+    } else {
+      return stbData
+    }
   }
 
   const extendQuery = (defaultQuery, extensions) => {
@@ -418,45 +410,53 @@
     queryExtensions = newQueryExtensions
   }
 
-  const getAllColumns = ( includeAuto ) => {
-    let allColumns = []
-    if (schema) 
-      allColumns = Object.keys(schema)
-        .filter( v => schema[v]?.autocolumn != !includeAuto )
-        .filter( v => schema[v]?.visible  != false )
-        .map( (v) => makeSuperColumn( schema[v] ) )
-      
-    return allColumns
-  }
-
-  const makeSuperColumn =  bbcolumn  => {
+  const makeSuperColumn = bbcolumn  => {
+    let schema = $stbData.schema
     let superColumn = {
       ...bbcolumn,
       hasChildren: false,
       autocolumn: bbcolumn.autocolumn,
       schema: schema[bbcolumn.name] ?? {},
-      sizing: tableOptions.columnSizing,
-      fixedWidth: bbcolumn.width ? bbcolumn.width : tableOptions.columnFixedWidth ?? "8rem",
-      maxWidth: tableOptions.columnMaxWidth ?? "16rem",
-      minWidth: tableOptions.columnMinWidth ?? "6rem",
-      canResize: tableOptions.features.canResize,
-      showFooter: tableOptions.showFooter,
-      showHeader: tableOptions.showHeader,
-      highlighters: tableOptions.appearance.highlighters,
-      canEdit: bbcolumn.autocolumn ? false : tableOptions.features.canEdit && supportEditingMap[schema[bbcolumn.name].type],
-      canFilter: supportFilteringMap[schema[bbcolumn.name].type] ? tableOptions.features.canFilter : false,
-      showFilterOperators: tableOptions.features.showFilterOperators,
-      canSort: tableOptions.features.canSort && supportSortingMap[schema[bbcolumn.name].type],
+      sizing: columnSizing,
+      fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth ?? "8rem",
+      maxWidth: columnMaxWidth ?? "16rem",
+      minWidth: columnMinWidth ?? "6rem",
+      canResize: canResize,
+      showFooter: showFooter,
+      showHeader: showHeader,
+      highlighters: highlighters,
+      canEdit: bbcolumn.autocolumn ? false : canEdit && supportEditingMap[schema[bbcolumn.name].type],
+      canFilter: supportFilteringMap[schema[bbcolumn.name]?.type] ? canFilter : false,
+      showFilterOperators: showFilterOperators,
+      canSort: canSort && supportSortingMap[schema[bbcolumn.name].type],
       filteringOperators: LuceneUtils.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
-      cellPadding: tableOptions.appearance.size == "custom" ? tableOptions.appearance.customCellPadding : sizingMap[tableOptions.appearance.size].cellPadding,
+      cellPadding: size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
-      useOptionColors: tableOptions.appearance.useOptionColors, 
-      optionsViewMode: tableOptions.appearance.optionsViewMode,
-      relViewMode: tableOptions.appearance.relViewMode,
-      zebraColors: tableOptions.appearance.zebraColors
+      useOptionColors: useOptionColors, 
+      optionsViewMode: optionsViewMode,
+      relViewMode: relViewMode,
+      zebraColors: zebraColors
     }
     return superColumn
+  }
+
+  const populateColumns = ( data, list, auto ) => {
+    if ( data?.schema ) {
+      schema = data.schema
+      columns = []
+      autocolumnsList = []
+      if (auto) {
+            autocolumnsList = Object.keys(schema).filter ( v => schema[v].autocolumn).map( (v) => makeSuperColumn( schema[v]) )
+          }
+
+      if (list?.length)
+        columns = list.map( (column) => makeSuperColumn (column) )
+      else 
+        columns = Object.keys(schema).filter ( v => !schema[v].autocolumn).filter( v => schema[v]?.visible  != false ).map( (v) => makeSuperColumn( schema[v]) )
+
+      columns = [ ...columns,  ...autocolumnsList ]
+    }
   }
 
   beforeUpdate( () => {
@@ -510,7 +510,6 @@
     pageNumber: $stbData?.pageNumber + 1
   }
 
-
   setContext("tableStateStore", tableStateStore);
   setContext("stbScrollPos", stbScrollPos);
   setContext("stbVerticalScroll", stbVerticalScroll);
@@ -525,7 +524,6 @@
   setContext("stbRowHeights", stbRowHeights)
   setContext("stbRowColors", stbRowColors)
   $: setContext("stbData", stbData)
-
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -549,7 +547,7 @@
   on:mouseleave={ () => highlighted = false }
   on:keydown={stbState.handleKeyboard}
 >
-  {#if tableOptions.selectionColumn || (tableOptions.features.canEdit && tableOptions.rowSelectMode != "off") }
+  {#if selectionColumn || (canEdit && rowSelectMode != "off") }
     <SuperTableRowSelect 
       {stbState} 
       {stbSettings}
@@ -567,9 +565,7 @@
   {/if}
   
   <div bind:this={columnsBodyAnchor} class="st-master-columns" on:scroll={syncScroll}>
-    {#if $stbData?.loading && !$stbData?.loaded}
-      <CellSkeleton > Loading ... </CellSkeleton>
-    {:else}
+    {#if $stbData?.loaded}
       {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
       {#if columns?.length}
         {#each columns as column, idx }
@@ -582,6 +578,8 @@
         {/each}
       {/if}
       {#if $stbSettings.superColumnsPos == "last"} <slot /> {/if}
+    {:else}
+      <CellSkeleton > Loading ... </CellSkeleton>
     {/if}
   </div>
 
