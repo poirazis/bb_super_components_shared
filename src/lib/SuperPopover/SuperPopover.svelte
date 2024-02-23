@@ -1,6 +1,5 @@
 <script>
-
-  import Portal from "svelte-portal"
+  import Portal from "../../../node_modules/svelte-portal/src/Portal.svelte"
   import { createEventDispatcher, getContext } from "svelte"
   import positionDropdown from "../Actions/position_dropdown"
   import clickOutside from "../Actions/click_outside"
