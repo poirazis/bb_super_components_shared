@@ -72,7 +72,7 @@
       {#if $stbData?.rows?.length}
         {#each $stbData.rows as row, index}              
           {@const rowID = row[$stbSettings.data.idColumn] }
-          {@const selected = $stbSelected.includes(rowID) }
+          {@const selected = $stbSelected.includes(rowID) || $stbSelected.includes(rowID?.toString()) }
           <div 
             class="spectrum-Table-row" 
             on:mouseenter={ () => $stbHovered = index }

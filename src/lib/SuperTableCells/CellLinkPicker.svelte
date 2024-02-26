@@ -33,51 +33,32 @@
       rowHeight: 32,
       showFooter : false,
       showHeader : true,
-      defaultColumnOptions: {
-        header : {
-          color : null,
-          bgColor : null,
-          align : "flex-start"
-        },
-        row : { },
-        cell : { },
-        footer : { }
-      },
-      features: {
-        canFilter: true,
-        canSort: true,
-        canEdit: false,
-        canDelete: false,
-        canInsert: false,
-        canResize: false,
-      },
-      data: { 
-        datasource,
-        idColumn : valueColumn,
-        filter: {},
-        sortColumn: null,
-        sortOrder: null,
-        limit : 10,
-        paginate : false,
-        autoRefresh: false,
-        autoRefreshRate: 10
-      },
-      columns: pickerColumns,
-      appearance: {
-        theme : "budibase",
-        size : "S",
-        cellPadding: "0.5rem",
-        useOptionColors: true,
-        optionsViewMode: "text",
-        relViewMode : "text"
-      },
-      events: {
-        onRowSelect : ( arr ) => {
-          var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
-          dispatch("change", val)
-        }
+      canFilter: true,
+      canSort: true,
+      canEdit: false,
+      canDelete: false,
+      canInsert: false,
+      canResize: false, 
+      datasource,
+      idColumn : valueColumn,
+      filter: {},
+      sortColumn: null,
+      sortOrder: null,
+      limit : 10,
+      paginate : false,
+      autoRefresh: false,
+      autoRefreshRate: 10,
+      columnList: pickerColumns,
+      size : "S",
+      cellPadding: "0.5rem",
+      useOptionColors: true,
+      optionsViewMode: "text",
+      relViewMode : "text",
+      onRowSelect : ( arr ) => {
+        var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
+        dispatch("change", val)
       }
-  };
+      }
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -85,7 +66,7 @@
 <div bind:this={picker} class="control">   
   <SuperTable
     on:change
-    {tableOptions}>
+    {...tableOptions}>
   </SuperTable>
 </div>
 

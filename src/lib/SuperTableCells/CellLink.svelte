@@ -5,7 +5,6 @@
   import fsm from "svelte-fsm"
   import "./CellCommon.css"
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
-  import { sdk } from "@budibase/shared-core"
 
   const dispatch = createEventDispatcher();
 
@@ -34,7 +33,6 @@
   let searchTerm
   let definition
   let loaded
-  let editor
   let datasource
 
   export let cellState = fsm( "View" , {
@@ -87,7 +85,7 @@
   $: if ( definition ) {
     labelColumn = definition.primaryDisplay 
     pickerColumns = !pickerColumns?.length ? [{"name": labelColumn}] : pickerColumns
-    datasource = {tableId: tableId || fieldSchema.tableId, type:"table"}
+    datasource = {tableId: tableId || fieldSchema?.tableId, type:"table"}
   } else if ( fieldSchema.type == "bb_reference") {
     labelColumn = "email"
     valueColumn = "email"

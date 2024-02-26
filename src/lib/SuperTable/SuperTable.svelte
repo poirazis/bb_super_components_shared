@@ -18,7 +18,6 @@
   
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
-  const stbSelected = new writable([]);
   const stbScrollPos = new writable(0);
 
   const stbHovered = new writable(-1);
@@ -61,6 +60,8 @@
   export let debounce = 750
 
   export let rowSelectMode
+  export let preselectedId
+  export let preselectedIds
   export let selectionColumn
   export let selectionLimit
 
@@ -107,6 +108,10 @@
   let columnsBodyAnchor
   let loadedDatasource
   let stbData
+  const stbSelected = new writable([]);
+
+  $: if ( rowSelectMode == "single" ) $stbSelected[0] = preselectedId
+  $: if ( rowSelectMode == "multi" ) $stbSelected = preselectedIds?.split(",")
 
   $: defaultQuery = LuceneUtils.buildLuceneQuery(filter)
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
@@ -247,7 +252,7 @@
             $stbSelected.splice($stbSelected.indexOf(rowID), 1)
             $stbSelected = $stbSelected
           } else {
-            if ($stbSelected.length < selectionLimit || selectionLimit )
+            if ( $stbSelected.length < selectionLimit || selectionLimit == 0 )
               $stbSelected = [ ...$stbSelected, rowID ]
             else
               notificationStore.actions.warning("Cannot select more than " + selectionLimit + " rows")
@@ -453,7 +458,9 @@
       if (list?.length)
         columns = list.map( (column) => makeSuperColumn (column) )
       else 
-        columns = Object.keys(schema).filter ( v => !schema[v].autocolumn).filter( v => schema[v]?.visible  != false ).map( (v) => makeSuperColumn( schema[v]) )
+        columns = Object.keys(schema).filter ( v => !schema[v].autocolumn)
+                                     .filter( v => schema[v]?.visible != false )
+                                     .map( (v) => makeSuperColumn( schema[v]) )
 
       columns = [ ...columns,  ...autocolumnsList ]
     }
@@ -564,7 +571,10 @@
     />
   {/if}
   
-  <div bind:this={columnsBodyAnchor} class="st-master-columns" on:scroll={syncScroll}>
+  <div 
+    bind:this={columnsBodyAnchor} 
+    class="st-master-columns" 
+    on:scroll={syncScroll}>
     {#if $stbData?.loaded}
       {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
       {#if columns?.length}

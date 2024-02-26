@@ -6,7 +6,7 @@
 {#if columnOptions.showFooter}
   <div class="spectrum-Table-headcell">
     <span>
-      {columnOptions.displayName}
+      {columnOptions.displayName ?? columnOptions.name}
     </span>
   </div>
 {/if}

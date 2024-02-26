@@ -41,9 +41,9 @@
   style:background-color={columnOptions.background}
   class:filtered={$columnState == "Filtered"}
   class:is-editing={ $columnState == "EditingCell" && (columnOptions.highlighters == "vertical" || columnOptions.highlighters == "both" )}
-  on:scroll|self={ syncScroll }
   on:mouseenter={ () => hovered = true }
   on:mouseleave={ () => hovered = false }
+  on:scroll|capture|self={syncScroll}
   >
   {#if rowHeights?.length}
       {#each rows as row, index}
@@ -56,7 +56,7 @@
           color={rowColors[index]?.color}
           isHovered={ $stbHovered == index}
           isEditing={ $stbEditing == index  && (columnOptions.highlighters == "horizontal" || columnOptions.highlighters == "both" )}
-          isSelected={ $stbSelected.includes(row.rowID) }
+          isSelected={ $stbSelected.includes(row.rowID) || $stbSelected.includes(row.rowID?.toString()) }
           on:resize={ ( e ) => rowHeights[index] = e.detail }
           on:hovered={ () => ($stbHovered = index)}
           on:rowClicked

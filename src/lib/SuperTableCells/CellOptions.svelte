@@ -175,9 +175,6 @@
 				return 'Closed';
 			},
 			handleKeyboard ( e ) {
-				console.log(e);
-
-
 				if ( e.keyCode == 32 ) {
 					if ( focusedOptionIdx > -1 ) {
 						this.toggleOption(focusedOptionIdx, e.preventDefault())
@@ -577,7 +574,7 @@
 					style:padding-left={cellOptions.icon ? '32px' : cellOptions.padding}
 					style:padding-right={cellOptions.padding}
 					style:cursor={"pointer"}
-					on:click|preventDefault={editorState.toggle}
+					on:click|stopPropagation={editorState.toggle}
 					on:keydown={editorState.handleKeyboard}
 					on:focusout={cellState.focusout}
 					use:focus
@@ -667,7 +664,7 @@
 							<div
 								class="option"
 								class:focused={focusedOptionIdx === idx}
-								on:mousedown|preventDefault|stopPropagation={(e) => editorState.toggleOption(idx)}
+								on:mousedown|stopPropagation={(e) => editorState.toggleOption(idx)}
 								on:mouseenter={() => (focusedOptionIdx = idx)}
 							>
 								{#if multi || color }
