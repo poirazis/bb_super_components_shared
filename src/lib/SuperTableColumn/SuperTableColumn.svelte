@@ -166,6 +166,7 @@
     background: columnOptions.background ?? "transparent",
     fontWeight: columnOptions.fontWeight,
     padding: columnOptions.cellPadding,
+    template: columnOptions.template,
     useOptionColors: columnOptions.useOptionColors,
     optionsViewMode: columnOptions.optionsViewMode,
     optionsSource: columnOptions.optionsSource,

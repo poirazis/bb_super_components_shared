@@ -22,7 +22,7 @@
     Loading: {},
     View: { 
       focus () { 
-        if (!cellOptions.readonly) return "Editing"
+        if (!cellOptions.readonly && !cellOptions.disabled) return "Editing"
       }
     },
     Disabled : {},

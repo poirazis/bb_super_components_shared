@@ -4,7 +4,7 @@
 </script>
 
 {#if columnOptions.showFooter}
-  <div class="spectrum-Table-headcell">
+  <div class="spectrum-Table-headcell" style:height={ columnOptions.headerHeight }>
     <span>
       {columnOptions.displayName ?? columnOptions.name}
     </span>

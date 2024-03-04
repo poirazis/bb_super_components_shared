@@ -31,6 +31,15 @@
 	let picker
 	let tableOptions
 
+	let colorsArray = [
+    "hsla(0, 90%, 75%, 0.3)",
+    "hsla(50, 80%, 75%, 0.3)",
+    "hsla(120, 90%, 75%, 0.3)",
+    "hsla(200, 90%, 75%, 0.3)",
+    "hsla(240, 90%, 75%, 0.3)",
+    "hsla(320, 90%, 75%, 0.3)",
+  ]
+
 	export let cellState = fsm("Loading", {
     "*": {
       goTo( state ) { return state },
@@ -127,6 +136,7 @@
 	let editorState = fsm('Closed', {
 		'*': {
 			close() {
+				editor?.focus();
 				return 'Closed';
 			},
       toggleOption(idx) {
@@ -570,6 +580,7 @@
 				<div
 					class="editor"
 					tabindex="0"
+					bind:this={editor}
 					class:placeholder={localValue?.length < 1}
 					style:padding-left={cellOptions.icon ? '32px' : cellOptions.padding}
 					style:padding-right={cellOptions.padding}

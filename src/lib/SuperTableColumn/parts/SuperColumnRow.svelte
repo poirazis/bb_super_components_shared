@@ -2,7 +2,7 @@
 	import { getContext , createEventDispatcher } from "svelte";
 	import { elementSizeStore } from "svelte-legos";
 
-	const { Provider, processStringSync } = getContext("sdk")
+	const { Provider, ContextScopes, processStringSync } = getContext("sdk")
 
 	const dispatch = createEventDispatcher();
 
@@ -39,7 +39,7 @@
 	const getCellValue = value => {
 		return columnOptions.template ? processStringSync( columnOptions.template, { value } ) : undefined
 	}
-
+	
 
 </script>
 
@@ -61,7 +61,8 @@
 	on:click={ () => { dispatch("rowClicked",  row.rowID )} }
 	on:dblclick={ () => dispatch("rowDblClicked", row.rowID ) } 
 	on:contextmenu|preventDefault={ () => dispatch("contextmenu", { rowID : row.rowID }) }
-	>
+	>				
+	<Provider data={ { id: row?.rowID, value : row?.rowValue , row : {} } } scope={ContextScopes.Local} >
 		{#if !columnOptions.hasChildren }
 			<svelte:component 
 				this={columnOptions.cellComponent} 
@@ -76,11 +77,10 @@
 			/>
 		{:else}
 			<div bind:this={contents} class="contentsWrapper"> 
-				<Provider data={ { rowID: row?.rowID, value : row?.rowValue } }>
-					<slot /> 
-				</Provider>
+				<slot /> 
 			</div>	
 		{/if}
+	</Provider>
 </div>
 
 <style>

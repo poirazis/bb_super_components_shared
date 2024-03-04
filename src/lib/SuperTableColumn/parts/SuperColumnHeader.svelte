@@ -93,7 +93,7 @@
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:height={"2.4rem"}
+    style:height={ columnOptions.headerHeight }
     style:padding-left={ columnOptions.cellOptions.padding }
     style:padding-right={ columnOptions.cellOptions.padding }
   >

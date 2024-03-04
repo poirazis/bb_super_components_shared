@@ -10,6 +10,7 @@
   export let stbRowHeights
   export let stbRowColors
   export let loading
+  export let headerHeight
 
   let columnBodyAnchor
   let mouseover
@@ -34,7 +35,7 @@
     {#if $stbSettings.showHeader}
       <div 
         class="spectrum-Table-headCell" 
-        style:height={ $stbSettings?.header?.height || "2.4rem"}
+        style:height={ headerHeight }
         on:mouseenter={() => mouseover = true } 
         on:mouseleave={() => mouseover = false}
       >
@@ -118,7 +119,7 @@
     {#if $stbSettings.showFooter}
       <div 
         class="spectrum-Table-footer"
-        style:height={ $stbSettings?.header?.height || "2.2rem"}
+        style:height={ headerHeight}
         ></div>
     {/if}
   </div>

@@ -14,7 +14,14 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
-  const { API , processStringSync, notificationStore, ActionTypes, Provider, fetchData, LuceneUtils } = getContext("sdk");
+  const { API , 
+    processStringSync, 
+    notificationStore, 
+    ActionTypes, 
+    Provider, 
+    ContextScopes, 
+    fetchData, 
+    LuceneUtils } = getContext("sdk");
   
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
@@ -111,7 +118,7 @@
   const stbSelected = new writable([]);
 
   $: if ( rowSelectMode == "single" ) $stbSelected[0] = preselectedId
-  $: if ( rowSelectMode == "multi" ) $stbSelected = preselectedIds?.split(",")
+  $: if ( rowSelectMode == "multi" && preselectedIds ) $stbSelected = preselectedIds?.split(",")
 
   $: defaultQuery = LuceneUtils.buildLuceneQuery(filter)
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
@@ -143,6 +150,7 @@
     dividersColor,
     showFooter,
     showHeader,
+    headerHeight: size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
     features: {
       canFilter,
       showFilterOperators,
@@ -181,7 +189,8 @@
       rowColorTemplate,
       rowBGColorTemplate,
       footerColorTemplate,
-      footerBGColorTemplate
+      footerBGColorTemplate,
+      cellPadding: size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
     },
     events: {
       onRowClick,
@@ -257,21 +266,30 @@
             else
               notificationStore.actions.warning("Cannot select more than " + selectionLimit + " rows")
           }
-          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ) )
+          onRowSelect?.(
+            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
+              selectedIds: $stbSelected } 
+              )
         } else if ($stbSettings.rowSelectMode == "single") { 
           if ($stbSelected.includes(rowID)) { $stbSelected = []}           
           else { $stbSelected = [rowID] };
-          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ) )
+          onRowSelect?.(
+            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
+              selectedIds: $stbSelected } 
+              )
         }
       },
       toggleSelectAllRows () {
         if ($stbSettings.rowSelectMode == "multi") {
           if ( $stbSelected.length != $stbData.rows.length ) 
-            $stbSelected = $stbData.rows.map ( x => x[$stbSettings.data.idColumn])
+            $stbSelected = $stbData.rows.map ( x => x[idColumn])
           else
             $stbSelected = [];
             
-          onRowSelect?.( $stbData.rows.filter ( x => $stbSelected.includes(x[tableOptions.data.idColumn]) ) )
+            onRowSelect?.(
+            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
+              selectedIds: $stbSelected } 
+              )
         }
       },
       cellChanged( change ) {
@@ -429,6 +447,7 @@
       canResize: canResize,
       showFooter: showFooter,
       showHeader: showHeader,
+      headerHeight: size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
       highlighters: highlighters,
       canEdit: bbcolumn.autocolumn ? false : canEdit && supportEditingMap[schema[bbcolumn.name].type],
       canFilter: supportFilteringMap[schema[bbcolumn.name]?.type] ? canFilter : false,
@@ -477,9 +496,12 @@
   // Global Bindings 
   $: actions = [
     {
+      type: ActionTypes.ClearRowSelection,
+      callback: () => ($stbSelected = [])
+    },
+    {
       type: ActionTypes.RefreshDatasource,
       callback: () => stbData.refresh(),
-      metadata: { datasource : $stbSettings.data.datasource },
     },
     {
       type: ActionTypes.AddDataProviderQueryExtension,
@@ -509,7 +531,8 @@
   // Build our data context
   $: dataContext = {
     rows: $stbData?.rows,
-    selectedRows: $stbSelected,
+    selectedRows: $stbData?.rows.filter( x => $stbSelected.includes(x[idColumn])),
+    selectedIds: $stbSelected,
     info: $stbData?.info,
     datasource: datasource || {},
     schema,
@@ -554,6 +577,9 @@
   on:mouseleave={ () => highlighted = false }
   on:keydown={stbState.handleKeyboard}
 >
+  <!-- Context Provider -->
+  <Provider {actions} data={dataContext}>
+
   {#if selectionColumn || (canEdit && rowSelectMode != "off") }
     <SuperTableRowSelect 
       {stbState} 
@@ -567,6 +593,7 @@
       {tableStateStore}
       {stbRowHeights}
       {stbRowColors}
+      headerHeight={size == "custom" ? customCellPadding : sizingMap[size].headerHeight} 
       loading={$stbData?.loading}      
     />
   {/if}
@@ -610,7 +637,7 @@
     bottomOffset={ $stbSettings.showFooter ? "32px" : "8px"}
   />
 
-  <Provider {actions} data={dataContext}></Provider>
+</Provider>
 </div>
 
 <style>
