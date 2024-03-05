@@ -27,6 +27,7 @@
 	let optionColors = {}
 	let optionIcons = {}
 	let optionLabels = {}
+	let filteredOptions = []
 	let focusedOptionIdx = -1
 	let picker
 	let tableOptions
@@ -54,6 +55,7 @@
 						optionLabels[element[cellOptions.valueColumn]] = cellOptions.labelColumn ? element[cellOptions.labelColumn] : element[cellOptions.valueColumn];
 					});
 				} else if (cellOptions.optionsSource == 'custom') {
+					options = [];
 						if ( cellOptions.customOptions.length) {
 							options = cellOptions.customOptions.map( (x) => x.value || x)
 							cellOptions.customOptions.forEach( (e) => {
@@ -64,6 +66,8 @@
 					options = fieldSchema?.constraints?.inclusion || [];
 					optionColors = fieldSchema?.optionColors || {};
 				}
+
+				filteredOptions = options;
 			},
     },
 		Loading: {
@@ -115,8 +119,7 @@
 			},
       focusout( e ) {
 				let target = e.relatedTarget ? e.relatedTarget : e.explicitOriginalTarget;
-
-				if ( !anchor.contains(target)) {
+				if ( !picker?.contains(e.explicitOriginalTarget) && !anchor?.contains(e.explicitOriginalTarget)) {
 					if ( !arrayEquals(originalValue, localValue ) && originalValue != localValue[0]) {
 						if (multi)
 							dispatch("change", localValue);
@@ -139,7 +142,10 @@
 				editor?.focus();
 				return 'Closed';
 			},
+			refocus() { editor?.focus(); },
       toggleOption(idx) {
+
+				if ( cellOptions.disabled || cellOptions.readonly ) return;
 				if (!cellOptions.addNew && idx < 0 ) return;
 
 				let option = options[idx] ?? searchTerm;
@@ -160,9 +166,10 @@
 						editor.value = "";
 						this.filterOptions();
 					};
-					editor?.focus();
 				}
-				if ( !multi ) this.close();
+				this.refocus.debounce(10);
+				if ( !multi ) { this.close.debounce(30) }
+
 			},
 		},
 		Open: {
@@ -174,11 +181,10 @@
 				editor?.focus();
 			},
 			filterOptions( e ) {
-				console.log("Filter for ", e.target.value);
-
 				if ( e && e.target.value != "" ) {
-					options = options.filter( (x) => x?.startsWith(e.target.value) );
-				} else cellState.fetchOptions();
+					filteredOptions = options.filter( (x) => x?.startsWith(e.target.value) );
+				} else 
+					cellState.fetchOptions();
 			},
 			toggle() {
 				editor?.focus();
@@ -309,18 +315,19 @@
 	$: simpleView = cellOptions.optionsViewMode != 'pills';
 	$: fetch = createFetch ( cellOptions.optionsSource == "data" && !cellOptions.richData ? cellOptions.datasource : null )
 	$: cellState.syncFetch($fetch)
+	$: cellState.fetchOptions(cellOptions)
 
 	const createFetch = ( datasource ) => {
-				return fetchData({
-					API,
-					datasource,
-					options: {
-						query: LuceneUtils.buildLuceneQuery(cellOptions.filter),
-						sortColumn : cellOptions.sortColumn,
-						sortOrder : cellOptions.sortOrder, 
-						limit : cellOptions.limit
-					},
-				});
+		return fetchData({
+			API,
+			datasource,
+			options: {
+				query: LuceneUtils.buildLuceneQuery(cellOptions.filter),
+				sortColumn : cellOptions.sortColumn,
+				sortOrder : cellOptions.sortOrder, 
+				limit : cellOptions.limit
+			},
+		});
 	}
 
 	const getOptionColor = (value) => {
@@ -358,6 +365,7 @@
       columnSizing : "flexible",
       columnMaxWidth: "auto",
       debounce: 500,
+			size: "S",
       visibleRowCount: 7,
       rowSelectMode: multi ? "multi" : "single",
       selectionColumn : false,
@@ -367,40 +375,32 @@
       rowHeight: 32,
       showFooter : false,
       showHeader : true,
-      features: {
-        canFilter: false,
-        canSort: true,
-        canEdit: false,
-        canDelete: false,
-        canInsert: false,
-        canResize: false,
-      },
-      data: { 
-        datasource : cellOptions.datasource,
-        idColumn : cellOptions.valueColumn,
-        filter: cellOptions.filter,
-        sortColumn: null,
-        sortOrder: null,
-        limit : cellOptions.limit,
-        paginate : false,
-        autoRefresh: false,
-        autoRefreshRate: 10
-      },
-      columns: cellOptions.columns,
-      appearance: {
-        theme : "budibase",
-        size : "S",
-        cellPadding: "0.5rem",
-        useOptionColors: true,
-        optionsViewMode: "text",
-        relViewMode : "text"
-      },
-      events: {
-        onRowSelect : ( arr ) => {
-          var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
-          dispatch("change", val)
-        }
-      }
+			canFilter: false,
+			canSort: true,
+			canEdit: false,
+			canDelete: false,
+			canInsert: false,
+			canResize: false,
+			datasource : cellOptions.datasource,
+			idColumn : cellOptions.valueColumn,
+			filter: cellOptions.filter,
+			sortColumn: null,
+			sortOrder: null,
+			limit : cellOptions.limit,
+			paginate : false,
+			autoRefresh: false,
+			autoRefreshRate: 10,
+			columnList: cellOptions.columns,
+			theme : "budibase",
+			size : "S",
+			cellPadding: "0.5rem",
+			useOptionColors: true,
+			optionsViewMode: "text",
+			relViewMode : "text",
+			onRowSelect : ( arr ) => {
+				var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
+				dispatch("change", val)
+			}
   };
 </script>
 
@@ -475,7 +475,7 @@
 						class:selected
 						class:focused={focusedOptionIdx === idx}
 						on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
-						on:mouseenter={() => (focusedOptionIdx = idx)}
+						on:mouseenter={() => ( focusedOptionIdx = cellOptions.disabled ? null : idx )}
 					>
 						{#if icon}
 							<i class={icon} style:color={color}> </i>
@@ -484,7 +484,7 @@
 						<div class="loope round" 
 							style:background-color={color ? color : "var(--spectrum-global-color-gray-100)"}>
 							{#if selected}
-								<div class="loope dot" />
+								<div class="dot" />
 							{/if}
 						</div>
 
@@ -573,7 +573,7 @@
 					on:keydown={editorState.handleKeyboard}
 					placeholder={ cellOptions.placeholder ?? "Enter..." }
 				/>
-				<div id="btn_toggle" class="actionIcon" on:click={editorState.toggle}>
+				<div id="btn_toggle" class="actionIcon" on:click|stopPropagation={editorState.toggle}>
 					<i class="ri-arrow-down-s-line" ></i> 
 				</div>
 			{:else}
@@ -585,7 +585,7 @@
 					style:padding-left={cellOptions.icon ? '32px' : cellOptions.padding}
 					style:padding-right={cellOptions.padding}
 					style:cursor={"pointer"}
-					on:click|stopPropagation={editorState.toggle}
+					on:click={editorState.toggle}
 					on:keydown={editorState.handleKeyboard}
 					on:focusout={cellState.focusout}
 					use:focus
@@ -617,7 +617,7 @@
 		{:else}
 			<div
 				class="value"
-				tabindex="0"
+				tabindex={cellOptions.disabled || cellOptions.readonly ? "-1" : "0"}
 				on:focusin={cellState.focus}
 				class:placeholder={localValue?.length < 1}
 				style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
@@ -647,55 +647,57 @@
 			</div>
 		{/if}
 	{/if}
+
+	{#if cellOptions.controlType == "select" && $cellState == 'Editing'}
+		<SuperPopover
+			anchor={anchor}
+			useAnchorWidth
+			dismissible={false}
+			maxHeight={400}
+			open={ $editorState == "Open" }
+			>
+				{#if cellOptions.richData}
+					<SuperTable {...tableOptions} />
+				{:else}
+					<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1} >
+						{#if filteredOptions.length < 1}
+							<div class="option">
+									<i class="ri-close-line"></i>
+									No Available Options
+							</div>
+						{:else}
+							{#each filteredOptions as option, idx (idx)}
+							{@const color = getOptionColor(option)}
+							{@const label = getOptionLabel(option)}
+							{@const icon = getOptionIcon(option)}
+								<div
+									class="option"
+									class:focused={focusedOptionIdx === idx}
+									on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
+									on:mouseenter={ () => (focusedOptionIdx = idx)}
+								>
+									{#if multi || color }
+										<div class="loope small" style:background-color={color}>
+											{#if localValue?.includes(option)}
+												<i class="ri-check-line" />
+											{/if}
+										</div>
+									{/if}
+									{#if icon}
+										<i class={icon} />
+									{/if}
+									{label}
+								</div>
+							{/each}
+						{/if}
+					</div>
+				{/if}
+		</SuperPopover>
+	{/if}
 </div>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-{#if cellOptions.controlType == "select" && $cellState == 'Editing'}
-	<SuperPopover
-		anchor={anchor}
-		useAnchorWidth
-		dismissible={false}
-		maxHeight={400}
-		open={ $editorState == "Open" }
-		>
-			{#if cellOptions.richData}
-				<SuperTable {tableOptions} />
-			{:else}
-				<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1} >
-					{#if options.length < 1}
-						<div class="option">
-								<i class="ri-close-line"></i>
-								No Available Options
-						</div>
-					{:else}
-						{#each options as option, idx (idx)}
-						{@const color = getOptionColor(option)}
-						{@const label = getOptionLabel(option)}
-						{@const icon = getOptionIcon(option)}
-							<div
-								class="option"
-								class:focused={focusedOptionIdx === idx}
-								on:mousedown|stopPropagation={(e) => editorState.toggleOption(idx)}
-								on:mouseenter={() => (focusedOptionIdx = idx)}
-							>
-								{#if multi || color }
-									<div class="loope small" style:background-color={color}>
-										{#if localValue?.includes(option)}
-											<i class="ri-check-line" />
-										{/if}
-									</div>
-								{/if}
-								{#if icon}
-									<i class={icon} />
-								{/if}
-								{label}
-							</div>
-						{/each}
-					{/if}
-				</div>
-			{/if}
-	</SuperPopover>
-{/if}
+
 
 <style>
 	.options {
@@ -750,10 +752,10 @@
 		font-size: 10px;
 		font-weight: 700;
 	}
-	.loope.dot {
+	.dot {
 		border-radius: 50%;
-		height: 8px;
-		width: 8px;
+		height: 6px;
+		width: 6px;
 		background-color: var(--spectrum-global-color-gray-800);
 	}
 	.option:hover,

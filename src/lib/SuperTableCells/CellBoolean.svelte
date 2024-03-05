@@ -52,6 +52,7 @@
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   class="superCell"
   class:inEdit={ $cellState == "Editing" }
@@ -69,7 +70,7 @@
       <i class={cellOptions.icon + " frontIcon"}></i>
     {/if}
 
-    {#if $cellState == "Editing"}
+    {#if $cellState == "Editing" }
       <div 
       class="editor"
       style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
