@@ -17,6 +17,7 @@
 	export let multi = false
 
 	const originalValue = value
+	let timer
 
 	// We always keep an internal value as an array
 	$: localValue = Array.isArray(value) ? value : value ? [value] : [];
@@ -31,6 +32,7 @@
 	let focusedOptionIdx = -1
 	let picker
 	let tableOptions
+	let fetch
 
 	let colorsArray = [
     "hsla(0, 90%, 75%, 0.3)",
@@ -41,19 +43,26 @@
     "hsla(320, 90%, 75%, 0.3)",
   ]
 
-	export let cellState = fsm("Loading", {
+	export let cellState = fsm("View", {
     "*": {
       goTo( state ) { return state },
+			loadOptions() { 
+				if ( !cellOptions.fullTable && cellOptions.optionsSource == "data" && !fetch ) { 
+					fetch = createFetch(cellOptions.datasource); 
+				};
+			},
 			fetchOptions() {
-				if (cellOptions.richData) {
+				if (cellOptions.fullTable) {
 					return;
-				} else if (cellOptions.optionsSource == 'data' && fetch && $fetch.loaded) {
+				} else if (cellOptions.optionsSource == 'data' && $fetch?.loaded ) {
 					options = $fetch.rows.map( (x) => x[cellOptions.valueColumn] )
 					$fetch.rows.forEach(element => {
 						optionColors[element[cellOptions.valueColumn]] = element[cellOptions.colorColumn] ;
 						optionIcons[element[cellOptions.valueColumn]] = element[cellOptions.iconColumn] ;
 						optionLabels[element[cellOptions.valueColumn]] = cellOptions.labelColumn ? element[cellOptions.labelColumn] : element[cellOptions.valueColumn];
 					});
+				} else if (cellOptions.optionsSource == 'data' && !$fetch?.loaded ) {
+					options = [];
 				} else if (cellOptions.optionsSource == 'custom') {
 					options = [];
 						if ( cellOptions.customOptions.length) {
@@ -66,36 +75,42 @@
 					options = fieldSchema?.constraints?.inclusion || [];
 					optionColors = fieldSchema?.optionColors || {};
 				}
-
 				filteredOptions = options;
 			},
     },
 		Loading: {
-			_enter() { 
-				if (cellOptions.optionsSource != "data") 
-				{
-					this.fetchOptions();
-					return cellOptions.initialState ?? "View";
-				}
-			},
+			_enter() {  },
 			syncFetch( fetch ) {
 				if ( fetch?.loaded ) {
-					this.fetchOptions();
+					this.fetchOptions(fetch?.loaded);
 					if (cellOptions.initialState) 
 						return cellOptions.initialState
 					else 
-						return "View";
+						return "Editing";
 				}
 			},
 		},
     View: { 
 			_enter() { },
+			syncFetch( fetch ) {
+				if ( fetch?.loaded ) this.fetchOptions(fetch?.loaded);
+			},
       focus () { 
-        if (!cellOptions.readonly && !cellOptions.disabled) {
-				 	return "Editing" 
-				}
-      }
-    },
+        if ( !cellOptions.readonly && !cellOptions.disabled ) {
+					if ( cellOptions.optionsSource == "data" && !fetch && !cellOptions.fullTable) {
+						this.loadOptions();
+						return "Loading"
+					}
+
+					if ( cellOptions.optionsSource == "data" && cellOptions.cache == false ) {
+						fetch = undefined;
+						this.loadOptions();
+						return "Loading";
+					} 
+					return "Editing"
+      	};
+    	}
+		},
     Hovered: { cancel: () => { return "View" }},
     Focused: { 
       unfocus() { return "View" },
@@ -105,9 +120,10 @@
 			_enter() {
 				dispatch("enteredit");
 				if ( cellOptions.autocomplete || cellOptions.role != "formInput") return;
-				editorState.open();
+				if ( cellOptions.controlType == "select" ) editorState.open();
 			},
 			_exit() {
+				editorState.close();
 				dispatch("exitedit")
 			},
 			change() { 
@@ -118,19 +134,18 @@
 
 			},
       focusout( e ) {
-				let target = e.relatedTarget ? e.relatedTarget : e.explicitOriginalTarget;
-				if ( !picker?.contains(e.explicitOriginalTarget) && !anchor?.contains(e.explicitOriginalTarget)) {
-					if ( !arrayEquals(originalValue, localValue ) && originalValue != localValue[0]) {
-						if (multi)
-							dispatch("change", localValue);
-						else 
-							dispatch("change", localValue[0]);
-					};
+				if ( picker?.contains(e.explicitOriginalTarget || picker?.contains(e.relatedTarget))) return;
+				if ( anchor?.contains(e.explicitOriginalTarget) && !e.relatedTarget ) return;
 
-					dispatch("focusout");
-					editorState.close();
-					return "View";
-				}
+				if ( !arrayEquals(originalValue, localValue ) && originalValue != localValue[0] && !cellOptions.debounce ) {
+					if (multi)
+						dispatch("change", localValue);
+					else 
+						dispatch("change", localValue[0]);
+				};
+
+				dispatch("focusout");
+				return "View";
 			}, 
       cancel() { return "View" },
     }
@@ -159,7 +174,12 @@
 					localValue = [option];
 				};
 
-				if (cellOptions.role == "inline") dispatch("change", localValue);
+				if (cellOptions.role == "inline" || cellOptions.debounce ) {  
+      		clearTimeout(timer);
+      		timer = setTimeout(() => {
+        		dispatch("change",  multi ? localValue : localValue[0])
+      		}, cellOptions.debounce ?? 0 );
+    		}
 				
 				if ( cellOptions.autocomplete ) {
 					if (multi) {
@@ -169,13 +189,12 @@
 				}
 				this.refocus.debounce(10);
 				if ( !multi ) { this.close.debounce(30) }
-
 			},
 		},
 		Open: {
 			_enter() { 
 				focusedOptionIdx = -1;
-				editor?.focus();
+				this.refocus.debounce(10);
 			},
 			_exit() {
 				editor?.focus();
@@ -313,9 +332,9 @@
 	$: columns = cellOptions.optionsArrangement || 1
 	$: inEdit = $cellState == 'Editing';
 	$: simpleView = cellOptions.optionsViewMode != 'pills';
-	$: fetch = createFetch ( cellOptions.optionsSource == "data" && !cellOptions.richData ? cellOptions.datasource : null )
+	$: if ( cellOptions.prefetch || cellOptions.controlType != "select" ) { cellState.loadOptions("View"); }
+	$: cellState.fetchOptions(cellOptions);
 	$: cellState.syncFetch($fetch)
-	$: cellState.fetchOptions(cellOptions)
 
 	const createFetch = ( datasource ) => {
 		return fetchData({
@@ -346,7 +365,7 @@
 	}
 
 	const getOptionIcon = (value) => {
-		return cellOptions.useOptionIcons ? optionIcons[value] : undefined
+		return cellOptions.optionsIcon ? cellOptions.optionsIcon : optionIcons[value]
 	};
 
 	const arrayEquals = (a, b) => {
@@ -360,7 +379,7 @@
 		node?.focus()
 	}
 
-	$: if ( cellOptions.richData ) tableOptions = {
+	$: if ( cellOptions.fullTable ) tableOptions = {
       superColumnsPos: "first",
       columnSizing : "flexible",
       columnMaxWidth: "auto",
@@ -368,6 +387,9 @@
 			size: "S",
       visibleRowCount: 7,
       rowSelectMode: multi ? "multi" : "single",
+			selectionLimit: multi ? 0 : 1,
+			preselectedId: multi ? undefined : localValue[0],
+			preselectedIds: multi ? localValue.toString() : undefined,
       selectionColumn : false,
       dividers: "horizontal",
       dividersColor: null,
@@ -375,12 +397,12 @@
       rowHeight: 32,
       showFooter : false,
       showHeader : true,
-			canFilter: false,
+			canFilter: true,
 			canSort: true,
 			canEdit: false,
 			canDelete: false,
 			canInsert: false,
-			canResize: false,
+			canResize: true,
 			datasource : cellOptions.datasource,
 			idColumn : cellOptions.valueColumn,
 			filter: cellOptions.filter,
@@ -397,27 +419,29 @@
 			useOptionColors: true,
 			optionsViewMode: "text",
 			relViewMode : "text",
-			onRowSelect : ( arr ) => {
-				var val = arr.map(( x ) => { return { _id: x[valueColumn], primaryDisplay : x[labelColumn]} })
-				dispatch("change", val)
+			onRowSelect : ( obj ) => {
+				var val = obj.selectedRows.map(( x ) => { return x[cellOptions.valueColumn] });
+				localValue = val;
+				editorState?.refocus();
+				if (!multi) editorState.close();
 			}
   };
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
 	bind:this={anchor}
 	class="superCell"
 	class:inEdit
 	class:disabled = { cellOptions.disabled }
 	class:error = { cellOptions.error }
-	class:focused = { inEdit || $editorState == "Open" }
+	class:focused = { $cellState == "Editing" }
 	class:inline={ cellOptions.role == 'inline' }
-	class:tableCell={cellOptions.role == 'tableCell'}
-	class:formInput={cellOptions.role == 'formInput'}
-	style:color={cellOptions.color}
+	class:tableCell={ cellOptions.role == 'tableCell'}
+	class:formInput={ cellOptions.role == 'formInput'}
+	style:color={ cellOptions.color}
 	style:background={ inEdit ? "var(--spectrum-global-color-gray-50" : cellOptions.background}
 	style:font-weight={cellOptions.fontWeight}
 	style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
@@ -431,7 +455,11 @@
 
 		{#if cellOptions.controlType == 'checkbox'}
 			<div 
-				class="options checkboxes" 
+				class="options checkboxes editor"
+				tabindex="0"
+				bind:this={editor}
+				on:focusout={cellState.focusout}
+				on:focus={cellState.focus} 
 				style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
 				on:mouseleave={() => focusedOptionIdx = -1}
 			>
@@ -461,7 +489,11 @@
 			</div>
 		{:else if cellOptions.controlType == "radio"}
 		<div 
-			class="options checkboxes" 
+			class="options checkboxes editor" 
+			tabindex="0"
+			bind:this={editor}
+			on:focusout={cellState.focusout}
+			on:focus={cellState.focus}
 			style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
 			on:mouseleave={() => focusedOptionIdx = -1}
 		>
@@ -474,7 +506,7 @@
 						class="option"
 						class:selected
 						class:focused={focusedOptionIdx === idx}
-						on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
+						on:click={(e) => editorState.toggleOption(idx)}
 						on:mouseenter={() => ( focusedOptionIdx = cellOptions.disabled ? null : idx )}
 					>
 						{#if icon}
@@ -495,7 +527,11 @@
 
 		{:else if cellOptions.controlType == 'switch'}
 			<div 
-				class="options checkboxes" 
+				class="options checkboxes editor"
+				bind:this={editor}
+				tabindex="0"
+				on:focusout={cellState.focusout}
+				on:focus={cellState.focus} 
 				on:mouseleave={() => focusedOptionIdx = -1}
 				style:grid-template-columns={ "repeat( " + columns + " , 1fr" }
 			>
@@ -656,8 +692,10 @@
 			maxHeight={400}
 			open={ $editorState == "Open" }
 			>
-				{#if cellOptions.richData}
-					<SuperTable {...tableOptions} />
+				{#if cellOptions.fullTable}
+					<div bind:this={picker} >
+						<SuperTable {...tableOptions} />
+					</div>
 				{:else}
 					<div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1} >
 						{#if filteredOptions.length < 1}
@@ -676,7 +714,7 @@
 									on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
 									on:mouseenter={ () => (focusedOptionIdx = idx)}
 								>
-									{#if multi || color }
+									{#if multi || (color && !icon) }
 										<div class="loope small" style:background-color={color}>
 											{#if localValue?.includes(option)}
 												<i class="ri-check-line" />
@@ -684,9 +722,9 @@
 										</div>
 									{/if}
 									{#if icon}
-										<i class={icon} />
+										<i class={icon} style:color />
 									{/if}
-									{label}
+									<span>{label}</span>
 								</div>
 							{/each}
 						{/if}
@@ -695,8 +733,6 @@
 		</SuperPopover>
 	{/if}
 </div>
-
-<!-- svelte-ignore a11y-no-static-element-interactions -->
 
 
 <style>
@@ -714,7 +750,6 @@
     display: grid; 
     padding: 0.25rem 0.25rem;
   }
-
 	.option {
 		line-height: 18px;
 		padding: 0.25rem;
@@ -724,6 +759,12 @@
 		align-items: center;
 		cursor: pointer;
 		color: var(--spectrum-global-color-gray-700);
+	}
+
+	.option > span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.option.selected {

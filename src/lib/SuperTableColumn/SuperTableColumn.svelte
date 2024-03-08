@@ -178,10 +178,11 @@
     addNew: false,
     placeholder: " ",
     datasource: columnOptions.data?.datasource,
+    limit: columnOptions.data?.limit,
     valueColumn : columnOptions.data?.valueColumn,
     labelColumn : columnOptions.data?.labelColumn,
-    iconColumn : columnOptions.data?.iconColumn,
-    colorColumn : columnOptions.data?.colorColumn,
+    fullTable : columnOptions.data?.fullTable,
+    columnList : columnOptions.data?.columnList
   }
 
   // Reactive declaration.
@@ -228,8 +229,8 @@
   class="superTableColumn"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:min-width={getMinWidth($lockWidth)} 
-  style:max-width={getMaxWidth($lockWidth)} 
+  style:min-width={getMinWidth($lockWidth,columnOptions)} 
+  style:max-width={getMaxWidth($lockWidth,columnOptions)} 
   on:mouseleave={() => $stbHovered = null }
 >
   {#if columnOptions.showHeader && columnOptions.canResize}

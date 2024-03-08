@@ -72,9 +72,9 @@
   export let selectionColumn
   export let selectionLimit
 
-  export let columnSizing
+  export let columnSizing = "flex"
   export let columnMinWidth = "6rem"
-  export let columnMaxWidth
+  export let columnMaxWidth = "auto"
   export let columnFixedWidth
 
   export let headerFontSize, headerColor, headerBgColor, headerAlign;
@@ -133,7 +133,7 @@
     paginate,
   })
 
-  $: populateColumns( $stbData, columnList, autocolumns )
+  $: populateColumns( $stbData, columnList, autocolumns, columnSizing, columnFixedWidth, columnMaxWidth, columnMinWidth )
 
   $: tableOptions = {
     superColumnsPos,
@@ -667,4 +667,10 @@
     display: none;
   }
 
+  .st-master-columns:first-child {
+    position: fixed;
+    left: 0;
+     z-index: 2;
+     border: 2px solid lime;
+  }
 </style>
