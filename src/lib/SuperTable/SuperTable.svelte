@@ -666,11 +666,4 @@
   .st-master-columns::-webkit-scrollbar {
     display: none;
   }
-
-  .st-master-columns:first-child {
-    position: fixed;
-    left: 0;
-     z-index: 2;
-     border: 2px solid lime;
-  }
 </style>
