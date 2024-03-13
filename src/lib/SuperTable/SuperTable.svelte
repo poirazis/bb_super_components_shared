@@ -2,11 +2,15 @@
   import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
-  import { sizingMap, defaultOperatorMap, supportFilteringMap, supportSortingMap, supportEditingMap } from "./constants.js"
- 
   import {
-    createSuperTableStateStore,
-  } from "./stores/superTableStores.js";
+    sizingMap,
+    defaultOperatorMap,
+    supportFilteringMap,
+    supportSortingMap,
+    supportEditingMap,
+  } from "./constants.js";
+
+  import { createSuperTableStateStore } from "./stores/superTableStores.js";
 
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
@@ -14,26 +18,27 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
 
-  const { API , 
-    processStringSync, 
-    notificationStore, 
-    ActionTypes, 
-    Provider, 
-    ContextScopes, 
-    fetchData, 
-    LuceneUtils } = getContext("sdk");
-  
+  const {
+    API,
+    processStringSync,
+    notificationStore,
+    ActionTypes,
+    Provider,
+    fetchData,
+    LuceneUtils,
+  } = getContext("sdk");
+
   // Create Stores
   const tableStateStore = createSuperTableStateStore();
   const stbScrollPos = new writable(0);
 
   const stbHovered = new writable(-1);
-  const stbEditing = new writable(-1)
-  const stbSettings = new writable({})
-  const stbSortColumn = new writable({})
-  const stbSortOrder = new writable({})
+  const stbEditing = new writable(-1);
+  const stbSettings = new writable({});
+  const stbSortColumn = new writable({});
+  const stbSortOrder = new writable({});
 
-  const stbRowHeights = new writable([]); 
+  const stbRowHeights = new writable([]);
   const stbRowColors = new writable([]);
 
   const stbVerticalScroll = new writable(0);
@@ -42,40 +47,40 @@
   const stbHorizontalScroll = new writable(0);
   const stbHorizontalRange = new writable(1);
 
-  export let datasource
+  export let datasource;
   export let idColumn;
-  export let sortColumn
-  export let sortOrder
-  export let limit
-  export let fetchOnScroll
-  export let fetchPageSize
-  export let autoRefresh
-  export let autoRefreshRate
-  export let paginate
-  export let filter
-  export let columnList = []
-  export let autocolumns 
+  export let sortColumn;
+  export let sortOrder;
+  export let limit;
+  export let fetchOnScroll;
+  export let fetchPageSize;
+  export let autoRefresh;
+  export let autoRefreshRate;
+  export let paginate;
+  export let filter;
+  export let columnList = [];
+  export let autocolumns;
 
   export let visibleRowCount;
   export let showFooter;
   export let showHeader;
   export let size;
-  export let canInsert, canDelete, canEdit, canSort, canResize, canFilter
-  export let showFilterOperators
+  export let canInsert, canDelete, canEdit, canSort, canResize, canFilter;
+  export let showFilterOperators;
   export let superColumnsPos;
 
-  export let debounce = 750
+  export let debounce = 750;
 
-  export let rowSelectMode
-  export let preselectedId
-  export let preselectedIds
-  export let selectionColumn
-  export let selectionLimit
+  export let rowSelectMode;
+  export let preselectedId;
+  export let preselectedIds;
+  export let selectionColumn;
+  export let selectionLimit;
 
-  export let columnSizing = "flex"
-  export let columnMinWidth = "6rem"
-  export let columnMaxWidth = "auto"
-  export let columnFixedWidth
+  export let columnSizing = "flex";
+  export let columnMinWidth = "6rem";
+  export let columnMaxWidth = "auto";
+  export let columnFixedWidth;
 
   export let headerFontSize, headerColor, headerBgColor, headerAlign;
   export let dividers, dividersColor;
@@ -86,16 +91,19 @@
     rowColorTemplate,
     rowBGColorTemplate;
 
-  export let footerAlign, footerFontSize, footerColorTemplate, footerBGColorTemplate;
+  export let footerAlign,
+    footerFontSize,
+    footerColorTemplate,
+    footerBGColorTemplate;
 
-  export let customCellPadding
-  export let customBaseFont
-  export let customRowHeight
-  export let useOptionColors = true
-  export let optionsViewMode = "pills"
-  export let relViewMode = "pills"
-  export let zebraColors = false
-  export let highlighters 
+  export let customCellPadding;
+  export let customBaseFont;
+  export let customRowHeight;
+  export let useOptionColors = true;
+  export let optionsViewMode = "pills";
+  export let relViewMode = "pills";
+  export let zebraColors = false;
+  export let highlighters;
 
   // Events
   export let onRowSelect;
@@ -103,37 +111,46 @@
   export let onRowClick;
   export let onRowDblClick;
 
-  let timer
-  let anchor
-  let columns = []
-  let autocolumnsList = []
-  let schema = {}
-  let query = {}
-  let queryExtensions = {}
-  let stbColumnFilters = []
-  let highlighted
-  let columnsBodyAnchor
-  let loadedDatasource
-  let stbData
+  let timer;
+  let anchor;
+  let columns = [];
+  let autocolumnsList = [];
+  let schema = {};
+  let query = {};
+  let queryExtensions = {};
+  let stbColumnFilters = [];
+  let highlighted;
+  let columnsBodyAnchor;
+  let stbData;
+
   const stbSelected = new writable([]);
 
-  $: if ( rowSelectMode == "single" ) $stbSelected[0] = preselectedId
-  $: if ( rowSelectMode == "multi" && preselectedIds ) $stbSelected = preselectedIds?.split(",")
+  $: if (rowSelectMode == "single") $stbSelected[0] = preselectedId;
+  $: if (rowSelectMode == "multi" && preselectedIds)
+    $stbSelected = preselectedIds?.split(",");
 
-  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter)
-  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters)
-  $: addQueryExtension("1000", queryExtension)
-  $: query = extendQuery(defaultQuery, queryExtensions)
-  $: stbData = createFetch(datasource)
+  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter);
+  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters);
+  $: addQueryExtension("1000", queryExtension);
+  $: query = extendQuery(defaultQuery, queryExtensions);
+  $: stbData = createFetch(datasource);
   $: stbData?.update({
     query,
     sortColumn,
     sortOrder,
     limit,
     paginate,
-  })
+  });
 
-  $: populateColumns( $stbData, columnList, autocolumns, columnSizing, columnFixedWidth, columnMaxWidth, columnMinWidth )
+  $: populateColumns(
+    $stbData,
+    columnList,
+    autocolumns,
+    columnSizing,
+    columnFixedWidth,
+    columnMaxWidth,
+    columnMinWidth
+  );
 
   $: tableOptions = {
     superColumnsPos,
@@ -150,7 +167,8 @@
     dividersColor,
     showFooter,
     showHeader,
-    headerHeight: size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
+    headerHeight:
+      size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
     features: {
       canFilter,
       showFilterOperators,
@@ -160,7 +178,7 @@
       canInsert,
       canResize,
     },
-    data: { 
+    data: {
       datasource,
       idColumn,
       filter,
@@ -171,7 +189,7 @@
       autoRefresh,
       autoRefreshRate,
       fetchOnScroll,
-      fetchPageSize
+      fetchPageSize,
     },
     columns,
     autocolumns,
@@ -190,61 +208,66 @@
       rowBGColorTemplate,
       footerColorTemplate,
       footerBGColorTemplate,
-      cellPadding: size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
+      cellPadding:
+        size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
     },
     events: {
       onRowClick,
       onRowDblClick,
       onCellChange,
       onRowSelect,
-    }
+    },
   };
 
   // Generate Layout required variables first so we can render early on
-  $: defaultRowHeight = size == "custom" ? customRowHeight : sizingMap[size].rowHeight
-  $: if ( size == "custom" ) {
-    $stbRowHeights = [ ... new Array(visibleRowCount).fill(defaultRowHeight) ]
+  $: defaultRowHeight =
+    size == "custom" ? customRowHeight : sizingMap[size].rowHeight;
+  $: if (size == "custom") {
+    $stbRowHeights = [...new Array(visibleRowCount).fill(defaultRowHeight)];
   } else {
-    $stbRowHeights = [ ... new Array(visibleRowCount).fill(defaultRowHeight) ]
+    $stbRowHeights = [...new Array(visibleRowCount).fill(defaultRowHeight)];
   }
 
-  $: maxBodyHeight = visibleRowCount * defaultRowHeight
+  $: maxBodyHeight = visibleRowCount * defaultRowHeight;
 
-  $: if ( fetchOnScroll && $stbVerticalScroll > 0.8 && limit == $stbData?.rows.length ) {
+  $: if (
+    fetchOnScroll &&
+    $stbVerticalScroll > 0.8 &&
+    limit == $stbData?.rows.length
+  ) {
     limit = limit + fetchPageSize < 1000 ? limit + fetchPageSize : 1000;
-    $stbVerticalScroll = 0.8
+    $stbVerticalScroll = 0.8;
   }
 
-
-  $: if (autoRefresh ) {
+  $: if (autoRefresh && stbData) {
     timer = setInterval(() => {
       stbData.refresh();
     }, autoRefreshRate * 1000);
   }
-        
-  $: $stbSettings = tableOptions
-  $: stbState.synch($stbData)
 
-  // Super Table State Machine 
+  $: $stbSettings = tableOptions;
+  $: stbState.synch($stbData);
+
+  // Super Table State Machine
   const stbState = fsm("Loading", {
-    "*" : {
-      handleKeyboard( e ) { },
-      addFilter( filterObj ) { 
-        this.removeFilter( filterObj.id )
-        stbColumnFilters = [ ...stbColumnFilters, filterObj]
+    "*": {
+      handleKeyboard(e) {},
+      addFilter(filterObj) {
+        this.removeFilter(filterObj.id);
+        stbColumnFilters = [...stbColumnFilters, filterObj];
       },
-      removeFilter ( id ) {
-        let pos = stbColumnFilters.find(x => x.id == id )
-        if (pos) { 
-          stbColumnFilters = stbColumnFilters.toSpliced( pos, 1)
+      removeFilter(id) {
+        let pos = stbColumnFilters.find((x) => x.id == id);
+        if (pos) {
+          stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
         }
       },
-      clearFilter() { 
+      clearFilter() {
         stbColumnFilters = [];
-        removeQueryExtension("123"); 
-        return "Idle" 
+        removeQueryExtension("123");
+        return "Idle";
       },
-      sortBy( column, order ) {  
+      sortBy(column, order) {
         sortColumn = column;
         sortOrder = order;
         $stbSortColumn = column;
@@ -255,186 +278,205 @@
       exportData() {},
       deleteRow() {},
       addRow() {},
-      toggleSelectRow( rowID ) {
+      toggleSelectRow(rowID) {
         if ($stbSettings.rowSelectMode == "multi") {
           if ($stbSelected.includes(rowID)) {
-            $stbSelected.splice($stbSelected.indexOf(rowID), 1)
-            $stbSelected = $stbSelected
+            $stbSelected.splice($stbSelected.indexOf(rowID), 1);
+            $stbSelected = $stbSelected;
           } else {
-            if ( $stbSelected.length < selectionLimit || selectionLimit == 0 )
-              $stbSelected = [ ...$stbSelected, rowID ]
+            if ($stbSelected.length < selectionLimit || selectionLimit == 0)
+              $stbSelected = [...$stbSelected, rowID];
             else
-              notificationStore.actions.warning("Cannot select more than " + selectionLimit + " rows")
+              notificationStore.actions.warning(
+                "Cannot select more than " + selectionLimit + " rows"
+              );
           }
-          onRowSelect?.(
-            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
-              selectedIds: $stbSelected } 
-              )
-        } else if ($stbSettings.rowSelectMode == "single") { 
-          if ($stbSelected.includes(rowID)) { $stbSelected = []}           
-          else { $stbSelected = [rowID] };
-          onRowSelect?.(
-            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
-              selectedIds: $stbSelected } 
-              )
-        }
-      },
-      toggleSelectAllRows () {
-        if ($stbSettings.rowSelectMode == "multi") {
-          if ( $stbSelected.length != $stbData.rows.length ) 
-            $stbSelected = $stbData.rows.map ( x => x[idColumn])
-          else
+          onRowSelect?.({
+            selectedRows: $stbData.rows.filter((x) =>
+              $stbSelected.includes(x[idColumn])
+            ),
+            selectedIds: $stbSelected,
+          });
+        } else if ($stbSettings.rowSelectMode == "single") {
+          if ($stbSelected.includes(rowID)) {
             $stbSelected = [];
-            
-            onRowSelect?.(
-            { selectedRows: $stbData.rows.filter ( x => $stbSelected.includes(x[idColumn]) ),
-              selectedIds: $stbSelected } 
-              )
+          } else {
+            $stbSelected = [rowID];
+          }
+          onRowSelect?.({
+            selectedRows: $stbData.rows.filter((x) =>
+              $stbSelected.includes(x[idColumn])
+            ),
+            selectedIds: $stbSelected,
+          });
         }
       },
-      cellChanged( change ) {
-        console.log( "Change", change )
+      toggleSelectAllRows() {
+        if ($stbSettings.rowSelectMode == "multi") {
+          if ($stbSelected.length != $stbData.rows.length)
+            $stbSelected = $stbData.rows.map((x) => x[idColumn]);
+          else $stbSelected = [];
+
+          onRowSelect?.({
+            selectedRows: $stbData.rows.filter((x) =>
+              $stbSelected.includes(x[idColumn])
+            ),
+            selectedIds: $stbSelected,
+          });
+        }
+      },
+      cellChanged(change) {
+        console.log("Change", change);
 
         onCellChange?.({
-          rowID : change.rowID,
-          field : change.field,
-          value : change.value,
-          previousValue : change.previousValue
-        })
+          rowID: change.rowID,
+          field: change.field,
+          value: change.value,
+          previousValue: change.previousValue,
+        });
       },
-      cellClicked( columnID, rowID ) { },
-      rowDblClicked ( rowID ) { 
-        onRowDblClick?.( $stbData.rows.find( x => x[idColumn] == rowID ) )
+      cellClicked(columnID, rowID) {},
+      rowDblClicked(rowID) {
+        onRowDblClick?.($stbData.rows.find((x) => x[idColumn] == rowID));
       },
-      rowClicked( rowID ) { 
-        onRowClick?.( $stbData.rows.find( x => x[idColumn] == rowID ) );
-        if ( rowSelectMode != "off" && !canEdit )
-          this.toggleSelectRow ( rowID)
+      rowClicked(rowID) {
+        onRowClick?.($stbData.rows.find((x) => x[idColumn] == rowID));
+        if (rowSelectMode != "off" && !canEdit) this.toggleSelectRow(rowID);
       },
       getRowColors() {
         if ($stbData?.loading) return;
 
-        if ( rowBGColorTemplate || rowColorTemplate ) {
-          $stbRowColors = []
-          $stbRowColors = $stbData?.rows.map ( ( row ) => {
-            return { bgcolor : processStringSync( rowBGColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-50)",
-                     color : processStringSync( rowColorTemplate ?? "", {Row : row } ) ?? "var(--spectrum-global-color-gray-800)"}
-          })  
-        } else if (zebraColors ) {
-          $stbRowColors = $stbRowHeights.map ( ( row, idx ) => {
-            return { bgcolor : ( idx % 2 == 1) ? "var(--spectrum-global-color-gray-75)" : "inherit",
-                     color : "var(--spectrum-global-color-gray-800)" };
-          })
+        if (rowBGColorTemplate || rowColorTemplate) {
+          $stbRowColors = [];
+          $stbRowColors = $stbData?.rows.map((row) => {
+            return {
+              bgcolor:
+                processStringSync(rowBGColorTemplate ?? "", { Row: row }) ??
+                "var(--spectrum-global-color-gray-50)",
+              color:
+                processStringSync(rowColorTemplate ?? "", { Row: row }) ??
+                "var(--spectrum-global-color-gray-800)",
+            };
+          });
+        } else if (zebraColors) {
+          $stbRowColors = $stbRowHeights.map((row, idx) => {
+            return {
+              bgcolor:
+                idx % 2 == 1
+                  ? "var(--spectrum-global-color-gray-75)"
+                  : "inherit",
+              color: "var(--spectrum-global-color-gray-800)",
+            };
+          });
         } else {
-          $stbRowColors = $stbRowHeights.map ( ( row ) => {
-            return { bgcolor : "inherit",
-                     color : "var(--spectrum-global-color-gray-800)"}
-          }) 
+          $stbRowColors = $stbRowHeights.map((row) => {
+            return {
+              bgcolor: "inherit",
+              color: "var(--spectrum-global-color-gray-800)",
+            };
+          });
         }
       },
-      setState( state ) { 
+      setState(state) {
         if (state?.loaded) {
           this.getRowColors();
-          return "Idle"
+          return "Idle";
         }
-       } 
+      },
     },
-    Idle: { 
+    Idle: {
       _enter() {
-        $stbRowHeights = visibleRowCount > $stbData?.rows.length 
-          ? new Array( visibleRowCount).fill(defaultRowHeight) 
-          : new Array($stbData?.rows.length).fill(defaultRowHeight);
+        $stbRowHeights =
+          visibleRowCount > $stbData?.rows.length
+            ? new Array(visibleRowCount).fill(defaultRowHeight)
+            : new Array($stbData?.rows.length).fill(defaultRowHeight);
 
         this.getRowColors();
       },
-      synch( fetchState ) { 
+      synch(fetchState) {
         this.getRowColors();
-        if (fetchState?.loading) return "Loading" 
+        if (fetchState?.loading) return "Loading";
       },
-     },
-    Loading: { 
+    },
+    Loading: {
       loaded: "Idle",
-      synch( fetchState ) { 
-        if (fetchState?.loaded && stbColumnFilters?.length > 0) 
+      synch(fetchState) {
+        if (fetchState?.loaded && stbColumnFilters?.length > 0)
           return "Filtered";
-        else  
-          return "Idle"
-        },
+        else return "Idle";
+      },
     },
-    Filtered: { 
-      _enter() { this.getRowColors() },
-      synch( fetchState ) { 
-        if (fetchState?.loaded && stbColumnFilters?.length > 0) 
+    Filtered: {
+      _enter() {
+        this.getRowColors();
+      },
+      synch(fetchState) {
+        if (fetchState?.loaded && stbColumnFilters?.length > 0)
           this.getRowColors();
-        else  
-          return "Idle"
-        },
+        else return "Idle";
+      },
     },
-    Editing: { },
-    Empty: { },
-    Sorted: { },
-    Empty: { }
+    Editing: {},
+    Empty: {},
+    Sorted: {},
+    Empty: {},
   });
 
   const syncScroll = (e) => {
-    if ( columnsBodyAnchor ) {
-      const { scrollLeftMax, scrollLeft , scrollWidth , clientWidth } = columnsBodyAnchor
-      $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1
-      $stbHorizontalScroll = scrollLeft / scrollLeftMax
+    if (columnsBodyAnchor) {
+      const { scrollLeftMax, scrollLeft, scrollWidth, clientWidth } =
+        columnsBodyAnchor;
+      $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1;
+      $stbHorizontalScroll = scrollLeft / scrollLeftMax;
     }
-  }
+  };
 
-  const createFetch = datasource => {
-    if ( loadedDatasource != datasource ) {
-      loadedDatasource = datasource
-      return fetchData({
-        API,
-        datasource,
-        options: {
-          query,
-          sortColumn,
-          sortOrder,
-          limit,
-          paginate,
-        },
-      })
-    } else {
-      return stbData
-    }
-  }
+  const createFetch = (datasource) => {
+    return fetchData({
+      API,
+      datasource,
+      options: {
+        query,
+        sortColumn,
+        sortOrder,
+        limit,
+        paginate,
+      },
+    });
+  };
 
   const extendQuery = (defaultQuery, extensions) => {
-    const extensionValues = Object.values(extensions || {})
-    let extendedQuery = { ...defaultQuery }
-    extensionValues.forEach(extension => {
+    const extensionValues = Object.values(extensions || {});
+    let extendedQuery = { ...defaultQuery };
+    extensionValues.forEach((extension) => {
       Object.entries(extension || {}).forEach(([operator, fields]) => {
         extendedQuery[operator] = {
           ...extendedQuery[operator],
           ...fields,
-        }
-      })
-    })
-    return extendedQuery
-  }
+        };
+      });
+    });
+    return extendedQuery;
+  };
 
   const addQueryExtension = (key, extension) => {
     if (!key || !extension) {
-      return
+      return;
     }
-    queryExtensions = { ...queryExtensions, [key]: extension }
-  }
+    queryExtensions = { ...queryExtensions, [key]: extension };
+  };
 
-  const removeQueryExtension = key => {
+  const removeQueryExtension = (key) => {
     if (!key) {
-      return
+      return;
     }
-    const newQueryExtensions = { ...queryExtensions }
-    delete newQueryExtensions[key]
-    queryExtensions = newQueryExtensions
-  }
+    const newQueryExtensions = { ...queryExtensions };
+    delete newQueryExtensions[key];
+    queryExtensions = newQueryExtensions;
+  };
 
-  const makeSuperColumn = bbcolumn  => {
-    let schema = $stbData.schema
+  const makeSuperColumn = (bbcolumn) => {
+    let schema = $stbData.schema;
     let superColumn = {
       ...bbcolumn,
       hasChildren: false,
@@ -447,57 +489,71 @@
       canResize: canResize,
       showFooter: showFooter,
       showHeader: showHeader,
-      headerHeight: size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
+      headerHeight:
+        size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
       highlighters: highlighters,
-      canEdit: bbcolumn.autocolumn ? false : canEdit && supportEditingMap[schema[bbcolumn.name].type],
-      canFilter: supportFilteringMap[schema[bbcolumn.name]?.type] ? canFilter : false,
+      canEdit: bbcolumn.autocolumn
+        ? false
+        : canEdit && supportEditingMap[schema[bbcolumn.name].type],
+      canFilter: supportFilteringMap[schema[bbcolumn.name]?.type]
+        ? canFilter
+        : false,
       showFilterOperators: showFilterOperators,
       canSort: canSort && supportSortingMap[schema[bbcolumn.name].type],
-      filteringOperators: LuceneUtils.getValidOperatorsForType( { type: schema[bbcolumn.name].type } ),
+      filteringOperators: LuceneUtils.getValidOperatorsForType({
+        type: schema[bbcolumn.name].type,
+      }),
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
-      cellPadding: size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
+      cellPadding:
+        size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
-      useOptionColors: useOptionColors, 
+      useOptionColors: useOptionColors,
       optionsViewMode: optionsViewMode,
       relViewMode: relViewMode,
-      zebraColors: zebraColors
-    }
-    return superColumn
-  }
+      zebraColors: zebraColors,
+    };
+    return superColumn;
+  };
 
-  const populateColumns = ( data, list, auto ) => {
-    if ( data?.schema ) {
-      schema = data.schema
-      columns = []
-      autocolumnsList = []
+  const populateColumns = (data, list, auto) => {
+    if (data?.schema) {
+      schema = data.schema;
+      columns = [];
+      autocolumnsList = [];
       if (auto) {
-            autocolumnsList = Object.keys(schema).filter ( v => schema[v].autocolumn).map( (v) => makeSuperColumn( schema[v]) )
-          }
+        autocolumnsList = Object.keys(schema)
+          .filter((v) => schema[v].autocolumn)
+          .map((v) => makeSuperColumn(schema[v]));
+      }
 
-      if (list?.length)
-        columns = list.map( (column) => makeSuperColumn (column) )
-      else 
-        columns = Object.keys(schema).filter ( v => !schema[v].autocolumn)
-                                     .filter( v => schema[v]?.visible != false )
-                                     .map( (v) => makeSuperColumn( schema[v]) )
+      if (list?.length) columns = list.map((column) => makeSuperColumn(column));
+      else
+        columns = Object.keys(schema)
+          .filter(
+            (v) =>
+              !schema[v].autocolumn &&
+              schema[v]?.visible != false &&
+              v != idColumn
+          )
+          .map((v) => makeSuperColumn(schema[v]));
 
-      columns = [ ...columns,  ...autocolumnsList ]
+      columns = [...columns, ...autocolumnsList];
     }
-  }
+  };
 
-  beforeUpdate( () => {
-    if ( columnsBodyAnchor ) {
-      const { scrollWidth , clientWidth } = columnsBodyAnchor
-      $stbHorizontalRange = scrollWidth > clientWidth ? clientWidth / scrollWidth : 1
+  beforeUpdate(() => {
+    if (columnsBodyAnchor) {
+      const { scrollWidth, clientWidth } = columnsBodyAnchor;
+      $stbHorizontalRange =
+        scrollWidth > clientWidth ? clientWidth / scrollWidth : 1;
     }
+  });
 
-  })
-
-  // Global Bindings 
+  // Global Bindings
   $: actions = [
     {
       type: ActionTypes.ClearRowSelection,
-      callback: () => ($stbSelected = [])
+      callback: () => ($stbSelected = []),
     },
     {
       type: ActionTypes.RefreshDatasource,
@@ -514,31 +570,33 @@
     {
       type: ActionTypes.SetDataProviderSorting,
       callback: ({ column, order }) => {
-        let newOptions = {}
+        let newOptions = {};
         if (column) {
-          newOptions.sortColumn = column
+          newOptions.sortColumn = column;
         }
         if (order) {
-          newOptions.sortOrder = order
+          newOptions.sortOrder = order;
         }
         if (Object.keys(newOptions)?.length) {
-          fetch.update(newOptions)
+          fetch.update(newOptions);
         }
       },
     },
-  ]
+  ];
 
   // Build our data context
   $: dataContext = {
     rows: $stbData?.rows,
-    selectedRows: $stbData?.rows.filter( x => $stbSelected.includes(x[idColumn])),
+    selectedRows: $stbData?.rows.filter((x) =>
+      $stbSelected.includes(x[idColumn])
+    ),
     selectedIds: $stbSelected,
     info: $stbData?.info,
     datasource: datasource || {},
     schema,
     rowsLength: $stbData?.rows.length,
-    pageNumber: $stbData?.pageNumber + 1
-  }
+    pageNumber: $stbData?.pageNumber + 1,
+  };
 
   setContext("tableStateStore", tableStateStore);
   setContext("stbScrollPos", stbScrollPos);
@@ -549,11 +607,11 @@
   setContext("stbEditing", stbEditing);
   setContext("tableState", stbState);
   setContext("stbSettings", stbSettings);
-  setContext("stbSortColumn", stbSortColumn)
-  setContext("stbSortOrder", stbSortOrder)
-  setContext("stbRowHeights", stbRowHeights)
-  setContext("stbRowColors", stbRowColors)
-  $: setContext("stbData", stbData)
+  setContext("stbSortColumn", stbSortColumn);
+  setContext("stbSortOrder", stbSortOrder);
+  setContext("stbRowHeights", stbRowHeights);
+  setContext("stbRowColors", stbRowColors);
+  $: setContext("stbData", stbData);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -563,7 +621,8 @@
   bind:this={anchor}
   tabindex="0"
   class="st-master-wrapper"
-  style:--spectrum-table-border-color={tableOptions.dividersColor ?? "var(--spectrum-alias-border-color-mid)"}
+  style:--spectrum-table-border-color={tableOptions.dividersColor ??
+    "var(--spectrum-alias-border-color-mid)"}
   style:--super-table-body-height={maxBodyHeight + "px"}
   style:--super-table-horizontal-dividers={tableOptions.dividers == "both" ||
   tableOptions.dividers == "horizontal"
@@ -573,72 +632,82 @@
   tableOptions.dividers == "vertical"
     ? "1px solid var(--spectrum-table-border-color)"
     : "none"}
-
-  on:mouseenter={ () => highlighted = true }
-  on:mouseleave={ () => highlighted = false }
+  on:mouseenter={() => (highlighted = true)}
+  on:mouseleave={() => (highlighted = false)}
   on:keydown={stbState.handleKeyboard}
 >
   <!-- Context Provider -->
   <Provider {actions} data={dataContext}>
-
-  {#if selectionColumn || (canEdit && rowSelectMode != "off") }
-    <SuperTableRowSelect 
-      {stbState} 
-      {stbSettings}
-      {stbData} 
-      {stbSelected}
-      {stbHovered}
-      {stbEditing}
-      {stbScrollPos}
-      {stbVerticalScroll}
-      {tableStateStore}
-      {stbRowHeights}
-      {stbRowColors}
-      headerHeight={size == "custom" ? customCellPadding : sizingMap[size].headerHeight} 
-      loading={$stbData?.loading}      
-    />
-  {/if}
-  
-  <div 
-    bind:this={columnsBodyAnchor} 
-    class="st-master-columns" 
-    on:scroll={syncScroll}>
-    {#if $stbData?.loaded}
-      {#if $stbSettings.superColumnsPos == "first"} <slot /> {/if}
-      {#if columns?.length}
-        {#each columns as column, idx }
-          <SuperTableColumn
-            {stbState}
-            columnOptions = {{
-              ...column,
-              canEdit: column.canEdit}}
-          />
-        {/each}
-      {/if}
-      {#if $stbSettings.superColumnsPos == "last"} <slot /> {/if}
-    {:else}
-      <CellSkeleton > Loading ... </CellSkeleton>
+    {#if selectionColumn || (canEdit && rowSelectMode != "off")}
+      <SuperTableRowSelect
+        {stbState}
+        {stbSettings}
+        {stbData}
+        {stbSelected}
+        {stbHovered}
+        {stbEditing}
+        {stbScrollPos}
+        {stbVerticalScroll}
+        {tableStateStore}
+        {stbRowHeights}
+        {stbRowColors}
+        headerHeight={size == "custom"
+          ? customCellPadding
+          : sizingMap[size].headerHeight}
+        loading={$stbData?.loading}
+      />
     {/if}
-  </div>
 
-  <SuperTableHorizontalScroller
-    {stbHorizontalScroll} 
-    {stbHorizontalRange} 
-    {highlighted} 
-    offset={ $stbSettings.rowSelectMode != "off" || $stbSettings.selectionColumn  ? "3rem" : "0rem"}
-    verticalOffset = { $stbSettings.showFooter ? "40px" : "8px" }
-  />
+    <div
+      bind:this={columnsBodyAnchor}
+      class="st-master-columns"
+      on:scroll={syncScroll}
+    >
+      {#if $stbData?.loaded}
+        {#if $stbSettings.superColumnsPos == "first"}
+          <slot />
+        {/if}
+        {#if columns?.length}
+          {#each columns as column, idx}
+            <SuperTableColumn
+              {stbState}
+              columnOptions={{
+                ...column,
+                canEdit: column.canEdit,
+              }}
+            />
+          {/each}
+        {/if}
+        {#if $stbSettings.superColumnsPos == "last"}
+          <slot />
+        {/if}
+      {:else}
+        <CellSkeleton>Loading ...</CellSkeleton>
+      {/if}
+    </div>
 
-  <SuperTableVerticalScroller 
-    {stbVerticalScroll}
-    {highlighted}
-    clientHeight={maxBodyHeight}
-    clientScrollHeight = {$stbData?.rows.length > tableOptions.visibleRowCount ? $stbData?.rows.length  * defaultRowHeight : maxBodyHeight}
-    offset={$stbSettings.showHeader ? "40px" : "8px"}
-    bottomOffset={ $stbSettings.showFooter ? "32px" : "8px"}
-  />
+    <SuperTableHorizontalScroller
+      {stbHorizontalScroll}
+      {stbHorizontalRange}
+      {highlighted}
+      offset={$stbSettings.rowSelectMode != "off" ||
+      $stbSettings.selectionColumn
+        ? "3rem"
+        : "0rem"}
+      verticalOffset={$stbSettings.showFooter ? "40px" : "8px"}
+    />
 
-</Provider>
+    <SuperTableVerticalScroller
+      {stbVerticalScroll}
+      {highlighted}
+      clientHeight={maxBodyHeight}
+      clientScrollHeight={$stbData?.rows.length > tableOptions.visibleRowCount
+        ? $stbData?.rows.length * defaultRowHeight
+        : maxBodyHeight}
+      offset={$stbSettings.showHeader ? "40px" : "8px"}
+      bottomOffset={$stbSettings.showFooter ? "32px" : "8px"}
+    />
+  </Provider>
 </div>
 
 <style>

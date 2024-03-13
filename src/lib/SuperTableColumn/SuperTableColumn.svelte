@@ -68,7 +68,7 @@
 		'boolean': CellBoolean ,
 		'datetime': CellDatetime,
 		'link': CellLink,
-		'json': CellJSON,
+		'json': CellString,
     'attachment' : CellAttachment,
 		"bb_reference": CellLink
   };
