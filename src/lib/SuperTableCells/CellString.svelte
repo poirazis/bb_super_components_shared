@@ -97,7 +97,7 @@
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
   class:disabled={cellOptions.disabled}
-  class:reeadonly={$cellState == "Readonly"}
+  class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   style:color={cellOptions.color}
   style:background={inEdit && cellOptions.role != "inline"

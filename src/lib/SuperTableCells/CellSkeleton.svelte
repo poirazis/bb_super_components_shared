@@ -1,13 +1,20 @@
-<div class="skeleton">
-  <div class="children">
+<script>
+  export let active = true;
+</script>
+
+{#if active}
+  <div class="skeleton">
+    <div class="children"></div>
   </div>
-</div>
+{:else}
+  <slot />
+{/if}
 
 <style>
   .skeleton {
     height: 100%;
-    width:100%;
-    align-self: center;
+    width: 100%;
+    align-self: stretch;
     opacity: 0;
     display: flex;
     align-items: stretch;
@@ -16,6 +23,7 @@
     overflow: hidden;
     position: relative;
     animation: fadeIn 130ms ease 0s 1 normal forwards;
+    min-height: 2rem;
   }
   .children {
     flex: auto;
@@ -25,7 +33,8 @@
       90deg,
       rgba(255, 255, 255, 0) 0,
       rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0.3) 60%,
+      rgba(255, 255, 255, 0.2) 60%,
+      rgba(255, 255, 255, 0.15) 80%,
       rgba(255, 255, 255, 0)
     );
     animation: shimmer 2s infinite;
@@ -36,10 +45,13 @@
       opacity: 0;
     }
     100% {
-      opacity: 0.55;
+      opacity: 0.75;
     }
   }
   @keyframes shimmer {
+    0% {
+      transform: translateX(-80%);
+    }
     100% {
       transform: translateX(100%);
     }

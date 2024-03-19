@@ -1,27 +1,35 @@
 // Sizing temaplates for the Adobe Spectrum Table look
 export const sizingMap = {
+  XS: {
+    cellPadding: "0.4rem",
+    rowFontSize: 11,
+    rowHeight: 28,
+    headerFontSize: 10,
+    headerHeight: 32,
+    checkboxSize: 12,
+  },
   S: {
     cellPadding: "0.4rem",
     rowFontSize: 12,
-    rowHeight: 36,
-    headerFontSize: 11,
-    headerHeight: "2rem",
+    rowHeight: 32,
+    headerFontSize: 10,
+    headerHeight: 32,
     checkboxSize: 12,
   },
   M: {
     cellPadding: "0.5rem",
-    rowFontSize: 14,
-    rowHeight: 40,
+    rowFontSize: 13,
+    rowHeight: 36,
     headerFontSize: 11,
-    headerHeight: "2.4rem",
+    headerHeight: 36,
     checkboxSize: 14,
   },
   L: {
     cellPadding: "0.85rem",
     rowFontSize: 15,
-    rowHeight: 48,
+    rowHeight: 40,
     headerFontSize: 12,
-    headerHeight: "2.6rem",
+    headerHeight: 40,
     checkboxSize: 14,
   },
 };

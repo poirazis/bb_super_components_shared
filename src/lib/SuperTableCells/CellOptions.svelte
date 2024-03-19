@@ -788,7 +788,7 @@
                   ? "unset"
                   : "1px solid var(--spectrum-global-color-gray-300)"}
               >
-                {#if color && !icon}
+                {#if color && !icon && simpleView}
                   <div class="loope small" style:background-color={color}></div>
                 {/if}
                 {#if icon}

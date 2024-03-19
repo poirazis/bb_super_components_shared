@@ -5,7 +5,7 @@
   position: relative;
 }
 
-.superCell:focus{
+.superCell:focus {
   outline: none;
 }
 
@@ -28,10 +28,14 @@
 .superCell.formInput.disabled {
   background-color: var(--spectrum-global-color-gray-100);
   color: var(--spectrum-global-color-gray-500);
-  cursor:not-allowed; 
+  cursor: not-allowed;
+}
+.superCell.formInput.readonly {
+  color: var(--spectrum-global-color-gray-600);
+  cursor: text;
 }
 
-.superCell > .value > span  {
+.superCell > .value > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -43,7 +47,7 @@
   color: var(--spectrum-global-color-gray-500);
 }
 
-.superCell > .editor  {
+.superCell > .editor {
   width: 100%;
   height: 100%;
   display: flex;
@@ -53,7 +57,7 @@
   overflow: hidden;
   gap: 0.25rem;
 }
-.superCell > .editor:focus  {
+.superCell > .editor:focus {
   outline: none;
 }
 
@@ -95,18 +99,18 @@
   padding: 0;
 }
 
-.superCell > * > .items > .item > span  {
+.superCell > * > .items > .item > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
- .superCell > .frontIcon {
+.superCell > .frontIcon {
   position: absolute;
   left: 0.5rem;
   font-size: 16px;
   color: var(--spectrum-global-color-gray-500);
 }
- .superCell.inEdit > .frontIcon {
+.superCell.inEdit > .frontIcon {
   color: var(--spectrum-alias-border-color-mouse-focus);
 }
 
@@ -140,6 +144,7 @@
   opacity: 1;
 }
 .superCell.tableCell {
+  min-height: unset;
   border: 1px solid transparent;
 }
 .superCell.tableCell.superCell.inEdit {
@@ -158,7 +163,6 @@
 .superCell.formInput.focused {
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
   background: var(--spectrum-global-color-gray-50);
-
 }
 .superCell.formInput.inEdit:focus-within {
   border-color: var(--spectrum-alias-border-color-mouse-focus);
@@ -183,10 +187,10 @@
 .superCell.inline.disabled {
   background-color: var(--spectrum-global-color-gray-100);
   color: var(--spectrum-global-color-gray-600);
-  cursor:not-allowed; 
+  cursor: not-allowed;
 }
 .superCell.inline.readonly {
   background-color: var(--spectrum-global-color-gray-100);
   color: var(--spectrum-global-color-gray-600);
-  cursor:not-allowed; 
+  cursor: not-allowed;
 }

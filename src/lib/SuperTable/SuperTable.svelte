@@ -121,7 +121,6 @@
   let stbColumnFilters = [];
   let highlighted;
   let columnsBodyAnchor;
-  let stbData;
 
   const stbSelected = new writable([]);
 
@@ -621,6 +620,7 @@
   bind:this={anchor}
   tabindex="0"
   class="st-master-wrapper"
+  style:font-size={sizingMap[size].rowFontSize}
   style:--spectrum-table-border-color={tableOptions.dividersColor ??
     "var(--spectrum-alias-border-color-mid)"}
   style:--super-table-body-height={maxBodyHeight + "px"}
@@ -636,78 +636,89 @@
   on:mouseleave={() => (highlighted = false)}
   on:keydown={stbState.handleKeyboard}
 >
-  <!-- Context Provider -->
-  <Provider {actions} data={dataContext}>
-    {#if selectionColumn || (canEdit && rowSelectMode != "off")}
-      <SuperTableRowSelect
-        {stbState}
-        {stbSettings}
-        {stbData}
-        {stbSelected}
-        {stbHovered}
-        {stbEditing}
-        {stbScrollPos}
-        {stbVerticalScroll}
-        {tableStateStore}
-        {stbRowHeights}
-        {stbRowColors}
-        headerHeight={size == "custom"
-          ? customCellPadding
-          : sizingMap[size].headerHeight}
-        loading={$stbData?.loading}
-      />
-    {/if}
-
-    <div
-      bind:this={columnsBodyAnchor}
-      class="st-master-columns"
-      on:scroll={syncScroll}
-    >
-      {#if $stbData?.loaded}
-        {#if $stbSettings.superColumnsPos == "first"}
-          <slot />
-        {/if}
-        {#if columns?.length}
-          {#each columns as column, idx}
-            <SuperTableColumn
-              {stbState}
-              columnOptions={{
-                ...column,
-                canEdit: column.canEdit,
-              }}
-            />
-          {/each}
-        {/if}
-        {#if $stbSettings.superColumnsPos == "last"}
-          <slot />
-        {/if}
-      {:else}
-        <CellSkeleton>Loading ...</CellSkeleton>
+  {#key stbData}
+    <!-- Context Provider -->
+    <Provider {actions} data={dataContext}>
+      {#if $stbData?.rows?.length || (stbColumnFilters?.length && (selectionColumn || (canEdit && rowSelectMode != "off")))}
+        <SuperTableRowSelect
+          {stbState}
+          {stbSettings}
+          {stbData}
+          {stbSelected}
+          {stbHovered}
+          {stbEditing}
+          {stbScrollPos}
+          {stbVerticalScroll}
+          {tableStateStore}
+          {stbRowHeights}
+          {stbRowColors}
+          headerHeight={size == "custom"
+            ? customCellPadding
+            : sizingMap[size].headerHeight}
+          loading={$stbData?.loading}
+        />
       {/if}
-    </div>
 
-    <SuperTableHorizontalScroller
-      {stbHorizontalScroll}
-      {stbHorizontalRange}
-      {highlighted}
-      offset={$stbSettings.rowSelectMode != "off" ||
-      $stbSettings.selectionColumn
-        ? "3rem"
-        : "0rem"}
-      verticalOffset={$stbSettings.showFooter ? "40px" : "8px"}
-    />
+      <div
+        bind:this={columnsBodyAnchor}
+        class="st-master-columns"
+        on:scroll={syncScroll}
+      >
+        {#if $stbData?.loaded}
+          {#if $stbSettings.superColumnsPos == "first"}
+            <slot />
+          {/if}
+          {#if columns?.length}
+            {#each columns as column, idx}
+              <SuperTableColumn
+                {stbState}
+                columnOptions={{
+                  ...column,
+                  canEdit: column.canEdit,
+                }}
+              />
+            {/each}
+          {/if}
+          {#if $stbSettings.superColumnsPos == "last"}
+            <slot />
+          {/if}
+        {:else}
+          <CellSkeleton>Loading ...</CellSkeleton>
+        {/if}
+      </div>
 
-    <SuperTableVerticalScroller
-      {stbVerticalScroll}
-      {highlighted}
-      clientHeight={maxBodyHeight}
-      clientScrollHeight={$stbData?.rows.length > tableOptions.visibleRowCount
-        ? $stbData?.rows.length * defaultRowHeight
-        : maxBodyHeight}
-      offset={$stbSettings.showHeader ? "40px" : "8px"}
-      bottomOffset={$stbSettings.showFooter ? "32px" : "8px"}
-    />
-  </Provider>
+      {#if $stbData.loaded && $stbData.rows.length == 0}
+        <div class="empty" style:top={tableOptions.headerHeight + 16}>
+          No Records Found
+          {#if stbColumnFilters.length}
+            Clear Filters
+          {/if}
+        </div>
+      {/if}
+
+      <SuperTableHorizontalScroller
+        {stbHorizontalScroll}
+        {stbHorizontalRange}
+        {highlighted}
+        offset={$stbSettings.rowSelectMode != "off" ||
+        $stbSettings.selectionColumn
+          ? "3rem"
+          : "0rem"}
+        verticalOffset={$stbSettings.showFooter ? "40px" : "8px"}
+      />
+
+      <SuperTableVerticalScroller
+        {stbVerticalScroll}
+        {highlighted}
+        clientHeight={maxBodyHeight}
+        clientScrollHeight={$stbData?.rows.length > tableOptions.visibleRowCount
+          ? $stbData?.rows.length * defaultRowHeight
+          : maxBodyHeight}
+        offset={$stbSettings.showHeader ? "40px" : "8px"}
+        bottomOffset={$stbSettings.showFooter ? "32px" : "8px"}
+      />
+    </Provider>
+  {/key}
 </div>
 
 <style>
@@ -734,5 +745,20 @@
 
   .st-master-columns::-webkit-scrollbar {
     display: none;
+  }
+
+  .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    position: absolute;
+    left: 1rem;
+    top: 3rem;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 2;
+    background-color: hsla(0, 0%, 50%, 0.1);
+    border-radius: 0.5rem;
   }
 </style>
