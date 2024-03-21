@@ -2,7 +2,7 @@
   import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
-  import _ from "lodash/core.js";
+  import { isEqual } from "lodash/core";
 
   import {
     sizingMap,
@@ -124,14 +124,11 @@
   let highlighted;
   let columnsBodyAnchor;
 
-  let loadedDatasource = {};
-  let loadedFilters = {};
-  let loadedQuery = {};
+  let loadedDatasource;
+  let loadedQuery;
   let loadedLimit;
   let loadedSortColumn;
   let loadedSortOrder;
-
-  let defaultQuery = LuceneUtils.buildLuceneQuery(filter);
 
   const stbSelected = new writable([]);
 
@@ -139,18 +136,12 @@
   $: if (rowSelectMode == "multi" && preselectedIds)
     $stbSelected = preselectedIds?.split(",");
 
-  $: if (!_.isEqual(loadedFilters, filter)) {
-    loadedFilters = filter;
-    loadedQuery = {};
-    defaultQuery = LuceneUtils.buildLuceneQuery(filter);
-  }
-
+  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter);
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters);
-  $: addQueryExtension("1000", queryExtension);
-  $: query = extendQuery(defaultQuery, queryExtensions);
+  $: query = extendQuery(defaultQuery, [queryExtension]);
   $: stbData = createFetch(datasource);
   $: if (
-    !_.isEqual(loadedQuery, query) ||
+    !isEqual(query, loadedQuery) ||
     loadedLimit != limit ||
     loadedSortColumn != sortColumn ||
     loadedSortOrder != sortOrder
@@ -159,6 +150,7 @@
     loadedLimit = limit;
     loadedSortColumn = sortColumn;
     loadedSortOrder = sortOrder;
+
     stbData?.update({
       query,
       sortColumn,
@@ -462,10 +454,12 @@
   };
 
   const createFetch = (datasource) => {
-    if (_.isEqual(loadedDatasource, datasource)) return stbData;
+    if (stbData && isEqual(datasource, loadedDatasource)) return stbData;
     loadedDatasource = datasource;
-    loadedLimit = limit;
     loadedQuery = query;
+    loadedLimit = limit;
+    loadedSortColumn = sortColumn;
+    loadedSortOrder = sortOrder;
     return fetchData({
       API,
       datasource,
