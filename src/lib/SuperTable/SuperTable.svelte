@@ -148,9 +148,6 @@
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters);
   $: addQueryExtension("1000", queryExtension);
   $: query = extendQuery(defaultQuery, queryExtensions);
-
-  $: console.log(loadedQuery, query);
-
   $: stbData = createFetch(datasource);
   $: if (
     !_.isEqual(loadedQuery, query) ||
