@@ -2,6 +2,8 @@
   import { getContext, setContext, beforeUpdate } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
+  import _ from "lodash/core.js";
+
   import {
     sizingMap,
     defaultOperatorMap,
@@ -122,24 +124,52 @@
   let highlighted;
   let columnsBodyAnchor;
 
+  let loadedDatasource = {};
+  let loadedFilters = {};
+  let loadedQuery = {};
+  let loadedLimit;
+  let loadedSortColumn;
+  let loadedSortOrder;
+
+  let defaultQuery = LuceneUtils.buildLuceneQuery(filter);
+
   const stbSelected = new writable([]);
 
   $: if (rowSelectMode == "single") $stbSelected[0] = preselectedId;
   $: if (rowSelectMode == "multi" && preselectedIds)
     $stbSelected = preselectedIds?.split(",");
 
-  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter);
+  $: if (!_.isEqual(loadedFilters, filter)) {
+    loadedFilters = filter;
+    loadedQuery = {};
+    defaultQuery = LuceneUtils.buildLuceneQuery(filter);
+  }
+
   $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters);
   $: addQueryExtension("1000", queryExtension);
   $: query = extendQuery(defaultQuery, queryExtensions);
+
+  $: console.log(loadedQuery, query);
+
   $: stbData = createFetch(datasource);
-  $: stbData?.update({
-    query,
-    sortColumn,
-    sortOrder,
-    limit,
-    paginate,
-  });
+  $: if (
+    !_.isEqual(loadedQuery, query) ||
+    loadedLimit != limit ||
+    loadedSortColumn != sortColumn ||
+    loadedSortOrder != sortOrder
+  ) {
+    loadedQuery = query;
+    loadedLimit = limit;
+    loadedSortColumn = sortColumn;
+    loadedSortOrder = sortOrder;
+    stbData?.update({
+      query,
+      sortColumn,
+      sortOrder,
+      limit,
+      paginate,
+    });
+  }
 
   $: populateColumns(
     $stbData,
@@ -254,16 +284,19 @@
       addFilter(filterObj) {
         this.removeFilter(filterObj.id);
         stbColumnFilters = [...stbColumnFilters, filterObj];
+        loadedQuery = {};
       },
       removeFilter(id) {
         let pos = stbColumnFilters.find((x) => x.id == id);
         if (pos) {
           stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
         }
+        loadedQuery = {};
       },
       clearFilter() {
         stbColumnFilters = [];
         removeQueryExtension("123");
+        loadedQuery = {};
         return "Idle";
       },
       sortBy(column, order) {
@@ -271,6 +304,7 @@
         sortOrder = order;
         $stbSortColumn = column;
         $stbSortOrder = order;
+        loadedQuery = {};
       },
       registerColumn() {},
       unregisterColumn() {},
@@ -431,6 +465,10 @@
   };
 
   const createFetch = (datasource) => {
+    if (_.isEqual(loadedDatasource, datasource)) return stbData;
+    loadedDatasource = datasource;
+    loadedLimit = limit;
+    loadedQuery = query;
     return fetchData({
       API,
       datasource,
@@ -639,7 +677,7 @@
   {#key stbData}
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
-      {#if $stbData?.rows?.length || (stbColumnFilters?.length && (selectionColumn || (canEdit && rowSelectMode != "off")))}
+      {#if $stbData?.rows?.length && (selectionColumn || (canEdit && rowSelectMode != "off"))}
         <SuperTableRowSelect
           {stbState}
           {stbSettings}

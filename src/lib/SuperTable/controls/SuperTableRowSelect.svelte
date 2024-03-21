@@ -142,7 +142,7 @@
 <style>
   .spectrum-Table {
     background-color: transparent;
-    min-width: 3rem;
+    min-width: 2.4rem;
   }
   .spectrum-Table-headCell {
     display: flex;
