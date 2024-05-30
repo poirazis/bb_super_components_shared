@@ -16,7 +16,7 @@
   export let fieldSchema;
   export let multi = false;
 
-  const originalValue = value;
+  let originalValue = value;
   let timer;
 
   // We always keep an internal value as an array
@@ -165,8 +165,10 @@
           return;
 
         if (
+          /** 
           !arrayEquals(originalValue, localValue) &&
           originalValue != localValue[0] &&
+          */
           !cellOptions.debounce
         ) {
           if (multi) dispatch("change", localValue);

@@ -1,81 +1,151 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, getContext } from "svelte";
+  import fsm from "svelte-fsm";
+  import "./CellCommon.css";
 
-  export let value = ""
-  export let cellState
-  export let formattedValue
-  export let width 
-  export let padded = false
-  export let placeholder = "Enter ... "
-  export let debounced
-  export let unstyled = false
+  const dispatch = createEventDispatcher();
+  const { processStringSync } = getContext("sdk");
+
+  export let value;
+  export let formattedValue;
+  export let cellOptions;
+
+  let timer;
+  let originalValue;
+  let editor;
+  let clearIcon;
+
+  export let cellState = fsm(cellOptions.initialState ?? "View", {
+    "*": {
+      goTo(state) {
+        return state;
+      },
+    },
+    Loading: {},
+    View: {
+      focus() {
+        //  if (!cellOptions.readonly && !cellOptions.disabled) return "Editing";
+      },
+    },
+    Disabled: {},
+    Error: { check: "View" },
+    Readonly: { check: "View" },
+    Editing: {
+      _enter() {
+        originalValue = value;
+        dispatch("enteredit");
+      },
+      _exit() {
+        dispatch("exitedit");
+        dispatch("focusout");
+      },
+      clear() {
+        value = "";
+        if (cellOptions.debounce) dispatch("change", value);
+      },
+      focusout(e) {
+        if (e.explicitOriginalTarget != clearIcon) this.submit();
+      },
+      submit() {
+        if (originalValue != value) {
+          dispatch("change", value);
+        }
+        return "View";
+      },
+      cancel() {
+        value = originalValue;
+        if (cellOptions.debounce) dispatch("change", value);
+        dispatch("cancel");
+        return "View";
+      },
+      handleKeyboard(e) {
+        if (e.key == "Enter") this.submit();
+
+        if (e.key == "Escape") this.cancel();
+      },
+    },
+  });
+
+  $: inEdit = $cellState == "Editing";
+  $: formattedValue = cellOptions.template
+    ? processStringSync(cellOptions.template, { value })
+    : undefined;
+
+  const debounce = (e) => {
+    value = e.target.value;
+    if (cellOptions.debounce) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dispatch("change", value);
+      }, cellOptions.debounce ?? 0);
+    }
+  };
 
   const focus = (node) => {
     node.focus();
-  }
-
-  const dispatch = createEventDispatcher();
-
-  let timer;
-	const debounce = e => {
-    if (debounced) {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        value = e.target.value
-        dispatch("change", value )
-      }, debounced ?? 0 );
-    }
-    else {
-     value = e.target.value
-     dispatch("change", value )
-    }
-
-	}
-
+  };
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-<div 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<div
   class="superCell"
-  class:unstyled 
-  class:inEdit={ $cellState == "Editing" }
+  class:inEdit
+  class:focused={inEdit}
+  class:inline={cellOptions.role == "inline"}
+  class:tableCell={cellOptions.role == "tableCell"}
+  class:formInput={cellOptions.role == "formInput"}
+  class:disabled={cellOptions.disabled}
+  class:readonly={cellOptions.readonly}
+  class:error={cellOptions.error}
+  style:color={cellOptions.color}
+  style:background={inEdit && cellOptions.role != "inline"
+    ? "var(--spectrum-global-color-gray-50)"
+    : cellOptions.background}
+  style:font-weight={cellOptions.fontWeight}
 >
-  {#if $cellState == "Editing" }
-    <input class="inline-edit" {value} {placeholder} on:input={debounce} use:focus on:blur={cellState.unfocus} />
+  {#if cellOptions.icon}
+    <i class={cellOptions.icon + " frontIcon"}></i>
+  {/if}
+
+  {#if inEdit}
+    <input
+      bind:this={editor}
+      class="editor"
+      class:placeholder={!value}
+      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
+      style:padding-right={cellOptions.clearValueIcon
+        ? "32px"
+        : cellOptions.padding}
+      value={value ?? ""}
+      placeholder={cellOptions.placeholder ?? "Enter..."}
+      on:input={debounce}
+      on:focusout={cellState.focusout}
+      on:keydown={cellState.handleKeyboard}
+      use:focus
+    />
+    {#if cellOptions.clearValueIcon}
+      <i
+        bind:this={clearIcon}
+        class="ri-close-line endIcon"
+        on:mousedown|preventDefault={cellState.clear}
+      >
+      </i>
+    {/if}
   {:else}
-    <div class="value"> JSON </div>
+    <div
+      class="value"
+      tabIndex={cellOptions.readonly ? "-1" : "0"}
+      on:focusin={cellState.focus}
+      class:placeholder={!value}
+      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
+      style:padding-right={cellOptions.padding}
+      style:justify-content={cellOptions.align}
+    >
+      <span>
+        {formattedValue || value || cellOptions?.placeholder || ""}
+      </span>
+    </div>
   {/if}
 </div>
-
-<style>
-
-  .value {
-    display: flex;
-    align-items: center;
-    box-sizing: border-box;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .inline-edit {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: none;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-    overflow: hidden;
-    min-width: unset;
-  }
-
-  .inline-edit:focus {
-    min-width: unset;
-  }
-
-  .inline-edit::placeholder {
-    color: var(--primaryColor);
-    font-style: italic;
-  }
-</style>

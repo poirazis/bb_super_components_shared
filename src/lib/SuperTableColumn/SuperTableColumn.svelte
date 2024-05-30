@@ -31,6 +31,7 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import CellJSON from "../SuperTableCells/CellJSON.svelte";
   import CellAttachment from "../SuperTableCells/CellAttachment.svelte";
+  import CellJson from "../SuperTableCells/CellJSON.svelte";
 
   const stbData = getContext("stbData");
   const stbSettings = getContext("stbSettings");
@@ -68,7 +69,7 @@
     boolean: CellBoolean,
     datetime: CellDatetime,
     link: CellLink,
-    json: CellString,
+    json: CellJson,
     attachment: CellAttachment,
     bb_reference: CellLink,
   };

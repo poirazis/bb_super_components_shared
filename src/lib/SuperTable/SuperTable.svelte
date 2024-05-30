@@ -1,8 +1,8 @@
 <script>
-  import { getContext, setContext, beforeUpdate } from "svelte";
+  import { getContext, setContext, beforeUpdate, onDestroy } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
-  import { isEqual } from "lodash/core";
+  import isEqual from "lodash.isequal";
 
   import {
     sizingMap,
@@ -258,9 +258,18 @@
   }
 
   $: if (autoRefresh && stbData) {
-    timer = setInterval(() => {
-      stbData.refresh();
-    }, autoRefreshRate * 1000);
+    if (!timer) {
+      timer = setInterval(() => {
+        stbData.refresh();
+      }, autoRefreshRate * 1000);
+    } else {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        stbData.refresh();
+      }, autoRefreshRate * 1000);
+    }
+  } else {
+    clearInterval(timer);
   }
 
   $: $stbSettings = tableOptions;
@@ -577,6 +586,10 @@
     }
   });
 
+  onDestroy(() => {
+    if (timer) clearInterval(timer);
+  });
+
   // Global Bindings
   $: actions = [
     {
@@ -719,9 +732,6 @@
       {#if $stbData.loaded && $stbData.rows.length == 0}
         <div class="empty" style:top={tableOptions.headerHeight + 16}>
           No Records Found
-          {#if stbColumnFilters.length}
-            Clear Filters
-          {/if}
         </div>
       {/if}
 
