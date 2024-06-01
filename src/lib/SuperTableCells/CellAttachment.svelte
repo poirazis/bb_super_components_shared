@@ -1,154 +1,183 @@
 <script>
-  import { createEventDispatcher, getContext } from 'svelte'
-  import fsm from "svelte-fsm"
-  import SuperPopover from '../SuperPopover/SuperPopover.svelte';
-  import "./CellCommon.css"
+  import { createEventDispatcher, getContext } from "svelte";
+  import fsm from "svelte-fsm";
+  import SuperPopover from "../SuperPopover/SuperPopover.svelte";
+  import "./CellCommon.css";
 
-  export let value
-  export let formattedValue
-  export let cellOptions
+  export let value;
+  export let formattedValue;
+  export let cellOptions;
 
-  let originalValue = value
-  let anchor
-  let picker
-  let open
-  let focusedOptionIdx
+  let originalValue = value;
+  let anchor;
+  let picker;
+  let open;
+  let focusedOptionIdx;
 
   let options = value ?? [];
 
-  const dispatch = createEventDispatcher()
-  const { processStringSync } = getContext("sdk")
+  const dispatch = createEventDispatcher();
+  const { processStringSync } = getContext("sdk");
 
-  export let cellState = fsm( cellOptions.initialState ?? "View", {
+  export let cellState = fsm(cellOptions.initialState ?? "View", {
     "*": {
-      goTo( state ) { return state }
-    },
-    View: { 
-      _enter() { open = false },
-      focus () { 
-        if (!cellOptions.readonly) return "Editing"
-      }
-    },
-    Hovered: { cancel: () => { return "View" }},
-    Focused: { 
-      unfocus() { return "View" },
-    },
-    Error: { check : "View" },
-    Editing: {
-      _enter() { originalValue = value ; dispatch("enteredit"); },
-      _exit() { dispatch("exitedit") },
-      change( e ) { 
-        if (cellOptions.debounce) dispatch("change", value ) ;
+      goTo(state) {
+        return state;
       },
-      submit() { 
-        if ( value !== originalValue ) {
+    },
+    View: {
+      _enter() {
+        open = false;
+      },
+      focus() {
+        if (!cellOptions.readonly) return "Editing";
+      },
+    },
+    Hovered: {
+      cancel: () => {
+        return "View";
+      },
+    },
+    Focused: {
+      unfocus() {
+        return "View";
+      },
+    },
+    Error: { check: "View" },
+    Editing: {
+      _enter() {
+        originalValue = value;
+        dispatch("enteredit");
+      },
+      _exit() {
+        dispatch("exitedit");
+      },
+      change(e) {
+        if (cellOptions.debounce) dispatch("change", value);
+      },
+      submit() {
+        if (value !== originalValue) {
           dispatch("change", value);
         }
         dispatch("focusout");
-        return "View" 
-      }, 
-      cancel() { value = originalValue; return "View" },
-    }
-  })
+        return "View";
+      },
+      cancel() {
+        value = originalValue;
+        return "View";
+      },
+    },
+  });
 
-  $: formattedValue = cellOptions.template ? processStringSync ( cellOptions.template , { Value : value } ) : undefined
+  $: formattedValue = cellOptions.template
+    ? processStringSync(cellOptions.template, { Value: value })
+    : undefined;
   const focus = (node) => {
     node.focus();
-  }
+  };
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div
   class="superCell"
   bind:this={anchor}
-  class:inEdit={ $cellState == "Editing" }
-  class:inline={ cellOptions.role == "inline" }  
-  class:tableCell={ cellOptions.role == "tableCell" } 
-  class:formInput={ cellOptions.role == "formInput" } 
-  class:disabled = { cellOptions.disabled }
-  style:color={ cellOptions.color }
-  style:background={ $cellState == "Editing" && cellOptions.role != "inline" ? "var(--spectrum-global-color-gray-50)" : cellOptions.background }
-  >
-    {#if cellOptions.icon}
-      <i class={cellOptions.icon + " frontIcon"}></i>
-    {/if}
+  class:inEdit={$cellState == "Editing"}
+  class:inline={cellOptions.role == "inline"}
+  class:tableCell={cellOptions.role == "tableCell"}
+  class:formInput={cellOptions.role == "formInput"}
+  class:disabled={cellOptions.disabled}
+  class:readonly={cellOptions.readonly}
+  style:color={cellOptions.color}
+  style:background={$cellState == "Editing" && cellOptions.role != "inline"
+    ? "var(--spectrum-global-color-gray-50)"
+    : cellOptions.background}
+>
+  {#if cellOptions.icon}
+    <i class={cellOptions.icon + " frontIcon"}></i>
+  {/if}
 
-    {#if $cellState == "Editing"}
-      <div 
-      tabindex="0" 
+  {#if $cellState == "Editing"}
+    <div
+      tabindex="0"
       class="editor"
-      style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
-      style:padding-right={ cellOptions.padding }
-      style:justify-content={ cellOptions.align ?? "center" }
+      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
+      style:padding-right={cellOptions.padding}
+      style:justify-content={cellOptions.align ?? "center"}
       style:cursor="pointer"
       on:focusout={cellState.submit}
-      on:click={() => open = !open}
+      on:click={() => (open = !open)}
       use:focus
-      > 
+    >
       {#if value}
-        <div class="items" >
+        <div class="items">
           {#each value as file}
-            <div class="item" style:border={ "1px solid var(--spectrum-global-color-gray-500)" }>
+            <div
+              class="item"
+              style:border={"1px solid var(--spectrum-global-color-gray-500)"}
+            >
               <span>{file.extension.toUpperCase()}</span>
             </div>
           {/each}
         </div>
       {/if}
 
-        <i class="ri-add-line"></i>
-      </div>
-    {:else}
-      <div
-        tabindex="0"
-        on:focusin={cellState.focus}
-        style:padding-left={ cellOptions.icon ? "32px" : cellOptions.padding }
-        style:padding-right={ cellOptions.clearValueIcon ? "32px" : cellOptions.padding }
-        class="value"
-        > 
-        {#if value}
-          <div class="items">
-            {#each value as file}
-              <div class="item"  style:border={ "1px solid var(--spectrum-global-color-gray-300)"} > 
-                <span>{file.extension.toUpperCase()}</span>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-</div>
-
-{#if $cellState == 'Editing'}
-	<SuperPopover
-		anchor={anchor}
-		useAnchorWidth
-		dismissible={false}
-		open={ open }
-		>
-      <div bind:this={picker}  class="options" on:wheel={(e) => e.stopPropagation()}  on:mouseleave={() => focusedOptionIdx = -1} >
-        {#if options?.length}
-          {#each options as option, idx (idx)}
+      <i class="ri-add-line"></i>
+    </div>
+  {:else}
+    <div
+      tabindex="0"
+      on:focusin={cellState.focus}
+      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
+      style:padding-right={cellOptions.clearValueIcon
+        ? "32px"
+        : cellOptions.padding}
+      class="value"
+    >
+      {#if value}
+        <div class="items">
+          {#each value as file}
             <div
-              class="option"
-              class:focused={focusedOptionIdx === idx}
-              on:mouseenter={() => (focusedOptionIdx = idx)}
+              class="item"
+              style:border={"1px solid var(--spectrum-global-color-gray-300)"}
             >
-              <div class="pill">{option.extension?.toUpperCase()}</div>
-              <a href={option.url} class="filename">{option.name}</a>
-              <i class="ri-delete-bin-line icon"/>
+              <span>{file.extension.toUpperCase()}</span>
             </div>
           {/each}
-          <div style="height: 1rem;"></div>
-        {/if}
-        <div class="new">
-          Select Files
         </div>
-      </div>
-	</SuperPopover>
-{/if}
+      {/if}
+    </div>
+  {/if}
+</div>
 
+{#if $cellState == "Editing"}
+  <SuperPopover {anchor} useAnchorWidth dismissible={false} {open}>
+    <div
+      bind:this={picker}
+      class="options"
+      on:wheel={(e) => e.stopPropagation()}
+      on:mouseleave={() => (focusedOptionIdx = -1)}
+    >
+      {#if options?.length}
+        {#each options as option, idx (idx)}
+          <div
+            class="option"
+            class:focused={focusedOptionIdx === idx}
+            on:mouseenter={() => (focusedOptionIdx = idx)}
+          >
+            <div class="pill">{option.extension?.toUpperCase()}</div>
+            <a href={option.url} class="filename">{option.name}</a>
+            <i class="ri-delete-bin-line icon" />
+          </div>
+        {/each}
+        <div style="height: 1rem;"></div>
+      {/if}
+      <div class="new">Select Files</div>
+    </div>
+  </SuperPopover>
+{/if}
 
 <style>
   .wrapper {
@@ -173,7 +202,7 @@
     justify-content: center;
   }
 
-  a.filename { 
+  a.filename {
     width: 100%;
     line-height: 22px;
     text-overflow: ellipsis;

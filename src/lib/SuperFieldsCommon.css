@@ -1,0 +1,46 @@
+.superField {
+  flex: auto;
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.superField:focus {
+  outline: none;
+}
+.superlabel {
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: var(--label-width);
+  font-size: 13px;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: var(--spectrum-global-color-gray-700);
+}
+
+.superlabel.left {
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1rem;
+}
+
+.inline-cells {
+  flex: 1;
+  display: flex;
+  justify-content: stretch;
+  height: 2rem;
+}
+
+.error {
+  font-size: 12px;
+  line-height: 1.25rem;
+  color: var(--spectrum-global-color-red-700);
+}
+.error.left {
+  font-size: 12px;
+  line-height: 0.75rem;
+  color: var(--spectrum-global-color-red-700);
+}

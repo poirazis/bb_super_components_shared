@@ -7,6 +7,7 @@
   import SuperTable from "../SuperTable/SuperTable.svelte";
 
   import "./CellCommon.css";
+  import { readonly } from "svelte/store";
 
   const dispatch = createEventDispatcher();
   const { API, LuceneUtils, fetchData, processStringSync } = getContext("sdk");
@@ -490,6 +491,7 @@
   class="superCell"
   class:inEdit
   class:disabled={cellOptions.disabled}
+  class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   class:focused={$cellState == "Editing"}
   class:inline={cellOptions.role == "inline"}

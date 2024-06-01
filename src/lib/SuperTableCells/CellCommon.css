@@ -3,8 +3,8 @@
   display: flex;
   align-items: center;
   position: relative;
+  overflow: hidden;
 }
-
 .superCell:focus {
   outline: none;
 }
@@ -18,21 +18,11 @@
 .superCell > .value {
   flex: 1 1 auto;
   padding: 0.3rem 0.5rem;
-  white-space: nowrap;
   display: flex;
   align-items: center;
-  overflow: hidden;
   min-width: 0;
+  overflow: hidden;
   height: 100%;
-}
-.superCell.formInput.disabled {
-  background-color: var(--spectrum-global-color-gray-100);
-  color: var(--spectrum-global-color-gray-500);
-  cursor: not-allowed;
-}
-.superCell.formInput.readonly {
-  color: var(--spectrum-global-color-gray-600);
-  cursor: text;
 }
 
 .superCell > .value > span {
@@ -152,9 +142,22 @@
 }
 .superCell.formInput {
   min-height: 2rem;
-  min-width: 120px;
+  border-radius: 2px;
+  color: var(--spectrum-global-color-gray-700);
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
+}
+
+.superCell.formInput.disabled {
+  background-color: var(--spectrum-global-color-gray-100);
+  color: var(--spectrum-global-color-gray-500);
+  cursor: not-allowed;
+}
+
+.superCell.formInput.readonly {
+  background-color: transparent;
+  color: var(--spectrum-global-color-gray-700);
+  cursor: text;
 }
 .superCell.formInput.error {
   border: 1px solid var(--spectrum-global-color-red-500);
@@ -177,7 +180,7 @@
   height: 1.25rem;
 }
 .superCell.inline {
-  border: none;
+  border: unset;
   border-radius: 2px;
   background-color: var(--spectrum-global-color-gray-50);
   max-height: 1.8rem;
