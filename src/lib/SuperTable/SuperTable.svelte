@@ -148,8 +148,6 @@
       dataProviderId,
       ActionTypes.RemoveDataProviderQueryExtension
     );
-
-    console.log(addExtension, removeExtension);
   }
 
   $: defaultQuery = QueryUtils.buildQuery(filter);
