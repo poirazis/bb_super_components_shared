@@ -35,6 +35,7 @@
 }
 
 .error {
+  font-weight: 500;
   font-size: 12px;
   line-height: 1.25rem;
   color: var(--spectrum-global-color-red-700);

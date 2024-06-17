@@ -24,10 +24,11 @@
     API,
     processStringSync,
     notificationStore,
+    getAction,
     ActionTypes,
     Provider,
     fetchData,
-    LuceneUtils,
+    QueryUtils,
   } = getContext("sdk");
 
   // Create Stores
@@ -136,8 +137,23 @@
   $: if (rowSelectMode == "multi" && preselectedIds)
     $stbSelected = preselectedIds?.split(",");
 
-  $: defaultQuery = LuceneUtils.buildLuceneQuery(filter);
-  $: queryExtension = LuceneUtils.buildLuceneQuery(stbColumnFilters);
+  $: if (datasource.type == "provider") {
+    let dataProviderId = datasource.providerId;
+    let addExtension = getAction(
+      dataProviderId,
+      ActionTypes.AddDataProviderQueryExtension
+    );
+
+    let removeExtension = getAction(
+      dataProviderId,
+      ActionTypes.RemoveDataProviderQueryExtension
+    );
+
+    console.log(addExtension, removeExtension);
+  }
+
+  $: defaultQuery = QueryUtils.buildQuery(filter);
+  $: queryExtension = QueryUtils.buildQuery(stbColumnFilters);
   $: query = extendQuery(defaultQuery, [queryExtension]);
   $: stbData = createFetch(datasource);
   $: if (
@@ -537,7 +553,7 @@
         : false,
       showFilterOperators: showFilterOperators,
       canSort: canSort && supportSortingMap[schema[bbcolumn.name].type],
-      filteringOperators: LuceneUtils.getValidOperatorsForType({
+      filteringOperators: QueryUtils.getValidOperatorsForType({
         type: schema[bbcolumn.name].type,
       }),
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],

@@ -60,14 +60,24 @@
       },
     },
   });
+
   let timer;
   const debounce = (e) => {
-    value = e.target.value;
-    if (cellOptions.debounce) {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        dispatch("change", value);
-      }, cellOptions.debounce ?? 0);
+    if (
+      (e.key.length === 1 && e.key !== "." && isNaN(e.key) && !e.ctrlKey) ||
+      e.keyCode == 32 ||
+      (e.key === "." && e.target.value.toString().indexOf(".") > -1)
+    ) {
+      e.preventDefault();
+      return;
+    } else {
+      value = e.target.value;
+      if (cellOptions.debounce) {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          dispatch("change", value);
+        }, cellOptions.debounce ?? 0);
+      }
     }
   };
 
@@ -109,7 +119,7 @@
       style:text-align={"right"}
       placeholder={cellOptions?.placeholder ?? 0}
       value={value ?? ""}
-      on:input={debounce}
+      on:keyup={(e) => debounce(e)}
       on:focusout={cellState.focusout}
       use:focus
     />

@@ -10,7 +10,7 @@
   import { readonly } from "svelte/store";
 
   const dispatch = createEventDispatcher();
-  const { API, LuceneUtils, fetchData, processStringSync } = getContext("sdk");
+  const { API, QueryUtils, fetchData, processStringSync } = getContext("sdk");
 
   export let cellOptions;
   export let value;
@@ -386,7 +386,7 @@
       API,
       datasource,
       options: {
-        query: LuceneUtils.buildLuceneQuery(cellOptions.filter),
+        query: QueryUtils.buildQuery(cellOptions.filter),
         sortColumn: cellOptions.sortColumn,
         sortOrder: cellOptions.sortOrder,
         limit: cellOptions.limit,
