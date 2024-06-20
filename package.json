@@ -9,13 +9,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@budibase/shared-core": "^2.15.2",
-    "@spectrum-css/popover": "^6.1.0",
-    "date-picker-svelte": "^2.10.1",
+    "@budibase/shared-core": "^2.29.0",
+    "@spectrum-css/popover": "^6.2.5",
+    "date-picker-svelte": "^2.13.0",
     "lodash.isequal": "^4.5.0",
-    "svelte": "^4.2.12",
+    "svelte": "^4.2.18",
     "svelte-fsm": "^1.2.0",
-    "svelte-legos": "^0.2.2",
+    "svelte-legos": "^0.2.3",
     "svelte-portal": "^2.2.1"
   }
 }

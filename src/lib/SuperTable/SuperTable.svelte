@@ -382,10 +382,12 @@
       },
       cellClicked(columnID, rowID) {},
       rowDblClicked(rowID) {
-        onRowDblClick?.($stbData.rows.find((x) => x[idColumn] == rowID));
+        let row = $stbData.rows.find((x) => x[idColumn] == rowID);
+        onRowDblClick?.({ row });
       },
       rowClicked(rowID) {
-        onRowClick?.($stbData.rows.find((x) => x[idColumn] == rowID));
+        let row = $stbData.rows.find((x) => x[idColumn] == rowID);
+        onRowClick?.({ row });
         if (rowSelectMode != "off" && !canEdit) this.toggleSelectRow(rowID);
       },
       getRowColors() {

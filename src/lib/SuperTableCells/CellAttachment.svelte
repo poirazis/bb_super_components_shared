@@ -154,6 +154,7 @@
 
 {#if $cellState == "Editing"}
   <SuperPopover {anchor} useAnchorWidth dismissible={false} {open}>
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
       bind:this={picker}
       class="options"
