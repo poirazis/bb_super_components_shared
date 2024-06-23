@@ -1,8 +1,9 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, getContext } from "svelte";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import { DatePicker } from "date-picker-svelte";
   const dispatch = new createEventDispatcher();
+  const { processStringSync } = getContext("sdk");
   import fsm from "svelte-fsm";
   import "./CellCommon.css";
 
@@ -72,6 +73,9 @@
   let open;
 
   $: innerDate = value ? new Date(value) : new Date();
+  $: formattedValue = cellOptions.template
+    ? processStringSync(cellOptions.template, { value: innerDate })
+    : undefined;
   $: inEdit = $cellState == "Editing";
 </script>
 
@@ -132,9 +136,7 @@
       style:justify-content={cellOptions.align ?? "flex-start"}
     >
       <span>
-        {formattedValue || value
-          ? innerDate.toDateString()
-          : null || cellOptions?.placeholder || ""}
+        {formattedValue || value}
       </span>
     </div>
   {/if}
