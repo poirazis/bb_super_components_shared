@@ -100,7 +100,7 @@
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   style:color={cellOptions.color}
-  style:background={inEdit && cellOptions.role != "inline"
+  style:background={inEdit && cellOptions.role != "inlineInput"
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}

@@ -19,6 +19,8 @@
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
+  import CellAttachment from "../SuperTableCells/CellAttachment.svelte";
+  import CellBoolean from "../SuperTableCells/CellBoolean.svelte";
 
   const {
     API,
@@ -63,6 +65,7 @@
   export let filter;
   export let columnList = [];
   export let autocolumns;
+  export let jsoncolumns;
 
   export let visibleRowCount;
   export let showFooter;
@@ -153,7 +156,9 @@
   $: defaultQuery = QueryUtils.buildQuery(filter);
   $: queryExtension = QueryUtils.buildQuery(stbColumnFilters);
   $: query = extendQuery(defaultQuery, [queryExtension]);
+
   $: stbData = createFetch(datasource);
+
   $: if (
     !isEqual(query, loadedQuery) ||
     loadedLimit != limit ||
@@ -178,6 +183,7 @@
     $stbData,
     columnList,
     autocolumns,
+    jsoncolumns,
     columnSizing,
     columnFixedWidth,
     columnMaxWidth,
@@ -568,14 +574,23 @@
     return superColumn;
   };
 
-  const populateColumns = (data, list, auto) => {
+  const populateColumns = (data, list, auto, json) => {
+    let jsoncolumnslist = [];
+
     if (data?.schema) {
       schema = data.schema;
       columns = [];
       autocolumnsList = [];
+
       if (auto) {
         autocolumnsList = Object.keys(schema)
           .filter((v) => schema[v].autocolumn)
+          .map((v) => makeSuperColumn(schema[v]));
+      }
+
+      if (json) {
+        jsoncolumnslist = Object.keys(schema)
+          .filter((v) => schema[v].type == "json")
           .map((v) => makeSuperColumn(schema[v]));
       }
 
@@ -585,12 +600,13 @@
           .filter(
             (v) =>
               !schema[v].autocolumn &&
+              schema[v].type != "json" &&
               schema[v]?.visible != false &&
               v != idColumn
           )
           .map((v) => makeSuperColumn(schema[v]));
 
-      columns = [...columns, ...autocolumnsList];
+      columns = [...columns, ...jsoncolumnslist, ...autocolumnsList];
     }
   };
 
