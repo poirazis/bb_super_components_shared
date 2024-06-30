@@ -142,6 +142,7 @@
 }
 .superCell.formInput {
   min-height: 2rem;
+  max-height: 2rem;
   border-radius: 2px;
   color: var(--spectrum-global-color-gray-700);
   border: 1px solid var(--spectrum-global-color-gray-300);

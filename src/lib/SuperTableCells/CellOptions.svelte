@@ -7,7 +7,6 @@
   import SuperTable from "../SuperTable/SuperTable.svelte";
 
   import "./CellCommon.css";
-  import { readonly } from "svelte/store";
 
   const dispatch = createEventDispatcher();
   const { API, QueryUtils, fetchData, processStringSync } = getContext("sdk");
@@ -465,7 +464,7 @@
       paginate: false,
       autoRefresh: false,
       autoRefreshRate: 10,
-      columnList: cellOptions.columns,
+      columnList: cellOptions.columnList,
       theme: "budibase",
       size: "S",
       cellPadding: "0.5rem",

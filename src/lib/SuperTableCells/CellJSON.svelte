@@ -144,7 +144,7 @@
       style:justify-content={cellOptions.align}
     >
       <span>
-        {formattedValue || value || cellOptions?.placeholder || "JSON"}
+        {formattedValue || value || cellOptions?.placeholder}
       </span>
     </div>
   {/if}

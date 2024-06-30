@@ -31,7 +31,6 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import CellJSON from "../SuperTableCells/CellJSON.svelte";
   import CellAttachment from "../SuperTableCells/CellAttachment.svelte";
-  import CellJson from "../SuperTableCells/CellJSON.svelte";
 
   const stbData = getContext("stbData");
   const stbSettings = getContext("stbSettings");
@@ -69,7 +68,7 @@
     boolean: CellBoolean,
     datetime: CellDatetime,
     link: CellLink,
-    json: CellJson,
+    json: CellJSON,
     attachment: CellAttachment,
     bb_reference: CellLink,
   };
@@ -197,6 +196,7 @@
     $columnState == "Loading"
       ? CellSkeleton
       : cellComponents[columnOptions.schema.type] ?? CellString;
+
   $: columnOptions.cellOptions = {
     role: "tableCell",
     readonly: !columnOptions.canEdit,
@@ -263,6 +263,8 @@
         ? columnOptions.fixedWidth
         : columnOptions.maxWidth || "unset";
   };
+
+  $: console.log(columnOptions);
 </script>
 
 <svelte:window

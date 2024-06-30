@@ -11,6 +11,7 @@
   export let stbRowColors;
   export let loading;
   export let headerHeight;
+  export let quiet;
 
   let columnBodyAnchor;
   let mouseover;
@@ -76,6 +77,7 @@
   <div
     bind:this={columnBodyAnchor}
     class="spectrum-Table-body"
+    style:background={quiet ? "transparent" : null}
     style:border-right="var(--super-table-vertical-dividers)"
     on:scroll|self={syncScroll}
   >

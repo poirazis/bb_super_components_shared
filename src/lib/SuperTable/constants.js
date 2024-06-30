@@ -53,6 +53,7 @@ export const supportFilteringMap = {
   boolean: true,
   number: true,
   bigint: true,
+  link: false,
 };
 
 export const supportSortingMap = {
