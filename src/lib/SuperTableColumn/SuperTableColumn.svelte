@@ -263,8 +263,6 @@
         ? columnOptions.fixedWidth
         : columnOptions.maxWidth || "unset";
   };
-
-  $: console.log(columnOptions);
 </script>
 
 <svelte:window

@@ -1,73 +1,73 @@
 <script>
-  import Portal from "../../../node_modules/svelte-portal/src/Portal.svelte"
-  import { createEventDispatcher, getContext } from "svelte"
-  import positionDropdown from "../Actions/position_dropdown"
-  import clickOutside from "../Actions/click_outside"
-  import { fly } from "svelte/transition"
+  import Portal from "../../../node_modules/svelte-portal/src/Portal.svelte";
+  import { createEventDispatcher, getContext } from "svelte";
+  import positionDropdown from "../Actions/position_dropdown";
+  import clickOutside from "../Actions/click_outside";
+  import { fly } from "svelte/transition";
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher();
 
-  export let anchor
-  export let align = "right"
-  export let portalTarget
-  export let maxWidth
-  export let maxHeight
-  export let open = false
-  export let useAnchorWidth = false
-  export let dismissible = true
-  export let offset = 5
-  export let offsetBelow
-  export let customHeight
-  export let animate = true
-  export let customZindex
+  export let anchor;
+  export let align = "right";
+  export let portalTarget;
+  export let maxWidth;
+  export let maxHeight;
+  export let open = false;
+  export let useAnchorWidth = false;
+  export let dismissible = true;
+  export let offset = 5;
+  export let offsetBelow;
+  export let customHeight;
+  export let animate = true;
+  export let customZindex;
 
-  export let handlePostionUpdate
-  export let showPopover = true
-  export let clickOutsideOverride = false
+  export let handlePostionUpdate;
+  export let showPopover = true;
+  export let clickOutsideOverride = false;
 
-  $: target = portalTarget || getContext("bbui-popover-root") || ".spectrum"
+  $: target = portalTarget || getContext("bbui-popover-root") || ".spectrum";
 
   export const show = () => {
-    dispatch("open")
-    open = true
-  }
+    dispatch("open");
+    open = true;
+  };
 
   export const hide = () => {
-    dispatch("close")
-    open = false
-  }
+    dispatch("close");
+    open = false;
+  };
 
   export const toggle = () => {
     if (!open) {
-      show()
+      show();
     } else {
-      hide()
+      hide();
     }
-  }
+  };
 
-  const handleOutsideClick = e => {
+  const handleOutsideClick = (e) => {
     if (clickOutsideOverride) {
-      return
+      return;
     }
     if (open) {
       // Stop propagation if the source is the anchor
-      let node = e.target
-      let fromAnchor = false
+      let node = e.target;
+      let fromAnchor = false;
       while (!fromAnchor && node && node.parentNode) {
-        fromAnchor = node === anchor
-        node = node.parentNode
+        fromAnchor = node === anchor;
+        node = node.parentNode;
       }
       // Hide the popover
-      if (!fromAnchor) hide()
+      if (!fromAnchor) hide();
     }
-  }
+  };
 
   function handleEscape(e) {
     if (!clickOutsideOverride) {
-      return
+      return;
     }
     if (open && e.key === "Escape") {
-      hide()
+      hide();
     }
   }
 </script>
@@ -110,7 +110,6 @@
   }
 
   .spectrum-Popover {
-    min-width: var(--spectrum-global-dimension-size-2000);
     border-color: var(--spectrum-global-color-gray-300);
     overflow: auto;
   }
