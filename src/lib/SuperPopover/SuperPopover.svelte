@@ -10,6 +10,7 @@
   export let anchor;
   export let align = "right";
   export let portalTarget;
+  export let minWidth = "150px";
   export let maxWidth;
   export let maxHeight;
   export let open = false;
@@ -97,6 +98,7 @@
       class:hide-popover={open && !showPopover}
       role="presentation"
       style="height: {customHeight}; --customZindex: {customZindex};"
+      style:min-width={minWidth}
       transition:fly|local={{ y: -20, duration: animate ? 200 : 0 }}
     >
       <slot />
