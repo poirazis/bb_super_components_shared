@@ -1,37 +1,63 @@
 <script>
-  export let open
+  import SuperPopover from "../../SuperPopover/SuperPopover.svelte";
+
+  import { getContext } from "svelte";
+  const { Block, BlockComponent } = getContext("sdk");
+
+  export let open;
+  export let anchor;
+  export let selectionMenuItems;
+  export let stbSelected;
+
+  const handleMenu = () => {
+    open = !open;
+  };
 </script>
 
-<div class="spectrum-ActionBar spectrum-ActionBar--sticky is-open">
-  <div class="spectrum-Popover spectrum-ActionBar-popover is-open">
-    <button class="spectrum-CloseButton spectrum-CloseButton--sizeM" aria-label="Clear selection">
-      <svg class="spectrum-CloseButton-UIIcon spectrum-Icon spectrum-UIIcon-Cross100" focusable="false" aria-hidden="true">
-        <use xlink:href="#spectrum-css-icon-Cross100" />
-      </svg>
-    </button>
-
-    <!-- svelte-ignore a11y-label-has-associated-control -->
-    <label class="spectrum-FieldLabel spectrum-FieldLabel--sizeS">2 Selected</label>
-
-    <div class="spectrum-ActionGroup">
-      <button class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet spectrum-ActionGroup-item">
-        <svg class="spectrum-Icon spectrum-Icon--sizeM spectrum-ActionButton-icon" focusable="false" aria-label="Edit" aria-hidden="true">
-          <use xlink:href="#spectrum-icon-18-Edit"></use>
-        </svg>
-        <span class="spectrum-ActionButton-label">Edit</span>
-      </button>
-      <button class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet spectrum-ActionGroup-item">
-        <svg class="spectrum-Icon spectrum-Icon--sizeM spectrum-ActionButton-icon" focusable="false" aria-label="Copy" aria-hidden="true">
-          <use xlink:href="#spectrum-icon-18-Copy"></use>
-        </svg>
-        <span class="spectrum-ActionButton-label">Copy</span>
-      </button>
-      <button class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet spectrum-ActionGroup-item">
-        <svg class="spectrum-Icon spectrum-Icon--sizeM spectrum-ActionButton-icon" focusable="false" aria-label="Delete" aria-hidden="true">
-          <use xlink:href="#spectrum-icon-18-Delete"></use>
-        </svg>
-        <span class="spectrum-ActionButton-label">Delete</span>
-      </button>
+<SuperPopover
+  {open}
+  {anchor}
+  align="left"
+  dismissible={false}
+  minWidth={"20rem"}
+  offset={-88}
+>
+  <div class="action-bar">
+    <div class="spectrum-FieldLabel spectrum-FieldLabel--sizeS">
+      {$stbSelected?.length} Selected
     </div>
+    {#if selectionMenuItems?.length}
+      <Block>
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <div class="selection-menu">
+          {#each selectionMenuItems as { text, icon, disabled, onClick, quiet }}
+            <BlockComponent
+              type="plugin/bb-component-SuperButton"
+              props={{
+                size: "M",
+                icon,
+                text,
+                quiet: true,
+                disabled,
+                onClick,
+              }}
+            ></BlockComponent>
+          {/each}
+        </div>
+      </Block>
+    {/if}
   </div>
-</div>
+</SuperPopover>
+
+<style>
+  .action-bar {
+    min-width: 20rem;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+  }
+  .selection-menu {
+    display: flex;
+  }
+</style>

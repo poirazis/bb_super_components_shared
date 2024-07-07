@@ -1,11 +1,12 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
-  import CellLinkPicker from "./CellLinkPicker.svelte";
+  import { createEventDispatcher } from "svelte";
   import fsm from "svelte-fsm";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
+  import CellLinkPickerTable from "./CellLinkPickerTable.svelte";
   import CellLinkPickerTree from "./CellLinkPickerTree.svelte";
-  import "./CellCommon.css";
   import CellLinkPickerSelect from "./CellLinkPickerSelect.svelte";
+
+  import "./CellCommon.css";
 
   const dispatch = createEventDispatcher();
 
@@ -13,11 +14,7 @@
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
-
-  export let tableId;
-  export let valueColumn = "_id";
   export let parentColumn;
-  export let labelColumn;
   export let pickerColumns;
   export let searchColumns;
   export let filter;
@@ -27,7 +24,6 @@
   let localValue = [...value];
   let anchor;
   let searchTerm;
-  let datasource;
 
   export let cellState = fsm("View", {
     "*": {
@@ -232,12 +228,10 @@
     on:close={cellState.focusout}
   >
     {#if cellOptions.controlType == "tableSelect"}
-      <CellLinkPicker
+      <CellLinkPickerTable
         {value}
-        {datasource}
+        datasource={{ type: "table", tableId: fieldSchema.tableId }}
         {filter}
-        {labelColumn}
-        {valueColumn}
         {pickerColumns}
         {searchColumns}
         {limit}
@@ -247,9 +241,9 @@
       />
     {:else if cellOptions.controlType == "treeSelect"}
       <CellLinkPickerTree
-        {tableId}
-        {valueColumn}
-        {parentColumn}
+        tableId={fieldSchema.tableId}
+        parentColumn={parentColumn || fieldSchema.name}
+        {filter}
         {searchTerm}
         {limit}
         {value}

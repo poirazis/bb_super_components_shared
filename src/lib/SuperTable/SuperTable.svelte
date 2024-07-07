@@ -13,9 +13,12 @@
 
   import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
-  import SuperTableRowSelect from "./controls/SuperTableRowSelect.svelte";
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
+
+  import StRowSelect from "./controls/STRowSelect.svelte";
+  import SuperTableSelectionActionBar from "./controls/SuperTableSelectionActionBar.svelte";
+  import RowActionMenu from "./controls/RowActionMenu.svelte";
 
   const {
     API,
@@ -31,6 +34,7 @@
 
   // Create Stores
   const stbScrollPos = new writable(0);
+  const stbMenuID = new writable(0);
   const stbSelected = new writable([]);
 
   const stbHovered = new writable(-1);
@@ -74,6 +78,11 @@
   export let debounce = 750;
 
   export let rowSelectMode = "off";
+  export let rowMenu = false;
+  export let rowMenuItems;
+  export let menuItemsVisible = 0;
+  export let selectionMenu;
+  export let selectionMenuItems;
   export let preselectedId;
   export let preselectedIds;
   export let selectionColumn;
@@ -606,29 +615,6 @@
       type: ActionTypes.RefreshDatasource,
       callback: () => stbData.refresh(),
     },
-    {
-      type: ActionTypes.AddDataProviderQueryExtension,
-      callback: addQueryExtension,
-    },
-    {
-      type: ActionTypes.RemoveDataProviderQueryExtension,
-      callback: removeQueryExtension,
-    },
-    {
-      type: ActionTypes.SetDataProviderSorting,
-      callback: ({ column, order }) => {
-        let newOptions = {};
-        if (column) {
-          newOptions.sortColumn = column;
-        }
-        if (order) {
-          newOptions.sortOrder = order;
-        }
-        if (Object.keys(newOptions)?.length) {
-          fetch.update(newOptions);
-        }
-      },
-    },
   ];
 
   // Build our data context
@@ -638,6 +624,7 @@
       $stbSelected.includes(x[idColumn])
     ),
     selectedIds: $stbSelected,
+    menuRow: $stbData?.rows?.find((row) => row[idColumn] == $stbMenuID) || {},
     info: $stbData?.info,
     datasource: datasource || {},
     schema,
@@ -687,7 +674,7 @@
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
       {#if $stbData?.rows?.length && (selectionColumn || (canEdit && rowSelectMode != "off"))}
-        <SuperTableRowSelect
+        <StRowSelect
           {stbState}
           {stbSettings}
           {stbData}
@@ -736,10 +723,42 @@
         {/if}
       </div>
 
+      {#if $stbData?.rows?.length && rowMenu == "actionColumn" && rowMenuItems?.length}
+        <RowActionMenu
+          {stbState}
+          {stbSettings}
+          {stbData}
+          {stbSelected}
+          {stbHovered}
+          {stbEditing}
+          {stbScrollPos}
+          {stbVerticalScroll}
+          {stbRowHeights}
+          {stbRowColors}
+          {quiet}
+          {rowMenuItems}
+          {stbMenuID}
+          {menuItemsVisible}
+          headerHeight={size == "custom"
+            ? customCellPadding
+            : sizingMap[size].headerHeight}
+          loading={$stbData?.loading}
+        />
+      {/if}
+
       {#if $stbData.loaded && $stbData.rows.length == 0}
         <div class="empty" style:top={tableOptions.headerHeight + 16}>
           No Records Found
         </div>
+      {/if}
+
+      {#if selectionMenu}
+        <SuperTableSelectionActionBar
+          {anchor}
+          open={$stbSelected?.length && $stbData?.rows?.length}
+          {selectionMenuItems}
+          {stbSelected}
+        ></SuperTableSelectionActionBar>
       {/if}
 
       <SuperTableHorizontalScroller

@@ -8,14 +8,11 @@
 
   export let value = [];
   export let tableId;
-  export let idColumn = "_id";
-  export let valueColumn;
   export let parentColumn;
   export let sortColumn;
   export let sortOrder;
   export let filter = {};
   export let limit = 250;
-  export let labelColumn;
   export let searchTerm;
   export let searchColumns = [];
   export let multi = false;
@@ -25,6 +22,7 @@
 
   let selectedNodes = new writable([]);
   let maxNodeSelection = 10;
+  let idColumn = "_id";
 
   let tree = {
     root: true,
@@ -54,8 +52,8 @@
       if (row[parentColumn] == value) {
         children.push({
           id: row[idColumn],
-          label: row[valueColumn],
-          children: getChildren(rows, row[valueColumn]),
+          label: row[$fetch.definition.primaryDisplay],
+          children: getChildren(rows, row[idColumn]),
         });
       }
     });
@@ -70,8 +68,8 @@
       } else {
         tree.children.push({
           id: row[idColumn],
-          label: row[valueColumn],
-          children: getChildren(rows, row[valueColumn]),
+          label: row[$fetch.definition.primaryDisplay],
+          children: getChildren(rows, row[idColumn]),
         });
       }
     });

@@ -9,7 +9,8 @@
   import "./CellCommon.css";
 
   const dispatch = createEventDispatcher();
-  const { API, QueryUtils, fetchData, processStringSync } = getContext("sdk");
+  const { API, QueryUtils, fetchData, processStringSync, memo } =
+    getContext("sdk");
 
   export let cellOptions;
   export let value;

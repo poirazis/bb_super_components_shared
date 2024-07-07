@@ -136,7 +136,7 @@
       style:justify-content={cellOptions.align ?? "flex-start"}
     >
       <span>
-        {formattedValue || value}
+        {formattedValue || value || ""}
       </span>
     </div>
   {/if}

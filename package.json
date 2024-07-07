@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@budibase/shared-core": "^2.29.3",
+    "@spectrum-css/actionbar": "^8.1.1",
     "@spectrum-css/popover": "^6.2.5",
     "date-picker-svelte": "^2.13.0",
     "lodash.isequal": "^4.5.0",

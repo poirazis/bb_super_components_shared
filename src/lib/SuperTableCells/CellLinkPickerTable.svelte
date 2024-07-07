@@ -1,16 +1,16 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, getContext } from "svelte";
   import SuperTable from "../SuperTable/SuperTable.svelte";
 
   const dispatch = createEventDispatcher();
 
+  const { fetchData, API } = getContext("sdk");
+
   export let value = [];
   export let datasource;
-  export let valueColumn;
   export let sortColumn;
   export let sortOrder;
   export let filter;
-  export let labelColumn;
   export let searchTerm;
   export let pickerColumns;
   export let searchColumns = [];
@@ -18,8 +18,19 @@
 
   export let picker;
 
+  $: fetch = fetchData({
+    API,
+    datasource,
+    options: {
+      paginate: false,
+      limit: 1,
+    },
+  });
+
+  $: primaryDisplay = $fetch?.definition?.primaryDisplay || "_id";
+
   $: tableOptions = {
-    idColumn: valueColumn,
+    idColumn: "_id",
     superColumnsPos: "first",
     columnSizing: "flexible",
     columnMaxWidth: "auto",
@@ -40,7 +51,6 @@
     canInsert: false,
     canResize: false,
     datasource,
-    idColumn: valueColumn,
     filter: {},
     sortColumn: null,
     sortOrder: null,
@@ -55,8 +65,8 @@
     optionsViewMode: "text",
     relViewMode: "text",
     onRowSelect: (arr) => {
-      var val = arr.map((x) => {
-        return { _id: x[valueColumn], primaryDisplay: x[labelColumn] };
+      var val = arr.selectedRows.map((x) => {
+        return { _id: x["_id"], primaryDisplay: x[primaryDisplay] };
       });
       dispatch("change", val);
     },
