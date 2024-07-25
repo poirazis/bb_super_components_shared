@@ -539,7 +539,6 @@
     let schema = $stbData.schema;
     let superColumn = {
       ...bbcolumn,
-      schema: schema[bbcolumn.name] ?? {},
       fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth ?? "8rem",
       canEdit: bbcolumn.autocolumn
         ? false
@@ -547,12 +546,24 @@
       canFilter: supportFilteringMap[schema[bbcolumn.name]?.type]
         ? canFilter
         : false,
-      canSort: canSort && supportSortingMap[schema[bbcolumn.name].type],
+      canSort: canSort && supportSortingMap[schema[bbcolumn.name]?.type],
       filteringOperators: QueryUtils.getValidOperatorsForType({
-        type: schema[bbcolumn.name].type,
+        type: schema[bbcolumn.name]?.type,
       }),
-      defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name].type],
+      defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name]?.type],
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
+      type: bbcolumn.name.endsWith("_self_") ? "link" : bbcolumn.type,
+      displayName: bbcolumn.name.endsWith("_self_")
+        ? bbcolumn.name.slice(0, -6)
+        : bbcolumn.name,
+      schema: bbcolumn.name.endsWith("_self_")
+        ? {
+            ...schema[bbcolumn.name],
+            type: "link",
+            relationshipType: "self",
+            tableId: $dataSourceStore?.tableId,
+          }
+        : schema[bbcolumn.name] ?? {},
     };
     return superColumn;
   };

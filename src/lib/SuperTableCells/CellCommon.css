@@ -130,7 +130,7 @@
 }
 
 .superCell > input::placeholder {
-  color: var(--spectrum-global-color-blue-500);
+  color: var(--spectrum-global-color-gray-500);
   opacity: 1;
 }
 .superCell.tableCell {
@@ -147,6 +147,16 @@
   color: var(--spectrum-global-color-gray-700);
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
+}
+.superCell.formInput:hover {
+  cursor: pointer;
+  border: 1px solid var(--spectrum-global-color-gray-500);
+}
+.superCell.formInput:hover > .value.placeholder {
+  color: var(--spectrum-global-color-gray-600);
+}
+.superCell.formInput.large {
+  max-height: unset !important;
 }
 
 .superCell.formInput.disabled {

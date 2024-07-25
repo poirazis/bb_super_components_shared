@@ -4,7 +4,6 @@
   import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
-  import SuperTable from "../SuperTable/SuperTable.svelte";
 
   import "./CellCommon.css";
 
@@ -32,7 +31,6 @@
   let filteredOptions = [];
   let focusedOptionIdx = -1;
   let picker;
-  let tableOptions;
   let fetch;
 
   let colorsArray = [
@@ -430,57 +428,6 @@
   const focus = (node) => {
     node?.focus();
   };
-
-  $: if (cellOptions.fullTable)
-    tableOptions = {
-      superColumnsPos: "first",
-      columnSizing: "flexible",
-      columnMaxWidth: "auto",
-      debounce: 500,
-      size: "S",
-      visibleRowCount: 7,
-      rowSelectMode: multi ? "multi" : "single",
-      selectionLimit: multi ? 0 : 1,
-      preselectedId: multi ? undefined : localValue[0],
-      preselectedIds: multi ? localValue.toString() : undefined,
-      selectionColumn: false,
-      dividers: "horizontal",
-      dividersColor: null,
-      baseFontSize: 12,
-      rowHeight: 32,
-      showFooter: false,
-      showHeader: true,
-      canFilter: true,
-      canSort: true,
-      canEdit: false,
-      canDelete: false,
-      canInsert: false,
-      canResize: true,
-      datasource: cellOptions.datasource,
-      idColumn: cellOptions.valueColumn,
-      filter: cellOptions.filter,
-      sortColumn: null,
-      sortOrder: null,
-      limit: cellOptions.limit,
-      paginate: false,
-      autoRefresh: false,
-      autoRefreshRate: 10,
-      columnList: cellOptions.columnList,
-      theme: "budibase",
-      size: "S",
-      cellPadding: "0.5rem",
-      useOptionColors: true,
-      optionsViewMode: "text",
-      relViewMode: "text",
-      onRowSelect: (obj) => {
-        var val = obj.selectedRows.map((x) => {
-          return x[cellOptions.valueColumn];
-        });
-        localValue = val;
-        editorState?.refocus();
-        if (!multi) editorState.close();
-      },
-    };
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -497,12 +444,12 @@
   class:inline={cellOptions.role == "inline"}
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
+  class:large={cellOptions.controlType != "select"}
   style:color={cellOptions.color}
   style:background={inEdit
     ? "var(--spectrum-global-color-gray-50"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
-  style:max-height={cellOptions.coltrolType == "select" ? "2rem" : "auto"}
 >
   {#if $cellState == "Loading"}
     <CellSkeleton>Initializing ..</CellSkeleton>
@@ -757,10 +704,7 @@
               {/each}
             {/if}
           </div>
-          <i
-            class="ri-arrow-down-s-line"
-            style:color={"var(--spectrum-global-color-gray-800)"}
-          ></i>
+          <i class="ri-arrow-down-s-line" style:font-size={"18px"}></i>
         </div>
       {/if}
     {:else}
@@ -808,68 +752,66 @@
             {/each}
           {/if}
         </div>
+        {#if cellOptions.role != "tableCell"}
+          <i class="ri-arrow-down-s-line" style="font-size: 18px;"></i>
+        {/if}
       </div>
     {/if}
   {/if}
+</div>
 
-  {#if cellOptions.controlType == "select" && $cellState == "Editing"}
-    <SuperPopover
-      {anchor}
-      useAnchorWidth
-      dismissible={false}
-      maxHeight={400}
-      open={$editorState == "Open"}
+{#if cellOptions.controlType == "select" && $cellState == "Editing"}
+  <SuperPopover
+    {anchor}
+    useAnchorWidth
+    dismissible={false}
+    open={$editorState == "Open"}
+  >
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div
+      bind:this={picker}
+      class="options"
+      on:wheel={(e) => e.stopPropagation()}
+      on:mouseleave={() => (focusedOptionIdx = -1)}
     >
-      {#if cellOptions.fullTable}
-        <div bind:this={picker}>
-          <SuperTable {...tableOptions} />
+      {#if filteredOptions?.length < 1}
+        <div class="option">
+          <i class="ri-close-line" />
+          No Available Options
         </div>
       {:else}
-        <div
-          bind:this={picker}
-          class="options"
-          on:wheel={(e) => e.stopPropagation()}
-          on:mouseleave={() => (focusedOptionIdx = -1)}
-        >
-          {#if filteredOptions.length < 1}
-            <div class="option">
-              <i class="ri-close-line"></i>
-              No Available Options
-            </div>
-          {:else}
-            {#each filteredOptions as option, idx (idx)}
-              {@const color = getOptionColor(option)}
-              {@const label = getOptionLabel(option)}
-              {@const icon = getOptionIcon(option)}
-              <div
-                class="option"
-                class:focused={focusedOptionIdx === idx}
-                on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
-                on:mouseenter={() => (focusedOptionIdx = idx)}
-              >
-                {#if multi || (color && !icon)}
-                  <div class="loope small" style:background-color={color}>
-                    {#if localValue?.includes(option)}
-                      <i class="ri-check-line" />
-                    {/if}
-                  </div>
+        {#each filteredOptions as option, idx (idx)}
+          {@const color = getOptionColor(option)}
+          {@const label = getOptionLabel(option)}
+          {@const icon = getOptionIcon(option)}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <div
+            class="option"
+            class:focused={focusedOptionIdx === idx}
+            on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
+            on:mouseenter={() => (focusedOptionIdx = idx)}
+          >
+            {#if multi || (color && !icon)}
+              <div class="loope small" style:background-color={color}>
+                {#if localValue?.includes(option)}
+                  <i class="ri-check-line" />
                 {/if}
-                {#if icon}
-                  <i class={icon} style:color />
-                {/if}
-                <span>{label}</span>
               </div>
-            {/each}
-          {/if}
-        </div>
+            {/if}
+            {#if icon}
+              <i class={icon} style:color />
+            {/if}
+            <span>{label}</span>
+          </div>
+        {/each}
       {/if}
-    </SuperPopover>
-  {/if}
-</div>
+    </div>
+  </SuperPopover>
+{/if}
 
 <style>
   .options {
-    flex: 1;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;

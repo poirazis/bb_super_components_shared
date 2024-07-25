@@ -53,8 +53,6 @@
     openMenu = !openMenu;
     $stbMenuID = openMenu ? rowID : null;
   };
-
-  $: console.log(rowMenuItems);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -195,6 +193,7 @@
   .spectrum-Table {
     background-color: transparent;
     min-width: 2rem;
+    flex: 0 0 auto;
   }
   .spectrum-Table-headCell {
     display: flex;

@@ -14,16 +14,16 @@
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
-  export let parentColumn;
   export let pickerColumns;
   export let searchColumns;
   export let filter;
   export let limit;
 
-  let originalValue = [...value];
-  let localValue = [...value];
-  let anchor;
+  let originalValue = JSON.stringify(value);
+  $: localValue = enrichValue(value);
+
   let searchTerm;
+  let anchor;
 
   export let cellState = fsm("View", {
     "*": {
@@ -52,6 +52,7 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
+        editorState.open();
         dispatch("enteredit");
       },
       _exit() {
@@ -61,12 +62,14 @@
         this.submit();
       },
       submit() {
-        dispatch("change", localValue);
+        if (JSON.stringify(originalValue) != JSON.stringify(localValue)) {
+          dispatch("change", localValue);
+        }
         editorState.close();
         return "View";
       },
       cancel() {
-        value = [...originalValue];
+        editorState.close();
         return "View";
       },
     },
@@ -111,6 +114,28 @@
 
   const handleChange = (e) => {
     localValue = [...e.detail];
+    if (fieldSchema?.relationshipType != "many-to-one") {
+      anchor?.focus();
+      editorState.close();
+    }
+  };
+
+  const enrichValue = (x) => {
+    if (fieldSchema.relationshipType == "self" && x) {
+      return safeParse(x);
+    } else {
+      return value ? [...value] : [];
+    }
+  };
+
+  const safeParse = (x) => {
+    let res;
+    try {
+      res = JSON.parse(x);
+    } catch {
+      res = undefined;
+    }
+    return res;
   };
 </script>
 
@@ -121,8 +146,8 @@
   class="superCell"
   bind:this={anchor}
   tabindex={cellOptions.disabled ? "-1" : "0"}
-  class:inEdit
-  class:focused={inEdit}
+  class:inEdit={$cellState == "Editing"}
+  class:focused={$cellState == "Editing"}
   class:inline={cellOptions.role == "inline"}
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
@@ -131,7 +156,7 @@
   class:error={cellOptions.error}
   style:color={cellOptions.color}
   style:background={inEdit && cellOptions.role != "inline"
-    ? "var(--spectrum-global-color-gray-50)"
+    ? "var(--spectrum-global-color-gray-100)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
   on:keydown={handleKeyboard}
@@ -161,14 +186,16 @@
   {:else if inEdit}
     <div
       class="editor"
-      class:placeholder={localValue?.length < 1}
+      class:placeholder={localValue?.length < 1 && $editorState == "Closed"}
       style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
       style:padding-right={cellOptions?.padding}
       on:click={editorState.toggle}
     >
       <div class="items" class:simpleView>
         {#if localValue?.length < 1}
-          {cellOptions?.placeholder || "Select " + fieldSchema.name}
+          {cellOptions?.placeholder != ""
+            ? cellOptions.placeholder
+            : "Choose an option"}
         {:else if localValue?.length > 0}
           {#each localValue as val, idx}
             <div class="item" class:rel-pills={!simpleView}>
@@ -184,12 +211,12 @@
           {/each}
         {/if}
       </div>
-      <i class="ri-add-line"></i>
+      <i class="ri-arrow-down-s-line"></i>
     </div>
   {:else}
     <div
       class="value"
-      class:placeholder={value?.length < 1}
+      class:placeholder={localValue?.length < 1}
       style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
       style:padding-right={cellOptions.padding}
     >
@@ -215,6 +242,9 @@
           {/each}
         {/if}
       </div>
+      {#if cellOptions.role != "tableCell"}
+        <i class="ri-arrow-down-s-line"></i>
+      {/if}
     </div>
   {/if}
 </div>
@@ -222,12 +252,22 @@
 {#if inEdit}
   <SuperPopover
     {anchor}
-    dismissible
     useAnchorWidth
     open={$editorState == "Open"}
-    on:close={cellState.focusout}
+    dismissible
   >
-    {#if cellOptions.controlType == "tableSelect"}
+    {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self"}
+      <CellLinkPickerTree
+        {fieldSchema}
+        {filter}
+        {searchTerm}
+        {limit}
+        value={localValue}
+        multi={false}
+        on:change={handleChange}
+        on:focusout={cellState.cancel}
+      />
+    {:else if cellOptions.controlType == "tableSelect"}
       <CellLinkPickerTable
         {value}
         datasource={{ type: "table", tableId: fieldSchema.tableId }}
@@ -239,19 +279,13 @@
         multi={fieldSchema?.relationshipType != "many-to-one"}
         on:change={(e) => (localValue = e.detail)}
       />
-    {:else if cellOptions.controlType == "treeSelect"}
-      <CellLinkPickerTree
-        tableId={fieldSchema.tableId}
-        parentColumn={parentColumn || fieldSchema.name}
-        {filter}
-        {searchTerm}
-        {limit}
-        {value}
-        multi={fieldSchema?.relationshipType != "one-to-many"}
-        on:change={handleChange}
-      />
     {:else}
-      <CellLinkPickerSelect {fieldSchema} {value} on:change={handleChange} />
+      <CellLinkPickerSelect
+        {fieldSchema}
+        value={localValue}
+        on:change={handleChange}
+        on:focusout={cellState.cancel}
+      />
     {/if}
   </SuperPopover>
 {/if}

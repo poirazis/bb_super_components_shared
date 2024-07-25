@@ -1,29 +1,23 @@
 <script>
   import CellSkeleton from "./CellSkeleton.svelte";
-  import { getContext, createEventDispatcher } from "svelte";
+  import CellString from "./CellString.svelte";
+  import { getContext, createEventDispatcher, onMount } from "svelte";
   import { fly } from "svelte/transition";
 
-  const { API, fetchData, QueryUtils } = getContext("sdk");
+  const { API, fetchData } = getContext("sdk");
   const dispatch = createEventDispatcher();
 
   export let value = [];
   export let fieldSchema;
 
-  let timer;
-  let limit = 10;
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
 
-  let filteredValue = "";
-  let results;
-  let queryParams = {};
-  let primaryDisplay = "email";
-  let filters = [];
+  $: localValue = Array.isArray(value) ? value : [];
 
-  const buildFilters = (searchTerm) => {
-    let filters = [];
-    return filters;
-  };
+  let searchTerm;
+
+  let primaryDisplay = "email";
 
   $: fetch = fetchData({
     API,
@@ -32,19 +26,16 @@
       tableId: tableId,
     },
     options: {
-      filter: {},
+      query: {
+        fuzzy: {
+          [primaryDisplay]: searchTerm,
+        },
+      },
       limit: 100,
     },
   });
 
   $: primaryDisplay = $fetch?.definition?.primaryDisplay;
-
-  const debounce = (e) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      filteredValue = e.target.value;
-    }, 500);
-  };
 
   const rowSelected = (val) => {
     if (value) {
@@ -55,23 +46,34 @@
 
   const selectRow = (val) => {
     if (schema.relationshipType == "many-to-many") {
-      value.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
+      localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
     } else if (schema.relationshipType == "many-to-one") {
-      value.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
+      localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
     } else if (schema.relationshipType == "one-to-many") {
-      value = [{ _id: val._id, primaryDisplay: val[primaryDisplay] }];
+      localValue = [{ _id: val._id, primaryDisplay: val[primaryDisplay] }];
     }
-    value = value;
-    dispatch("change", value);
+    value = localValue;
+    dispatch("change", localValue);
   };
 
   const unselectRow = (val) => {
-    value.splice(
-      value.findIndex((e) => e._id === val._id),
+    localValue.splice(
+      localValue.findIndex((e) => e._id === val._id),
       1
     );
-    value = value;
-    dispatch("change", value);
+    localValue = localValue;
+    dispatch("change", localValue);
+  };
+
+  let cellOptions = {
+    icon: "ri-search-line",
+    initialState: "Editing",
+    role: "inlineInput",
+    debounce: 250,
+  };
+
+  const handleSearch = (e) => {
+    searchTerm = e.detail;
   };
 </script>
 
@@ -79,26 +81,21 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div class="control">
   <div class="searchControl">
-    <input
-      class="input"
-      on:input={debounce}
-      on:focusout
-      type="text"
-      placeholder="Search..."
+    <CellString
+      on:change={handleSearch}
+      on:exitedit={() => dispatch("focusout", {})}
+      autofocus
+      {cellOptions}
     />
   </div>
 
-  {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}
-    <div class="listWrapper">
-      <div class="list">
-        <div class="options">
-          {#if $fetch.loading}
-            <CellSkeleton>
-              <div class="option text">Loading ...</div>
-            </CellSkeleton>
-          {:else if $fetch.loaded}
-            {#if $fetch.rows.length > 0}
-              {#key value}
+  {#if $fetch?.loaded && $fetch?.rows?.length}
+    {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}
+      <div class="listWrapper">
+        <div class="list">
+          <div class="options">
+            {#if $fetch.loaded && $fetch.rows.length}
+              {#key localValue}
                 {#each $fetch.rows as row, idx}
                   {#if !rowSelected(row)}
                     <div
@@ -113,50 +110,52 @@
                 {/each}
               {/key}
             {/if}
-          {/if}
+          </div>
+        </div>
+        <div class="list listSelected">
+          <div class="options">
+            {#key localValue}
+              {#each localValue as val, idx}
+                {#if rowSelected(val)}
+                  <div
+                    transition:fly={{ x: -20, duration: 130 }}
+                    class="option"
+                    on:mousedown|stopPropagation|preventDefault={unselectRow(
+                      val
+                    )}
+                  >
+                    {val.primaryDisplay}
+                  </div>
+                {/if}
+              {/each}
+            {/key}
+          </div>
         </div>
       </div>
-      <div class="list listSelected">
-        <div class="options">
-          {#each value as val, idx}
-            {#if rowSelected(val)}
-              <div
-                transition:fly={{ x: -20, duration: 130 }}
-                class="option"
-                on:mousedown|stopPropagation|preventDefault={unselectRow(val)}
-              >
-                {val.primaryDisplay}
-              </div>
-            {/if}
-          {/each}
-        </div>
-      </div>
-    </div>
-  {/if}
+    {/if}
 
-  {#if schema.relationshipType == "one-to-many"}
-    <div class="listWrapper">
-      <div class="list">
-        <div class="options">
-          {#if $fetch.loading}
-            <CellSkeleton>
-              <div class="option text">Loading ...</div>
-            </CellSkeleton>
-          {:else if $fetch.rows.length > 0}
-            {#each $fetch.rows as row, idx}
-              {#if !rowSelected(row)}
-                <div
-                  class="option"
-                  on:mousedown|stopPropagation|preventDefault={selectRow(row)}
-                >
-                  {row[primaryDisplay]}
-                </div>
-              {/if}
-            {/each}
-          {/if}
+    {#if schema.relationshipType == "one-to-many"}
+      <div class="listWrapper">
+        <div class="list">
+          <div class="options">
+            {#if $fetch.loaded && $fetch.rows.length > 0}
+              {#each $fetch?.rows as row, idx}
+                {#if !rowSelected(row)}
+                  <div
+                    class="option"
+                    on:mousedown|stopPropagation|preventDefault={selectRow(row)}
+                  >
+                    {row[primaryDisplay]}
+                  </div>
+                {/if}
+              {/each}
+            {/if}
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
+  {:else}
+    <p>No Records Found</p>
   {/if}
 </div>
 
@@ -167,13 +166,13 @@
     display: flex;
     align-items: stretch;
     justify-content: space-around;
-    gap: 0.5rem;
-    padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.25rem;
     overflow-x: hidden;
   }
 
   .searchControl {
-    flex: 1 1 auto;
+    height: 2rem;
   }
 
   .listWrapper {
@@ -197,7 +196,6 @@
 
   .listSelected {
     color: var(--spectrum-global-color-gray-900);
-    border: 1px solid var(--spectrum-global-color-gray-500);
   }
   .searchControl {
     display: flex;
@@ -206,25 +204,6 @@
     align-items: stretch;
     min-height: 2rem;
   }
-
-  .input {
-    min-height: 1.85rem;
-    min-width: none;
-    width: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: none;
-    border: 1px solid var(--primaryColor);
-    padding-left: 0.5rem;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    background-color: var(
-      --spectrum-textfield-m-background-color,
-      var(--spectrum-global-color-gray-50)
-    );
-  }
-
   .options {
     display: flex;
     flex-direction: column;
@@ -236,6 +215,7 @@
     min-width: 0;
   }
   .option {
+    line-height: 1.5rem;
     padding: 0.15rem;
     overflow: hidden;
     text-overflow: ellipsis;

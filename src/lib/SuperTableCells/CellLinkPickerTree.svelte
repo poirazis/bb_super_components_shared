@@ -2,19 +2,19 @@
   import { createEventDispatcher, getContext } from "svelte";
   import { writable } from "svelte/store";
   import SuperTree from "../SuperTree/SuperTree.svelte";
+  import CellString from "./CellString.svelte";
   const { API, fetchData, notificationStore } = getContext("sdk");
 
   const dispatch = createEventDispatcher();
 
   export let value = [];
-  export let tableId;
-  export let parentColumn;
+  export let fieldSchema;
+
   export let sortColumn;
   export let sortOrder;
   export let filter = {};
   export let limit = 250;
   export let searchTerm;
-  export let searchColumns = [];
   export let multi = false;
 
   export let picker;
@@ -22,7 +22,8 @@
 
   let selectedNodes = new writable([]);
   let maxNodeSelection = 10;
-  let idColumn = "_id";
+  let name = fieldSchema.name;
+  let treeLoaded = false;
 
   let tree = {
     root: true,
@@ -35,25 +36,33 @@
     API,
     datasource: {
       type: "table",
-      tableId,
+      tableId: fieldSchema.tableId,
     },
     options: {
+      query: {
+        fuzzy: {
+          [primaryDisplay]: searchTerm,
+        },
+      },
+      sortOrder,
+      sortColumn,
       filter,
       limit,
     },
   });
 
+  $: primaryDisplay = $fetch?.definition?.primaryDisplay;
   $: buildRootTree($fetch.rows);
 
   // Recursion
-  const getChildren = (rows, value) => {
+  const getChildren = (rows, parent) => {
     let children = [];
-    rows.forEach((row) => {
-      if (row[parentColumn] == value) {
+    rows?.forEach((row) => {
+      if (row[name]?.[0]?._id == parent["_id"]) {
         children.push({
-          id: row[idColumn],
+          id: row["_id"],
           label: row[$fetch.definition.primaryDisplay],
-          children: getChildren(rows, row[idColumn]),
+          children: getChildren(rows, row),
         });
       }
     });
@@ -62,19 +71,26 @@
 
   // Build Tree Structure
   const buildRootTree = (rows) => {
-    $selectedNodes = [];
-    rows.forEach((row) => {
-      if (row[parentColumn]) {
-      } else {
-        tree.children.push({
-          id: row[idColumn],
-          label: row[$fetch.definition.primaryDisplay],
-          children: getChildren(rows, row[idColumn]),
-        });
-      }
-    });
-    tree = tree;
-    value.forEach((v) => $selectedNodes.push({ id: v["_id"] }));
+    treeLoaded = false;
+    tree.children = [];
+    if (rows?.length) {
+      // Parse string into relationship object
+      rows.map((x) => (x[name] = safeParse(x[name])));
+      $selectedNodes = [];
+      rows?.forEach((row) => {
+        if (row[name]) {
+        } else {
+          tree.children.push({
+            id: row["_id"],
+            label: row[$fetch.definition.primaryDisplay],
+            children: getChildren(rows, row),
+          });
+        }
+      });
+      tree = tree;
+      treeLoaded = true;
+      if (value?.length) $selectedNodes.push({ _id: value[0]._id });
+    }
   };
 
   // Handle Node Selection
@@ -94,7 +110,10 @@
         );
       }
     } else {
-      $selectedNodes = [{ id: e.detail.id, label: e.detail.label }];
+      $selectedNodes =
+        $selectedNodes[0]?.id !== e.detail.id
+          ? [{ id: e.detail.id, label: e.detail.label }]
+          : [];
     }
 
     dispatch(
@@ -104,20 +123,44 @@
       })
     );
   };
+
+  const safeParse = (x) => {
+    let res;
+    try {
+      res = JSON.parse(x);
+    } catch {}
+
+    return res;
+  };
+
+  const handleSearch = (e) => {
+    searchTerm = e.detail;
+  };
+
+  let cellOptions = {
+    icon: "ri-search-line",
+    initialState: "Editing",
+    role: "inlineInput",
+    debounce: 250,
+  };
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div bind:this={picker} class="control">
+  <CellString
+    on:change={handleSearch}
+    autofocus
+    {cellOptions}
+    on:exitedit={() => dispatch("focusout", {})}
+  />
   <ul
-    class="spectrum-TreeView spectrum-TreeView--sizeS"
+    class="spectrum-TreeView"
+    style="margin: unset;"
     class:spectrum-TreeView--quiet={quiet}
-    style:visibility={"visible"}
-    style:height={"auto"}
-    style:overflow-y={"auto"}
   >
-    {#if $fetch.loaded}
-      {#each tree.children as node}
+    {#if $fetch.loaded && treeLoaded && tree?.children?.length}
+      {#each tree?.children as node}
         <SuperTree
           tree={node}
           nodeSelection
@@ -125,6 +168,8 @@
           on:nodeSelect={handleNodeSelect}
         />
       {/each}
+    {:else}
+      <p>No Records found</p>
     {/if}
   </ul>
 </div>
@@ -137,5 +182,8 @@
     align-items: stretch;
     justify-content: stretch;
     overflow-x: hidden;
+    padding: 0.5rem;
+    min-height: 350px;
+    gap: 0.5rem;
   }
 </style>

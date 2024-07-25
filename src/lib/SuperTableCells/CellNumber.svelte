@@ -5,7 +5,7 @@
   const { processStringSync } = getContext("sdk");
   const dispatch = createEventDispatcher();
 
-  export let value = 0;
+  export let value = "";
   export let formattedValue;
   export let cellOptions;
 
@@ -14,7 +14,7 @@
 
   $: inEdit = $cellState == "Editing";
   $: formattedValue = cellOptions.template
-    ? processStringSync(cellOptions.template, { Value: value })
+    ? processStringSync(cellOptions.template, { value })
     : undefined;
 
   export let cellState = fsm(cellOptions.initialState ?? "View", {
@@ -84,6 +84,8 @@
   function focus(element) {
     element?.focus();
   }
+
+  $: console.log(cellOptions?.template, formattedValue, value);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -117,9 +119,9 @@
         ? "32px"
         : cellOptions?.padding}
       style:text-align={"right"}
-      placeholder={cellOptions?.placeholder ?? 0}
-      value={value ?? ""}
-      on:keyup={(e) => debounce(e)}
+      placeholder={cellOptions?.placeholder}
+      {value}
+      on:keydown={(e) => debounce(e)}
       on:focusout={cellState.focusout}
       use:focus
     />
@@ -134,12 +136,13 @@
   {:else}
     <div
       class="value"
+      class:placeholder={!value && !formattedValue}
       style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
       style:padding-right={cellOptions.padding}
       tabIndex="0"
       on:focusin={cellState.focus}
     >
-      {formattedValue || value || ""}
+      {formattedValue || value || cellOptions?.placeholder || ""}
     </div>
   {/if}
 </div>

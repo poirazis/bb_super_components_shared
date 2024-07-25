@@ -3,34 +3,27 @@
   const dispatch = createEventDispatcher();
 
   export let tree;
-
   export let label;
-  export let quiet;
+
   export let open = false;
   export let nodeSelection;
   export let selectedNodes;
-  export let icon = "ri-checkbox-blank-line";
   export let id;
   export let disabled;
 
+  let selectionIcon;
+
   $: if (disabled) open = false;
+  $: selected = $selectedNodes.find((x) => x._id == tree.id);
 
-  const handleClick = (e) => {
+  const toggleOpen = (e) => {
     if (disabled) return;
-
-    if (tree.children?.length) {
-      open = !open;
-      return;
-    } else {
-      toggleNode(e);
-    }
+    open = !open;
     dispatch("nodeClick", { id, label });
-    e.stopPropagation();
   };
 
   const toggleNode = (e) => {
     dispatch("nodeSelect", { id: tree.id, label: tree.label });
-    e.stopPropagation();
   };
 </script>
 
@@ -43,32 +36,55 @@
   class:is-disabled={disabled}
   class:is-open={open}
 >
-  <a
+  <div
     class="spectrum-TreeView-itemLink"
-    style:padding-left={tree.children?.length || quiet ? "0.25rem" : "0.5rem"}
-    on:click|self={handleClick}
+    style:padding-left={tree?.children?.length ? "0.25rem" : "1.5rem"}
+    style:padding-right={"0.5rem"}
   >
-    {#if tree.children?.length && !quiet}
-      <i class="ri-arrow-right-s-line chevron" class:open> </i>
+    {#if tree.children?.length}
+      <i
+        class={"ri-arrow-right-s-line"}
+        class:open
+        style:z-index={1}
+        style:font-size={"16px"}
+        on:mousedown|self|stopPropagation|preventDefault={toggleOpen}
+      />
     {/if}
+    <div
+      style:z-index={2}
+      style:width={"100%"}
+      on:mouseenter={() =>
+        tree.children?.length ? null : (selectionIcon = true)}
+      on:mouseleave={() => (selectionIcon = false)}
+      on:mousedown|self|preventDefault={tree.children.length
+        ? toggleOpen
+        : toggleNode}
+    >
+      <span
+        class="spectrum-TreeView-itemLabel"
+        style:padding-left={"0.25rem"}
+        on:mouseenter={() => (selectionIcon = true)}
+        on:mouseleave={() => (selectionIcon = false)}
+        on:mousedown={toggleNode}>{tree.label || "Not Set"}</span
+      >
+    </div>
 
-    {#if $selectedNodes?.findIndex((x) => x.id == tree.id) > -1}
-      <i class="icon selected ri-checkbox-fill" on:click={toggleNode} />
-    {:else}
-      <i class="icon ri-checkbox-blank-line" on:click={toggleNode} />
+    {#if selectionIcon || selected}
+      <i
+        class="ri-checkbox-circle-fill"
+        style:color={"var(--spectrum-global-color-green-500)"}
+        style:font-size={"18px"}
+      ></i>
     {/if}
+  </div>
 
-    {tree.label || "Not Set"}
-  </a>
-
-  {#if tree.children?.length && open}
-    <ul class="spectrum-TreeView" class:spectrum-TreeView--quiet={quiet}>
+  {#if tree.children?.length}
+    <ul class="spectrum-TreeView">
       {#each tree.children as node, idx}
         <svelte:self
           tree={node}
           {nodeSelection}
           {selectedNodes}
-          quiet={node.quiet}
           open={node.open}
           on:nodeSelect
           on:nodeClick
@@ -81,37 +97,20 @@
 <style>
   .spectrum-TreeView-item {
     transition: all 130ms;
-    padding-left: 0.25rem;
   }
 
   .spectrum-TreeView-itemLink {
-    width: 100%;
     display: flex;
-    justify-content: stretch;
-    gap: 0.5rem;
-    padding-left: unset;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.25rem;
+    max-height: 1.75rem;
   }
 
-  .icon {
-    font-size: 18px;
-    color: var(--spectrum-global-color-gray-600);
+  i {
     transition: all 130ms;
-    z-index: 2;
   }
-
-  .selected {
-    font-size: 18px;
-    color: var(--spectrum-global-color-gray-700);
-  }
-  .chevron {
-    transition: all 130ms;
-    font-size: 16px;
-    color: var(--spectrum-global-color-gray-500);
-    z-index: -1;
-  }
-
-  .chevron.open {
+  .open {
     transform: rotate(90deg);
-    color: var(--spectrum-global-color-gray-800);
   }
 </style>

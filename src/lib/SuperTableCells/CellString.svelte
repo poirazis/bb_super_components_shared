@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { createEventDispatcher, getContext, onMount } from "svelte";
   import fsm from "svelte-fsm";
   import "./CellCommon.css";
 
@@ -8,14 +8,19 @@
 
   export let value;
   export let formattedValue;
-  export let cellOptions;
+  export let cellOptions = {
+    role: "formInput",
+    initialState: "Editing",
+    debounce: 250,
+  };
+  export let autofocus;
 
   let timer;
-  let originalValue;
+  let originalValue = value;
   let editor;
   let clearIcon;
 
-  export let cellState = fsm(cellOptions.initialState ?? "View", {
+  export let cellState = fsm(cellOptions?.initialState ?? "View", {
     "*": {
       goTo(state) {
         return state;
@@ -67,13 +72,13 @@
   });
 
   $: inEdit = $cellState == "Editing";
-  $: formattedValue = cellOptions.template
+  $: formattedValue = cellOptions?.template
     ? processStringSync(cellOptions.template, { value })
     : undefined;
 
   const debounce = (e) => {
     value = e.target.value;
-    if (cellOptions.debounce) {
+    if (cellOptions?.debounce) {
       clearTimeout(timer);
       timer = setTimeout(() => {
         dispatch("change", value);
@@ -82,8 +87,12 @@
   };
 
   const focus = (node) => {
-    node.focus();
+    node?.focus();
   };
+
+  onMount(() => {
+    if (autofocus) setTimeout(() => cellState.focus());
+  });
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
