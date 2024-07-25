@@ -65,7 +65,6 @@
       },
       handleKeyboard(e) {
         if (e.key == "Enter") this.submit();
-
         if (e.key == "Escape") this.cancel();
       },
     },
@@ -91,7 +90,7 @@
   };
 
   onMount(() => {
-    if (autofocus) setTimeout(() => cellState.focus());
+    if (autofocus) setTimeout(() => editor?.focus(), 150);
   });
 </script>
 
@@ -122,7 +121,7 @@
     <input
       bind:this={editor}
       class="editor"
-      class:placeholder={!value}
+      class:placeholder={!value && !formattedValue}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
       style:padding-right={cellOptions.clearValueIcon
         ? "32px"

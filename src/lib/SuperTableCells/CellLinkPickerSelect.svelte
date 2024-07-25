@@ -1,7 +1,6 @@
 <script>
-  import CellSkeleton from "./CellSkeleton.svelte";
   import CellString from "./CellString.svelte";
-  import { getContext, createEventDispatcher, onMount } from "svelte";
+  import { getContext, createEventDispatcher } from "svelte";
   import { fly } from "svelte/transition";
 
   const { API, fetchData } = getContext("sdk");
@@ -9,13 +8,13 @@
 
   export let value = [];
   export let fieldSchema;
+  export let filter;
 
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
+  let appliedFilter = [];
 
   $: localValue = Array.isArray(value) ? value : [];
-
-  let searchTerm;
 
   let primaryDisplay = "email";
 
@@ -26,11 +25,7 @@
       tableId: tableId,
     },
     options: {
-      query: {
-        fuzzy: {
-          [primaryDisplay]: searchTerm,
-        },
-      },
+      filter,
       limit: 100,
     },
   });
@@ -73,7 +68,24 @@
   };
 
   const handleSearch = (e) => {
-    searchTerm = e.detail;
+    if (e.detail && e.detail != "") {
+      appliedFilter = [
+        ...filter,
+        {
+          field: primaryDisplay,
+          type: "string",
+          operator: "fuzzy",
+          value: e.detail,
+          valueType: "Value",
+        },
+      ];
+    } else {
+      appliedFilter = filter[0] ?? [];
+    }
+
+    fetch?.update({
+      filter: appliedFilter,
+    });
   };
 </script>
 
@@ -94,22 +106,18 @@
       <div class="listWrapper">
         <div class="list">
           <div class="options">
-            {#if $fetch.loaded && $fetch.rows.length}
-              {#key localValue}
-                {#each $fetch.rows as row, idx}
-                  {#if !rowSelected(row)}
-                    <div
-                      class="option"
-                      on:mousedown|stopPropagation|preventDefault={selectRow(
-                        row
-                      )}
-                    >
-                      {row[primaryDisplay]}
-                    </div>
-                  {/if}
-                {/each}
-              {/key}
-            {/if}
+            {#key localValue}
+              {#each $fetch.rows as row, idx}
+                {#if !rowSelected(row)}
+                  <div
+                    class="option"
+                    on:mousedown|stopPropagation|preventDefault={selectRow(row)}
+                  >
+                    {row[primaryDisplay]}
+                  </div>
+                {/if}
+              {/each}
+            {/key}
           </div>
         </div>
         <div class="list listSelected">
@@ -138,18 +146,16 @@
       <div class="listWrapper">
         <div class="list">
           <div class="options">
-            {#if $fetch.loaded && $fetch.rows.length > 0}
-              {#each $fetch?.rows as row, idx}
-                {#if !rowSelected(row)}
-                  <div
-                    class="option"
-                    on:mousedown|stopPropagation|preventDefault={selectRow(row)}
-                  >
-                    {row[primaryDisplay]}
-                  </div>
-                {/if}
-              {/each}
-            {/if}
+            {#each $fetch?.rows as row, idx}
+              {#if !rowSelected(row)}
+                <div
+                  class="option"
+                  on:mousedown|stopPropagation|preventDefault={selectRow(row)}
+                >
+                  {row[primaryDisplay]}
+                </div>
+              {/if}
+            {/each}
           </div>
         </div>
       </div>

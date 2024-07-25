@@ -60,7 +60,7 @@
   });
 
   $: formattedValue = cellOptions.template
-    ? processStringSync(cellOptions.template, { Value: value })
+    ? processStringSync(cellOptions.template, { value })
     : undefined;
 
   const focus = (node) => {

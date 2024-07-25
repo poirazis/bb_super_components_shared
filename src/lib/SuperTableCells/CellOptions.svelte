@@ -825,7 +825,7 @@
     padding: 0.25rem 0.25rem;
   }
   .option {
-    line-height: 18px;
+    line-height: 20px;
     padding: 0.25rem;
     display: flex;
     gap: 0.5rem;

@@ -14,8 +14,6 @@
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
-  export let pickerColumns;
-  export let searchColumns;
   export let filter;
   export let limit;
 
@@ -256,12 +254,13 @@
     open={$editorState == "Open"}
     dismissible
   >
-    {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self"}
+    {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self" || cellOptions.joinColumn}
       <CellLinkPickerTree
         {fieldSchema}
         {filter}
         {searchTerm}
         {limit}
+        joinColumn={cellOptions.joinColumn}
         value={localValue}
         multi={false}
         on:change={handleChange}
@@ -272,8 +271,8 @@
         {value}
         datasource={{ type: "table", tableId: fieldSchema.tableId }}
         {filter}
-        {pickerColumns}
-        {searchColumns}
+        pickerColumns={cellOptions?.pickerColumns}
+        searchColumns={cellOptions?.searchColumns}
         {limit}
         {searchTerm}
         multi={fieldSchema?.relationshipType != "many-to-one"}
@@ -282,6 +281,7 @@
     {:else}
       <CellLinkPickerSelect
         {fieldSchema}
+        {filter}
         value={localValue}
         on:change={handleChange}
         on:focusout={cellState.cancel}

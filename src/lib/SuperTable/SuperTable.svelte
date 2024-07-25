@@ -553,9 +553,10 @@
       defaultFilteringOperator: defaultOperatorMap[schema[bbcolumn.name]?.type],
       headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
       type: bbcolumn.name.endsWith("_self_") ? "link" : bbcolumn.type,
-      displayName: bbcolumn.name.endsWith("_self_")
-        ? bbcolumn.name.slice(0, -6)
-        : bbcolumn.name,
+      displayName:
+        bbcolumn.name.endsWith("_self_") && bbcolumn.displayName != ""
+          ? bbcolumn.name.slice(0, -6)
+          : bbcolumn.displayName,
       schema: bbcolumn.name.endsWith("_self_")
         ? {
             ...schema[bbcolumn.name],

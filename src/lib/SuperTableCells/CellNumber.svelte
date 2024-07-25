@@ -84,8 +84,6 @@
   function focus(element) {
     element?.focus();
   }
-
-  $: console.log(cellOptions?.template, formattedValue, value);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->

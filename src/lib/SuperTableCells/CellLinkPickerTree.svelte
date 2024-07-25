@@ -9,6 +9,7 @@
 
   export let value = [];
   export let fieldSchema;
+  export let joinColumn;
 
   export let sortColumn;
   export let sortOrder;
@@ -22,7 +23,7 @@
 
   let selectedNodes = new writable([]);
   let maxNodeSelection = 10;
-  let name = fieldSchema.name;
+  let name = joinColumn || fieldSchema.name;
   let treeLoaded = false;
 
   let tree = {
@@ -183,7 +184,6 @@
     justify-content: stretch;
     overflow-x: hidden;
     padding: 0.5rem;
-    min-height: 350px;
     gap: 0.5rem;
   }
 </style>
