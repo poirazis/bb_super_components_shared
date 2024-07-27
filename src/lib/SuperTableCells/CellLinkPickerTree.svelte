@@ -13,7 +13,7 @@
 
   export let sortColumn;
   export let sortOrder;
-  export let filter = {};
+  export let filter = [];
   export let limit = 250;
   export let searchTerm;
   export let multi = false;
@@ -25,6 +25,7 @@
   let maxNodeSelection = 10;
   let name = joinColumn || fieldSchema.name;
   let treeLoaded = false;
+  let appliedFilter = [];
 
   let tree = {
     root: true,
@@ -40,11 +41,6 @@
       tableId: fieldSchema.tableId,
     },
     options: {
-      query: {
-        fuzzy: {
-          [primaryDisplay]: searchTerm,
-        },
-      },
       sortOrder,
       sortColumn,
       filter,
@@ -135,7 +131,24 @@
   };
 
   const handleSearch = (e) => {
-    searchTerm = e.detail;
+    if (e.detail && e.detail != "") {
+      appliedFilter = [
+        ...filter,
+        {
+          field: primaryDisplay,
+          type: "string",
+          operator: "fuzzy",
+          value: e.detail,
+          valueType: "Value",
+        },
+      ];
+    } else {
+      appliedFilter = filter ?? [];
+    }
+
+    fetch?.update({
+      filter: appliedFilter,
+    });
   };
 
   let cellOptions = {
@@ -170,7 +183,9 @@
         />
       {/each}
     {:else}
-      <p>No Records found</p>
+      <li class="spectrum-TreeView-item" class:is-open={true}>
+        <div class="spectrum-TreeView-itemLink">No Matches</div>
+      </li>
     {/if}
   </ul>
 </div>

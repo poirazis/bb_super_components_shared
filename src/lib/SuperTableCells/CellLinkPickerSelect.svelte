@@ -8,7 +8,7 @@
 
   export let value = [];
   export let fieldSchema;
-  export let filter;
+  export let filter = [];
 
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
@@ -80,7 +80,7 @@
         },
       ];
     } else {
-      appliedFilter = filter[0] ?? [];
+      appliedFilter = filter ?? [];
     }
 
     fetch?.update({

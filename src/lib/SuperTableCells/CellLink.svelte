@@ -60,9 +60,7 @@
         this.submit();
       },
       submit() {
-        if (JSON.stringify(originalValue) != JSON.stringify(localValue)) {
-          dispatch("change", localValue);
-        }
+        dispatch("change", localValue);
         editorState.close();
         return "View";
       },
@@ -112,7 +110,7 @@
 
   const handleChange = (e) => {
     localValue = [...e.detail];
-    if (fieldSchema?.relationshipType != "many-to-one") {
+    if (fieldSchema?.relationshipType == "one-to-many") {
       anchor?.focus();
       editorState.close();
     }
@@ -264,7 +262,7 @@
         value={localValue}
         multi={false}
         on:change={handleChange}
-        on:focusout={cellState.cancel}
+        on:focusout={cellState.submit}
       />
     {:else if cellOptions.controlType == "tableSelect"}
       <CellLinkPickerTable
@@ -284,7 +282,7 @@
         {filter}
         value={localValue}
         on:change={handleChange}
-        on:focusout={cellState.cancel}
+        on:focusout={cellState.submit}
       />
     {/if}
   </SuperPopover>

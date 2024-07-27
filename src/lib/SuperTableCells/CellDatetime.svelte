@@ -73,9 +73,10 @@
   let open;
 
   $: innerDate = value ? new Date(value) : new Date();
-  $: formattedValue = cellOptions.template
-    ? processStringSync(cellOptions.template, { value: innerDate })
-    : undefined;
+  $: formattedValue =
+    cellOptions.template && value
+      ? processStringSync(cellOptions.template, { value: innerDate })
+      : undefined;
   $: inEdit = $cellState == "Editing";
 </script>
 
