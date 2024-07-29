@@ -54,7 +54,8 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        if (cellOptions.controlType != "expanded") editorState.open();
+        if (!expanded) editorState.open();
+        if (expanded) anchor?.focus();
         dispatch("enteredit");
       },
       _exit() {
@@ -140,6 +141,8 @@
     }
     return res;
   };
+
+  $: console.log($editorState, expanded, inactive);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->

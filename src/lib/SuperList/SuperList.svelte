@@ -223,8 +223,12 @@
   .list-wrap li {
     padding-left: var(--spacing-s);
     padding-right: var(--spacing-s);
-    min-height: 2rem;
-    max-height: 2rem;
+    line-height: 2rem;
+  }
+
+  .list-wrap.compact li {
+    font-size: 12px;
+    line-height: 1.5rem;
   }
   .handle {
     display: flex;
