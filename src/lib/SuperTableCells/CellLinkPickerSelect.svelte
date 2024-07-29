@@ -9,6 +9,7 @@
   export let value = [];
   export let fieldSchema;
   export let filter = [];
+  export let wide = true;
 
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;

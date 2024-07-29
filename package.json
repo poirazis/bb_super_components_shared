@@ -14,7 +14,9 @@
     "@spectrum-css/popover": "^6.2.5",
     "date-picker-svelte": "^2.13.0",
     "lodash.isequal": "^4.5.0",
+    "shortid": "^2.2.16",
     "svelte": "^4.2.18",
+    "svelte-dnd-action": "^0.9.49",
     "svelte-fsm": "^1.2.0",
     "svelte-legos": "^0.2.3",
     "svelte-portal": "^2.2.1"

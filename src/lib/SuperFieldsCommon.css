@@ -25,10 +25,11 @@
   flex-direction: column;
   justify-content: center;
   line-height: 1rem;
+  min-width: 5rem;
 }
 
 .inline-cells {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   display: flex;
   justify-content: stretch;
   min-height: 2rem;

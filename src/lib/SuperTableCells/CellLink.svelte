@@ -5,6 +5,7 @@
   import CellLinkPickerTable from "./CellLinkPickerTable.svelte";
   import CellLinkPickerTree from "./CellLinkPickerTree.svelte";
   import CellLinkPickerSelect from "./CellLinkPickerSelect.svelte";
+  import SuperList from "../SuperList/SuperList.svelte";
 
   import "./CellCommon.css";
 
@@ -22,6 +23,9 @@
 
   let searchTerm;
   let anchor;
+
+  // Whether a DnD operation is giong on
+  let inactive;
 
   export let cellState = fsm("View", {
     "*": {
@@ -50,7 +54,7 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        editorState.open();
+        if (cellOptions.controlType != "expanded") editorState.open();
         dispatch("enteredit");
       },
       _exit() {
@@ -79,9 +83,6 @@
       toggle() {
         return "Closed";
       },
-      lostFocus() {
-        cellState.focusout();
-      },
     },
     Closed: {
       open() {
@@ -95,6 +96,7 @@
 
   $: inEdit = $cellState == "Editing";
   $: simpleView = cellOptions.relViewMode == "text";
+  $: expanded = cellOptions.controlType == "expanded";
 
   const handleKeyboard = (e) => {
     if (e.keyCode == 32 && $cellState == "Editing") {
@@ -110,6 +112,11 @@
 
   const handleChange = (e) => {
     localValue = [...e.detail];
+
+    if (expanded) {
+      dispatch("change", localValue);
+    }
+
     if (fieldSchema?.relationshipType == "one-to-many") {
       anchor?.focus();
       editorState.close();
@@ -147,38 +154,41 @@
   class:inline={cellOptions.role == "inline"}
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
+  class:multirow={cellOptions.controlType == "expanded" && value?.length}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   style:color={cellOptions.color}
-  style:background={inEdit && cellOptions.role != "inline"
+  style:background={inEdit && cellOptions.role != "inline" && !expanded
     ? "var(--spectrum-global-color-gray-100)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
   on:keydown={handleKeyboard}
-  on:focus={cellState.focus}
-  on:focusout={$editorState == "Open" ? () => {} : cellState.submit}
+  on:focusin={cellState.focus}
+  on:focusout={$editorState == "Open" || (expanded && !inactive)
+    ? () => {}
+    : cellState.submit}
 >
   {#if cellOptions?.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
-  {#if inEdit && cellOptions.autocomplete}
-    <input
-      class="editor"
-      class:placeholder={!searchTerm}
-      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-      style:padding-right={cellOptions.clearValueIcon
-        ? "32px"
-        : cellOptions.padding}
-      style:padding-top={0}
-      style:padding-bottom={0}
-      style:border={"none"}
-      bind:value={searchTerm}
-      placeholder={cellOptions.placeholder ?? "Enter..."}
-      use:focus
+  {#if expanded}
+    <SuperList
+      items={value}
+      listItemKey={"_id"}
+      {editorState}
+      {cellState}
+      {cellOptions}
+      bind:inactive
+      on:change={handleChange}
+      on:addrow={editorState.open}
+      on:itemClicked={(e) =>
+        cellOptions?.onItemClick({
+          itemId: e.detail.id,
+          itemText: e.detail.text,
+        })}
     />
-    <i class="ri-add-line actionIcon" on:click={(e) => (open = true)}></i>
   {:else if inEdit}
     <div
       class="editor"
@@ -281,8 +291,14 @@
         {fieldSchema}
         {filter}
         value={localValue}
+        wide={cellOptions.controlType != "expanded"}
         on:change={handleChange}
-        on:focusout={cellState.submit}
+        on:focusout={cellOptions.controlType == "expanded"
+          ? () => {
+              editorState.close();
+              anchor.focus();
+            }
+          : cellState.submit}
       />
     {/if}
   </SuperPopover>

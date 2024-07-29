@@ -148,6 +148,10 @@
   border: 1px solid var(--spectrum-global-color-gray-300);
   background: var(--spectrum-global-color-gray-50);
 }
+.superCell.formInput.multirow {
+  min-height: 2rem;
+  max-height: unset;
+}
 .superCell.formInput:hover {
   cursor: pointer;
   border: 1px solid var(--spectrum-global-color-gray-500);
