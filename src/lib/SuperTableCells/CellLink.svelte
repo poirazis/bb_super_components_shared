@@ -54,15 +54,27 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        if (!expanded) editorState.open();
-        if (expanded) anchor?.focus();
+        if (!expanded || !localValue.length) editorState.open();
+        if (expanded && localValue.length) anchor?.focus();
         dispatch("enteredit");
       },
       _exit() {
         dispatch("exitedit");
       },
       focusout(e) {
-        this.submit();
+        console.log(e);
+        if (
+          document.activeElement == anchor ||
+          anchor.contains(e.target) ||
+          anchor.contains(e.explicitOriginalTarget)
+        ) {
+          editorState.close();
+        } else {
+          this.submit();
+        }
+      },
+      clear() {
+        localValue = [];
       },
       submit() {
         dispatch("change", localValue);
@@ -97,7 +109,13 @@
 
   $: inEdit = $cellState == "Editing";
   $: simpleView = cellOptions.relViewMode == "text";
+  $: inline = cellOptions.role == "inlineInput";
   $: expanded = cellOptions.controlType == "expanded";
+  $: multirow =
+    cellOptions.controlType == "expanded" && (value?.length > 1 || inEdit);
+  $: singleSelect =
+    fieldSchema?.relationshipType == "one-to-many" ||
+    fieldSchema?.relationshipType == "self";
 
   const handleKeyboard = (e) => {
     if (e.keyCode == 32 && $cellState == "Editing") {
@@ -107,10 +125,6 @@
     }
   };
 
-  const focus = (e) => {
-    e?.focus();
-  };
-
   const handleChange = (e) => {
     localValue = [...e.detail];
 
@@ -118,9 +132,8 @@
       dispatch("change", localValue);
     }
 
-    if (fieldSchema?.relationshipType == "one-to-many") {
+    if (singleSelect) {
       anchor?.focus();
-      editorState.close();
     }
   };
 
@@ -141,8 +154,6 @@
     }
     return res;
   };
-
-  $: console.log($editorState, expanded, inactive);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -154,21 +165,25 @@
   tabindex={cellOptions.disabled ? "-1" : "0"}
   class:inEdit={$cellState == "Editing"}
   class:focused={$cellState == "Editing"}
-  class:inline={cellOptions.role == "inline"}
+  class:inline
+  class:multirow
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
-  class:multirow={cellOptions.controlType == "expanded" && value?.length}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   style:color={cellOptions.color}
-  style:background={inEdit && cellOptions.role != "inline" && !expanded
+  style:background={inEdit && !expanded
     ? "var(--spectrum-global-color-gray-100)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
   on:keydown={handleKeyboard}
   on:focusin={cellState.focus}
-  on:focusout={$editorState == "Open" || (expanded && !inactive)
+  on:mousedown={() => {
+    if (!expanded) editorState.toggle();
+  }}
+  on:focusout={($editorState == "Open" && cellOptions.search) ||
+  (expanded && !inactive)
     ? () => {}
     : cellState.submit}
 >
@@ -192,36 +207,6 @@
           itemText: e.detail.text,
         })}
     />
-  {:else if inEdit}
-    <div
-      class="editor"
-      class:placeholder={localValue?.length < 1 && $editorState == "Closed"}
-      style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
-      style:padding-right={cellOptions?.padding}
-      on:click={editorState.toggle}
-    >
-      <div class="items" class:simpleView>
-        {#if localValue?.length < 1}
-          {cellOptions?.placeholder != ""
-            ? cellOptions.placeholder
-            : "Choose an option"}
-        {:else if localValue?.length > 0}
-          {#each localValue as val, idx}
-            <div class="item" class:rel-pills={!simpleView}>
-              {#if !simpleView}
-                <i
-                  class={fieldSchema.type == "link"
-                    ? "ri-links-line"
-                    : "ri-user-line"}
-                />
-              {/if}
-              <span>{val.primaryDisplay}</span>
-            </div>
-          {/each}
-        {/if}
-      </div>
-      <i class="ri-arrow-down-s-line"></i>
-    </div>
   {:else}
     <div
       class="value"
@@ -231,7 +216,7 @@
     >
       <div class="items" class:simpleView>
         {#if localValue?.length < 1}
-          {cellOptions?.placeholder || "Select " + fieldSchema.name}
+          {cellOptions.placeholder || ""}
         {:else if localValue?.length > 0}
           {#each localValue as val}
             <div
@@ -251,7 +236,13 @@
           {/each}
         {/if}
       </div>
-      {#if cellOptions.role != "tableCell"}
+      {#if cellOptions.clearValueIcon && inEdit && localValue?.length}
+        <i
+          class="ri-close-line actionIcon"
+          on:mousedown|self|stopPropagation|preventDefault={cellState.clear}
+        ></i>
+      {/if}
+      {#if cellOptions.role == "formInput" || inEdit}
         <i class="ri-arrow-down-s-line"></i>
       {/if}
     </div>
@@ -264,6 +255,7 @@
     useAnchorWidth
     open={$editorState == "Open"}
     dismissible
+    on:close={cellState.submit}
   >
     {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self" || cellOptions.joinColumn}
       <CellLinkPickerTree
@@ -275,7 +267,7 @@
         value={localValue}
         multi={false}
         on:change={handleChange}
-        on:focusout={cellState.submit}
+        on:focusout={(e) => setTimeout(cellState.focusout, 20, e)}
       />
     {:else if cellOptions.controlType == "tableSelect"}
       <CellLinkPickerTable
@@ -295,13 +287,9 @@
         {filter}
         value={localValue}
         wide={cellOptions.controlType != "expanded"}
+        search={cellOptions.search}
         on:change={handleChange}
-        on:focusout={cellOptions.controlType == "expanded"
-          ? () => {
-              editorState.close();
-              anchor.focus();
-            }
-          : cellState.submit}
+        on:focusout={(e) => setTimeout(cellState.focusout, 20, e)}
       />
     {/if}
   </SuperPopover>
@@ -320,14 +308,15 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    border-left: 1px solid var(--spectrum-global-color-blue-500);
     min-width: 2rem;
     font-size: 16px;
     transition: all 130ms;
+    margin-right: 8px;
   }
   .actionIcon:hover {
     cursor: pointer;
     background-color: var(--spectrum-global-color-gray-75);
+    color: var(--spectrum-global-color-red-500);
     font-weight: 800;
   }
 

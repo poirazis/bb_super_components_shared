@@ -15,7 +15,10 @@
   export let headerHeight;
   export let quiet;
 
+  export let rowMenu;
   export let rowMenuItems;
+  export let onInsert;
+  export let onDelete;
   export let menuItemsVisible = 0;
   export let stbMenuID;
 
@@ -58,44 +61,73 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div class="spectrum-Table" on:mouseleave={() => ($stbHovered = null)}>
-  {#if $stbSettings.showHeader}
-    <div
-      class="spectrum-Table-headCell"
-      style:height={headerHeight}
-      on:mouseenter={() => (mouseover = true)}
-      on:mouseleave={() => (mouseover = false)}
-    ></div>
-  {/if}
+  <Block>
+    {#if $stbSettings.showHeader}
+      <div
+        class="spectrum-Table-headCell"
+        style:height={headerHeight}
+        on:mouseenter={() => (mouseover = true)}
+        on:mouseleave={() => (mouseover = false)}
+      >
+        {#if $stbSettings.features.canInsert}
+          <BlockComponent
+            type="plugin/bb-component-SuperButton"
+            props={{
+              size: "M",
+              icon: "ri-add-fill",
+              fillOnHover: true,
+              text: "",
+              quiet: true,
+              onClick: onInsert,
+            }}
+          ></BlockComponent>
+        {/if}
+      </div>
+    {/if}
 
-  <div
-    bind:this={columnBodyAnchor}
-    class="spectrum-Table-body"
-    style:background={quiet ? "transparent" : null}
-    style:border-right="var(--super-table-vertical-dividers)"
-    on:scroll|self={syncScroll}
-  >
-    {#if $stbData?.rows?.length}
-      {#each $stbData.rows as row, index}
-        {@const rowID = row[$stbSettings.data.idColumn]}
-        {@const selected =
-          $stbSelected.includes(rowID) ||
-          $stbSelected.includes(rowID?.toString())}
-        <div
-          class="spectrum-Table-row"
-          on:mouseenter={() => ($stbHovered = index)}
-          class:is-selected={selected}
-          class:is-hovered={$stbHovered === index}
-          class:is-editing={$stbEditing == index &&
-            ($stbSettings.appearance.highlighters == "horizontal" ||
-              $stbSettings.appearance.highlighters == "both")}
-          class:odd={$stbSettings.appearance.zebraColors && index % 2 == 1}
-          style:min-height={$stbRowHeights[index]}
-          style:background-color={$stbRowColors[index]?.bgcolor}
-        >
-          {#if inlineButtons?.length}
-            <Block>
-              <!-- svelte-ignore a11y-click-events-have-key-events -->
-              <div class="row-menu" on:mousedown={(e) => ($stbMenuID = rowID)}>
+    <div
+      bind:this={columnBodyAnchor}
+      class="spectrum-Table-body"
+      style:background={quiet ? "transparent" : null}
+      style:border-right="var(--super-table-vertical-dividers)"
+      on:scroll|self={syncScroll}
+    >
+      {#if $stbData?.rows?.length}
+        {#each $stbData.rows as row, index}
+          {@const rowID = row[$stbSettings.data.idColumn]}
+          {@const selected =
+            $stbSelected.includes(rowID) ||
+            $stbSelected.includes(rowID?.toString())}
+          <div
+            class="spectrum-Table-row"
+            on:mouseenter={() => ($stbHovered = index)}
+            class:is-selected={selected}
+            class:is-hovered={$stbHovered === index}
+            class:is-editing={$stbEditing == index &&
+              ($stbSettings.appearance.highlighters == "horizontal" ||
+                $stbSettings.appearance.highlighters == "both")}
+            class:odd={$stbSettings.appearance.zebraColors && index % 2 == 1}
+            style:min-height={$stbRowHeights[index]}
+            style:background-color={$stbRowColors[index]?.bgcolor}
+          >
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <div class="row-menu" on:mousedown={(e) => ($stbMenuID = rowID)}>
+              {#if $stbSettings.features.canDelete}
+                <BlockComponent
+                  type="plugin/bb-component-SuperButton"
+                  props={{
+                    size: "M",
+                    icon: "ri-delete-bin-2-line",
+                    iconColor: "var(--spectrum-global-color-red-500)",
+                    fillOnHover: true,
+                    text: "",
+                    quiet: true,
+                    context: { rowID },
+                    onClick: onDelete,
+                  }}
+                ></BlockComponent>
+              {/if}
+              {#if rowMenu && inlineButtons?.length}
                 {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
                   <BlockComponent
                     type="plugin/bb-component-SuperButton"
@@ -119,27 +151,27 @@
                     }}
                   ></BlockComponent>
                 {/each}
-              </div>
-            </Block>
-          {/if}
+              {/if}
+            </div>
 
-          {#if menuItems?.length}
-            <button
-              class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet"
-              class:is-selected={$stbMenuID == rowID && openMenu}
-              class:is-emphasized={false}
-              on:click|stopPropagation={(e) => handleMenu(e, rowID)}
-            >
-              <i class={menuIcon} />
-            </button>
-          {/if}
-        </div>
-      {/each}
+            {#if rowMenu && menuItems?.length}
+              <button
+                class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet"
+                class:is-selected={$stbMenuID == rowID && openMenu}
+                class:is-emphasized={false}
+                on:click|stopPropagation={(e) => handleMenu(e, rowID)}
+              >
+                <i class={menuIcon} />
+              </button>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+    </div>
+    {#if $stbSettings.showFooter}
+      <div class="spectrum-Table-footer" style:height={headerHeight}></div>
     {/if}
-  </div>
-  {#if $stbSettings.showFooter}
-    <div class="spectrum-Table-footer" style:height={headerHeight}></div>
-  {/if}
+  </Block>
 </div>
 
 {#if openMenu}
@@ -198,7 +230,7 @@
   .spectrum-Table-headCell {
     display: flex;
     flex-direction: row;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     padding: unset;
     background-color: var(--spectrum-global-color-gray-100);

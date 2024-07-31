@@ -372,6 +372,7 @@
 
   $: columns = cellOptions.optionsArrangement || 1;
   $: inEdit = $cellState == "Editing";
+  $: inline = cellOptions.role == "inlineInput";
   $: simpleView = cellOptions.optionsViewMode != "pills";
   $: if (cellOptions.prefetch || cellOptions.controlType != "select") {
     cellState.loadOptions("View");
@@ -441,12 +442,12 @@
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   class:focused={$cellState == "Editing"}
-  class:inline={cellOptions.role == "inline"}
+  class:inline
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
   class:large={cellOptions.controlType != "select"}
   style:color={cellOptions.color}
-  style:background={inEdit
+  style:background={inEdit && !inline
     ? "var(--spectrum-global-color-gray-50"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}

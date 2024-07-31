@@ -118,7 +118,7 @@
         : cellOptions?.padding}
       style:text-align={"right"}
       placeholder={cellOptions?.placeholder}
-      {value}
+      value={value ?? ""}
       on:keydown={(e) => debounce(e)}
       on:focusout={cellState.focusout}
       use:focus

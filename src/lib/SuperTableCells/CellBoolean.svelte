@@ -63,6 +63,8 @@
     ? processStringSync(cellOptions.template, { value })
     : undefined;
 
+  $: inline = cellOptions.role == "inlineInput";
+
   const focus = (node) => {
     node.focus();
   };
@@ -74,7 +76,7 @@
 <div
   class="superCell"
   class:inEdit={$cellState == "Editing"}
-  class:inline={cellOptions.role == "inline"}
+  class:inline
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
   class:disabled={cellOptions.disabled}

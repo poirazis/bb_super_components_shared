@@ -78,6 +78,7 @@
       ? processStringSync(cellOptions.template, { value: innerDate })
       : undefined;
   $: inEdit = $cellState == "Editing";
+  $: inline = cellOptions.role == "inlineInpur";
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -91,11 +92,11 @@
   class:focused={open}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
-  class:inline={cellOptions?.role == "inline"}
+  class:inline
   class:tableCell={cellOptions?.role == "tableCell"}
   class:formInput={cellOptions?.role == "formInput"}
   style:color={cellOptions?.color}
-  style:background={$cellState == "Editing" && cellOptions.role != "inline"
+  style:background={$cellState == "Editing" && !inline
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions.background}
   style:font-weight={cellOptions?.fontWeight}

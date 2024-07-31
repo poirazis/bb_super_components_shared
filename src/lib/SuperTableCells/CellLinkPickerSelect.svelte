@@ -10,6 +10,7 @@
   export let fieldSchema;
   export let filter = [];
   export let wide = true;
+  export let search = true;
 
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
@@ -66,6 +67,7 @@
     initialState: "Editing",
     role: "inlineInput",
     debounce: 250,
+    placeholder: "Search",
   };
 
   const handleSearch = (e) => {
@@ -93,14 +95,16 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div class="control">
-  <div class="searchControl">
-    <CellString
-      on:change={handleSearch}
-      on:exitedit={() => dispatch("focusout", {})}
-      autofocus
-      {cellOptions}
-    />
-  </div>
+  {#if search}
+    <div class="searchControl">
+      <CellString
+        on:change={handleSearch}
+        on:exitedit={() => dispatch("focusout", {})}
+        autofocus
+        {cellOptions}
+      />
+    </div>
+  {/if}
 
   {#if $fetch?.loaded && $fetch?.rows?.length}
     {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}

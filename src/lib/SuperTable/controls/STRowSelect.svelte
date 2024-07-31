@@ -12,6 +12,7 @@
   export let loading;
   export let headerHeight;
   export let quiet;
+  export let onDelete;
 
   let columnBodyAnchor;
   let mouseover;
@@ -32,7 +33,11 @@
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="spectrum-Table" on:mouseleave={() => ($stbHovered = null)}>
+<div
+  class="spectrum-Table"
+  on:mouseleave={() => ($stbHovered = null)}
+  style:min-width={"2.4rem"}
+>
   {#if $stbSettings.showHeader}
     <div
       class="spectrum-Table-headCell"
@@ -144,7 +149,6 @@
 <style>
   .spectrum-Table {
     background-color: transparent;
-    min-width: 2.4rem;
   }
   .spectrum-Table-headCell {
     display: flex;

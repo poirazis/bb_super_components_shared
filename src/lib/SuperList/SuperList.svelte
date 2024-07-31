@@ -37,7 +37,7 @@
   }
 
   $: inEdit = $cellState == "Editing";
-  $: showHandle = inEdit;
+  $: showHandle = inEdit && draggableItems.length > 1;
   $: isEmpty = draggableItems?.length < 1;
 
   const dispatch = createEventDispatcher();
@@ -138,7 +138,7 @@
           >
             <DragHandle />
           </div>
-        {:else}
+        {:else if draggableItems.length > 1}
           <div class="index">{idx + 1}</div>
         {/if}
       </div>

@@ -14,12 +14,28 @@
   let selectionIcon;
 
   $: if (disabled) open = false;
-  $: selected = $selectedNodes.find((x) => x._id == tree.id);
+  $: selected = $selectedNodes.find((x) => x.id == tree.id);
+  $: open = hasChildSelected(tree.children, $selectedNodes);
 
   const toggleOpen = (e) => {
     if (disabled) return;
     open = !open;
     dispatch("nodeClick", { id, label });
+  };
+
+  // Recursion
+  const hasChildSelected = (children) => {
+    let found = false;
+    if (!$selectedNodes.length) return found;
+
+    if (children.findIndex((x) => x.id == $selectedNodes[0].id) > -1) {
+      found = true;
+    } else {
+      children.forEach((element) => {
+        found = hasChildSelected(element.children);
+      });
+    }
+    return found;
   };
 
   const toggleNode = (e) => {
@@ -65,15 +81,15 @@
         style:padding-left={"0.25rem"}
         on:mouseenter={() => (selectionIcon = true)}
         on:mouseleave={() => (selectionIcon = false)}
-        on:mousedown={toggleNode}>{tree.label || "Not Set"}</span
+        on:mousedown|preventDefault={toggleNode}>{tree.label || "Not Set"}</span
       >
     </div>
 
     {#if selectionIcon || selected}
       <i
-        class="ri-checkbox-circle-fill"
+        class={selected ? "ri-checkbox-circle-fill" : "ri-checkbox-circle-line"}
         style:color={"var(--spectrum-global-color-green-500)"}
-        style:font-size={"18px"}
+        style:font-size={"16px"}
       ></i>
     {/if}
   </div>

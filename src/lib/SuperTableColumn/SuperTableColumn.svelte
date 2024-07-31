@@ -199,6 +199,7 @@
 
   $: columnOptions.cellOptions = {
     role: "tableCell",
+    search: true,
     readonly: !columnOptions.canEdit,
     align: columnOptions.align,
     color: columnOptions.color,

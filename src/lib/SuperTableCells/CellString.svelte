@@ -101,7 +101,7 @@
   class="superCell"
   class:inEdit
   class:focused={inEdit}
-  class:inline={cellOptions.role == "inline"}
+  class:inline={cellOptions.role == "inlineInput"}
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
   class:disabled={cellOptions.disabled}
@@ -120,6 +120,7 @@
   {#if inEdit}
     <input
       bind:this={editor}
+      tabindex="0"
       class="editor"
       class:placeholder={!value && !formattedValue}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}

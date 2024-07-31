@@ -197,10 +197,12 @@
 .superCell.inline {
   border: unset;
   border-radius: 2px;
-  background-color: var(--spectrum-global-color-gray-50);
   max-height: 1.8rem;
   min-height: 1.8rem;
   min-width: unset;
+}
+.superCell.inline > .value {
+  background-color: unset;
 }
 .superCell.inline.disabled {
   background-color: var(--spectrum-global-color-gray-100);
@@ -211,4 +213,8 @@
   background-color: var(--spectrum-global-color-gray-100);
   color: var(--spectrum-global-color-gray-600);
   cursor: not-allowed;
+}
+.superCell.inline.multirow {
+  min-height: 2rem;
+  max-height: unset;
 }

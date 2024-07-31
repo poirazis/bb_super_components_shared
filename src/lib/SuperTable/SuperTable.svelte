@@ -72,6 +72,7 @@
   export let showHeader;
   export let size;
   export let canInsert, canDelete, canEdit, canSort, canResize, canFilter;
+  export let deleteIconPosition = "left";
   export let showFilterOperators;
   export let superColumnsPos;
 
@@ -113,6 +114,8 @@
   export let onCellChange;
   export let onRowClick;
   export let onRowDblClick;
+  export let onInsert;
+  export let onDelete;
 
   // Deep compare datasource as its of type Object
   const dataSourceStore = memo(datasource);
@@ -184,6 +187,7 @@
     limit,
     paginate: true,
   });
+  $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
 
   $: populateColumns(
     $stbData,
@@ -217,6 +221,7 @@
       canSort,
       canEdit,
       canDelete,
+      deleteIconPosition,
       canInsert,
       canResize,
     },
@@ -383,9 +388,10 @@
           });
         }
       },
-      cellChanged(change) {
-        console.log("Change", change);
-
+      async cellChanged(change) {
+        let row = { tableId, _id: change.rowID, [change.field]: change.value };
+        await API.patchRow(row);
+        stbData.refresh();
         onCellChange?.({
           rowID: change.rowID,
           field: change.field,
@@ -644,6 +650,13 @@
     pageNumber: $stbData?.pageNumber + 1,
   };
 
+  // Show Action Column
+  $: showActionColumn =
+    ($stbSettings?.features?.canDelete &&
+      $stbSettings.features.deleteIconPosition == "right") ||
+    $stbSettings?.features?.canInsert ||
+    (rowMenuItems?.length && rowMenu);
+
   setContext("stbScrollPos", stbScrollPos);
   setContext("stbVerticalScroll", stbVerticalScroll);
   setContext("stbVerticalRange", stbVerticalRange);
@@ -735,7 +748,7 @@
         {/if}
       </div>
 
-      {#if $stbData?.rows?.length && rowMenu == "actionColumn" && rowMenuItems?.length}
+      {#if showActionColumn}
         <RowActionMenu
           {stbState}
           {stbSettings}
@@ -749,8 +762,11 @@
           {stbRowColors}
           {quiet}
           {rowMenuItems}
+          {onInsert}
+          {onDelete}
           {stbMenuID}
           {menuItemsVisible}
+          {rowMenu}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}

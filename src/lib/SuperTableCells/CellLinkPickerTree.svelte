@@ -50,6 +50,7 @@
 
   $: primaryDisplay = $fetch?.definition?.primaryDisplay;
   $: buildRootTree($fetch.rows);
+  $: setSelections(value);
 
   // Recursion
   const getChildren = (rows, parent) => {
@@ -73,7 +74,6 @@
     if (rows?.length) {
       // Parse string into relationship object
       rows.map((x) => (x[name] = safeParse(x[name])));
-      $selectedNodes = [];
       rows?.forEach((row) => {
         if (row[name]) {
         } else {
@@ -86,7 +86,6 @@
       });
       tree = tree;
       treeLoaded = true;
-      if (value?.length) $selectedNodes.push({ _id: value[0]._id });
     }
   };
 
@@ -119,6 +118,15 @@
         return { _id: x.id, primaryDisplay: x.label };
       })
     );
+  };
+
+  const setSelections = () => {
+    if (value && value.length) {
+      $selectedNodes = [];
+      $selectedNodes = value.map((x) => {
+        return { id: x["_id"], label: x["primaryDisplay"] };
+      });
+    }
   };
 
   const safeParse = (x) => {
@@ -154,7 +162,7 @@
   let cellOptions = {
     icon: "ri-search-line",
     initialState: "Editing",
-    role: "inlineInput",
+    role: "formInput",
     debounce: 250,
   };
 </script>
@@ -199,6 +207,8 @@
     justify-content: stretch;
     overflow-x: hidden;
     padding: 0.5rem;
-    gap: 0.5rem;
+    gap: 0.25rem;
+    min-height: 260px;
+    max-height: 260px;
   }
 </style>
