@@ -200,6 +200,7 @@
   $: columnOptions.cellOptions = {
     role: "tableCell",
     search: true,
+    autocomplete: true,
     readonly: !columnOptions.canEdit,
     align: columnOptions.align,
     color: columnOptions.color,

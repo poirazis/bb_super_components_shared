@@ -90,7 +90,7 @@
   };
 
   onMount(() => {
-    if (autofocus) setTimeout(() => editor?.focus(), 150);
+    if (autofocus) setTimeout(() => editor?.focus(), 10);
   });
 </script>
 

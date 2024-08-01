@@ -62,7 +62,6 @@
         dispatch("exitedit");
       },
       focusout(e) {
-        console.log(e);
         if (
           document.activeElement == anchor ||
           anchor.contains(e.target) ||
@@ -254,8 +253,7 @@
     {anchor}
     useAnchorWidth
     open={$editorState == "Open"}
-    dismissible
-    on:close={cellState.submit}
+    dismissible={false}
   >
     {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self" || cellOptions.joinColumn}
       <CellLinkPickerTree

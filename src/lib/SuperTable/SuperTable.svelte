@@ -15,10 +15,9 @@
   import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
-
-  import StRowSelect from "./controls/STRowSelect.svelte";
   import SuperTableSelectionActionBar from "./controls/SuperTableSelectionActionBar.svelte";
   import RowActionMenu from "./controls/RowActionMenu.svelte";
+  import RowSelect from "./controls/RowSelect.svelte";
 
   const {
     API,
@@ -39,7 +38,6 @@
 
   const stbHovered = new writable(-1);
   const stbEditing = new writable(-1);
-  const stbSettings = new writable({});
   const stbSortColumn = new writable({});
   const stbSortOrder = new writable({});
 
@@ -117,15 +115,6 @@
   export let onInsert;
   export let onDelete;
 
-  // Deep compare datasource as its of type Object
-  const dataSourceStore = memo(datasource);
-  const filterStore = memo(filter);
-  $: dataSourceStore.set(datasource);
-  $: filterStore.set(filter);
-
-  const styleVariables = memo({});
-  $: styleVariables.set({});
-
   let timer;
   let anchor;
   let columns = [];
@@ -137,68 +126,13 @@
   let highlighted;
   let columnsBodyAnchor;
 
-  $: if (rowSelectMode == "single") $stbSelected[0] = preselectedId;
-  $: if (rowSelectMode == "multi" && preselectedIds)
-    $stbSelected = preselectedIds?.split(",") || [];
-
-  $: if (datasource.type == "provider") {
-    let dataProviderId = datasource.providerId;
-    let addExtension = getAction(
-      dataProviderId,
-      ActionTypes.AddDataProviderQueryExtension
-    );
-
-    let removeExtension = getAction(
-      dataProviderId,
-      ActionTypes.RemoveDataProviderQueryExtension
-    );
-  }
-
-  $: commonColumnOptions = {
-    hasChildren: false,
-    sizing: columnSizing,
-    maxWidth: columnMaxWidth ?? "16rem",
-    minWidth: columnMinWidth ?? "6rem",
-    canResize: canResize,
-    showFooter: showFooter,
-    showHeader: showHeader,
-    cellPadding:
-      size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
-    headerHeight:
-      size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
-    highlighters,
-    useOptionColors,
-    optionsViewMode,
-    relViewMode,
-    zebraColors,
-    background: quiet ? "transparent" : null,
-    showFilterOperators: showFilterOperators,
-  };
-
-  $: defaultQuery = QueryUtils.buildQuery($filterStore);
-  $: queryExtension = QueryUtils.buildQuery(stbColumnFilters);
-  $: query = extendQuery(defaultQuery, [queryExtension]);
-
-  $: stbData = createFetch($dataSourceStore);
-  $: stbData?.update({
-    query,
-    sortColumn,
-    sortOrder,
-    limit,
-    paginate: true,
-  });
-  $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
-
-  $: populateColumns(
-    $stbData,
-    columnList,
-    autocolumns,
-    jsoncolumns,
-    canFilter,
-    canEdit
-  );
-
-  $: tableOptions = {
+  // Deep compare datasource as its of type Object
+  const dataSourceStore = memo(datasource);
+  const filterStore = memo(filter);
+  const stbSettings = memo({});
+  $: dataSourceStore.set(datasource);
+  $: filterStore.set(filter);
+  $: stbSettings.set({
     superColumnsPos,
     columnSizing,
     columnMaxWidth,
@@ -264,7 +198,68 @@
       onCellChange,
       onRowSelect,
     },
+  });
+
+  $: if (rowSelectMode == "single") $stbSelected[0] = preselectedId;
+  $: if (rowSelectMode == "multi" && preselectedIds)
+    $stbSelected = preselectedIds?.split(",") || [];
+
+  $: if (datasource.type == "provider") {
+    let dataProviderId = datasource.providerId;
+    let addExtension = getAction(
+      dataProviderId,
+      ActionTypes.AddDataProviderQueryExtension
+    );
+
+    let removeExtension = getAction(
+      dataProviderId,
+      ActionTypes.RemoveDataProviderQueryExtension
+    );
+  }
+
+  $: commonColumnOptions = {
+    hasChildren: false,
+    sizing: columnSizing,
+    maxWidth: columnMaxWidth ?? "16rem",
+    minWidth: columnMinWidth ?? "6rem",
+    canResize: canResize,
+    showFooter: showFooter,
+    showHeader: showHeader,
+    cellPadding:
+      size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
+    headerHeight:
+      size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
+    highlighters,
+    useOptionColors,
+    optionsViewMode,
+    relViewMode,
+    zebraColors,
+    background: quiet ? "transparent" : null,
+    showFilterOperators: showFilterOperators,
   };
+
+  $: defaultQuery = QueryUtils.buildQuery($filterStore);
+  $: queryExtension = QueryUtils.buildQuery(stbColumnFilters);
+  $: query = extendQuery(defaultQuery, [queryExtension]);
+
+  $: stbData = createFetch($dataSourceStore);
+  $: stbData?.update({
+    query,
+    sortColumn,
+    sortOrder,
+    limit,
+    paginate: true,
+  });
+  $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
+
+  $: populateColumns(
+    $stbData,
+    columnList,
+    autocolumns,
+    jsoncolumns,
+    canFilter,
+    canEdit
+  );
 
   // Generate Layout required variables first so we can render early on
   $: defaultRowHeight =
@@ -305,8 +300,7 @@
     clearInterval(timer);
   }
 
-  $: $stbSettings = tableOptions;
-  $: stbState.synch($stbData, zebraColors);
+  $: stbState.synch($stbData, $stbSettings);
 
   // Super Table State Machine
   const stbState = fsm("Loading", {
@@ -642,7 +636,6 @@
       $stbSelected.includes(x[idColumn])
     ),
     selectedIds: $stbSelected,
-    menuRow: $stbData?.rows?.find((row) => row[idColumn] == $stbMenuID) || {},
     info: $stbData?.info,
     datasource: datasource || {},
     schema,
@@ -652,8 +645,7 @@
 
   // Show Action Column
   $: showActionColumn =
-    ($stbSettings?.features?.canDelete &&
-      $stbSettings.features.deleteIconPosition == "right") ||
+    $stbSettings?.features?.canDelete ||
     $stbSettings?.features?.canInsert ||
     (rowMenuItems?.length && rowMenu);
 
@@ -670,6 +662,8 @@
   setContext("stbRowHeights", stbRowHeights);
   setContext("stbRowColors", stbRowColors);
   $: setContext("stbData", stbData);
+
+  let visible = false;
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -680,15 +674,15 @@
   tabindex="0"
   class="st-master-wrapper"
   style:font-size={sizingMap[size].rowFontSize}
-  style:--spectrum-table-border-color={tableOptions.dividersColor ??
+  style:--spectrum-table-border-color={$stbSettings.dividersColor ??
     "var(--spectrum-alias-border-color-mid)"}
   style:--super-table-body-height={maxBodyHeight + "px"}
-  style:--super-table-horizontal-dividers={tableOptions.dividers == "both" ||
-  tableOptions.dividers == "horizontal"
+  style:--super-table-horizontal-dividers={$stbSettings.dividers == "both" ||
+  $stbSettings.dividers == "horizontal"
     ? "1px solid var(--spectrum-table-border-color)"
     : "1px solid transparent"}
-  style:--super-table-vertical-dividers={tableOptions.dividers == "both" ||
-  tableOptions.dividers == "vertical"
+  style:--super-table-vertical-dividers={$stbSettings.dividers == "both" ||
+  $stbSettings.dividers == "vertical"
     ? "1px solid var(--spectrum-table-border-color)"
     : "none"}
   on:mouseenter={() => (highlighted = true)}
@@ -699,7 +693,7 @@
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
       {#if $stbData?.rows?.length && (selectionColumn || (canEdit && rowSelectMode != "off"))}
-        <StRowSelect
+        <RowSelect
           {stbState}
           {stbSettings}
           {stbData}
@@ -767,6 +761,9 @@
           {stbMenuID}
           {menuItemsVisible}
           {rowMenu}
+          {visible}
+          {stbHorizontalRange}
+          {stbHorizontalScroll}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}
@@ -775,7 +772,10 @@
       {/if}
 
       {#if $stbData.loaded && $stbData.rows.length == 0}
-        <div class="empty" style:top={tableOptions.headerHeight + 16}>
+        <div
+          class="empty"
+          style:top={columns.length ? $stbSettings.headerHeight + 16 : 16}
+        >
           No Records Found
         </div>
       {/if}
@@ -801,10 +801,11 @@
       />
 
       <SuperTableVerticalScroller
+        bind:visible
         {stbVerticalScroll}
         {highlighted}
         clientHeight={maxBodyHeight}
-        clientScrollHeight={$stbData?.rows.length > tableOptions.visibleRowCount
+        clientScrollHeight={$stbData?.rows.length > $stbSettings.visibleRowCount
           ? $stbData?.rows.length * defaultRowHeight
           : maxBodyHeight}
         offset={$stbSettings.showHeader ? "40px" : "8px"}

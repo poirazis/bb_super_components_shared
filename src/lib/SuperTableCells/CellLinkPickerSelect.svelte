@@ -17,9 +17,6 @@
   let appliedFilter = [];
 
   $: localValue = Array.isArray(value) ? value : [];
-
-  let primaryDisplay = "email";
-
   $: fetch = fetchData({
     API,
     datasource: {

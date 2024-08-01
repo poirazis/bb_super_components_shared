@@ -16,11 +16,15 @@
   export let fieldSchema;
   export let multi = false;
 
-  let originalValue = value;
   let timer;
+
+  let originalValue = JSON.stringify(
+    Array.isArray(value) ? value : value ? [value] : []
+  );
 
   // We always keep an internal value as an array
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
+  $: isDirty = originalValue !== JSON.stringify(localValue);
 
   let anchor = null;
   let editor;
@@ -141,41 +145,28 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        dispatch("enteredit");
-        if (cellOptions.autocomplete || cellOptions.role != "formInput") return;
+        originalValue = JSON.stringify(
+          Array.isArray(value) ? value : value ? [value] : []
+        );
         if (cellOptions.controlType == "select") editorState.open();
+        dispatch("enteredit");
       },
       _exit() {
         editorState.close();
         dispatch("exitedit");
       },
-      change() {
-        if (cellOptions.role == "inline") dispatch("change", localValue);
-      },
       handleKeyboard(e) {},
       focusout(e) {
-        if (
-          picker?.contains(
-            e.explicitOriginalTarget || picker?.contains(e.relatedTarget)
-          )
-        )
-          return;
-        if (anchor?.contains(e.explicitOriginalTarget) && !e.relatedTarget)
-          return;
-
-        if (
-          /** 
-          !arrayEquals(originalValue, localValue) &&
-          originalValue != localValue[0] &&
-          */
-          !cellOptions.debounce
-        ) {
+        editorState.close();
+        this.submit();
+        dispatch("focusout");
+        return "View";
+      },
+      submit() {
+        if (isDirty && !cellOptions.debounce) {
           if (multi) dispatch("change", localValue);
           else dispatch("change", localValue[0]);
         }
-
-        dispatch("focusout");
-        return "View";
       },
       cancel() {
         return "View";
@@ -194,20 +185,19 @@
       },
       toggleOption(idx) {
         if (cellOptions.disabled || cellOptions.readonly) return;
-        if (!cellOptions.addNew && idx < 0) return;
+        let option = options[idx];
+        let pos = localValue.indexOf(option);
 
-        let option = options[idx] ?? searchTerm;
-
-        if (multi && localValue.includes(option)) {
-          localValue.splice(localValue.indexOf(option), 1);
-          localValue = localValue;
+        if (multi && pos > -1) {
+          localValue.splice(pos, 1);
+          localValue = [...localValue];
         } else if (multi) {
           localValue = [...localValue, option];
         } else {
           localValue = [option];
         }
 
-        if (cellOptions.role == "inline" || cellOptions.debounce) {
+        if (cellOptions.debounce) {
           clearTimeout(timer);
           timer = setTimeout(() => {
             dispatch("change", multi ? localValue : localValue[0]);
@@ -220,7 +210,6 @@
             this.filterOptions();
           }
         }
-        this.refocus.debounce(10);
         if (!multi) {
           this.close.debounce(30);
         }
@@ -417,15 +406,6 @@
       : optionIcons[value];
   };
 
-  const arrayEquals = (a, b) => {
-    return (
-      Array.isArray(a) &&
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((val, index) => val === b[index])
-    );
-  };
-
   const focus = (node) => {
     node?.focus();
   };
@@ -436,12 +416,13 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={anchor}
+  tabindex={cellOptions.disabled ? "-1" : 0}
   class="superCell"
   class:inEdit
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
-  class:focused={$cellState == "Editing"}
+  class:focused={inEdit}
   class:inline
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
@@ -451,6 +432,9 @@
     ? "var(--spectrum-global-color-gray-50"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
+  on:focusin={cellState.focus}
+  on:focusout={cellState.focusout}
+  on:keydown={editorState.handleKeyboard}
 >
   {#if $cellState == "Loading"}
     <CellSkeleton>Initializing ..</CellSkeleton>
@@ -588,96 +572,22 @@
           </div>
         {/each}
       </div>
-    {:else if $cellState == "Editing"}
-      {#if cellOptions.autocomplete}
-        {#if multi}
-          {#if localValue.length > 0}
-            <div
-              class="editor"
-              style:width={"auto"}
-              style:padding-left={cellOptions.icon
-                ? "32px"
-                : cellOptions.padding}
-            >
-              <div
-                class="items"
-                class:simpleView
-                style:justify-content={cellOptions.align ?? "flex-start"}
-              >
-                {#each localValue as val (val)}
-                  {@const color = getOptionColor(val)}
-                  {@const label = getOptionLabel(val)}
-                  <div
-                    class="item"
-                    animate:flip={{ duration: 130 }}
-                    style:background-color={!simpleView ? color : "unset"}
-                    style:border={getOptionColor(val) || simpleView
-                      ? undefined
-                      : "1px solid var(--spectrum-global-color-gray-300)"}
-                  >
-                    {#if simpleView && color}
-                      <div class="loope" style:background-color={color} />
-                    {/if}
-                    <span> {label} </span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        {/if}
-
-        <input
-          tabindex="0"
-          bind:this={editor}
-          class="editor"
-          class:placeholder={localValue == []}
-          style:padding-left={cellOptions.icon && !localValue?.length
-            ? "32px"
-            : cellOptions.padding}
-          style:padding-right={cellOptions.padding}
-          style:padding-top={0}
-          style:padding-bottom={0}
-          style:border={"none"}
-          use:focus
-          on:focusout={cellState.focusout}
-          value={multi ? "" : localValue[0] ?? ""}
-          on:input={editorState.filterOptions}
-          on:keydown={editorState.handleKeyboard}
-          placeholder={cellOptions.placeholder ?? "Enter..."}
-        />
-        <div
-          id="btn_toggle"
-          class="actionIcon"
-          on:click|stopPropagation={editorState.toggle}
-        >
-          <i class="ri-arrow-down-s-line"></i>
-        </div>
-      {:else}
-        <div
-          class="editor"
-          tabindex="0"
-          bind:this={editor}
-          class:placeholder={localValue?.length < 1}
-          style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-          style:padding-right={cellOptions.padding}
-          style:cursor={"pointer"}
-          on:click={editorState.toggle}
-          on:keydown={editorState.handleKeyboard}
-          on:focusout={cellState.focusout}
-          use:focus
-        >
+    {:else if inEdit && cellOptions.autocomplete}
+      {#if multi}
+        {#if localValue.length > 0}
           <div
-            class="items"
-            class:simpleView
-            style:justify-content={cellOptions.align ?? "flex-start"}
+            class="editor"
+            style:width={"auto"}
+            style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
           >
-            {#if localValue.length < 1}
-              {cellOptions?.placeholder}
-            {:else if localValue.length > 0}
+            <div
+              class="items"
+              class:simpleView
+              style:justify-content={cellOptions.align ?? "flex-start"}
+            >
               {#each localValue as val (val)}
                 {@const color = getOptionColor(val)}
                 {@const label = getOptionLabel(val)}
-                {@const icon = getOptionIcon(val)}
                 <div
                   class="item"
                   animate:flip={{ duration: 130 }}
@@ -686,36 +596,50 @@
                     ? undefined
                     : "1px solid var(--spectrum-global-color-gray-300)"}
                 >
-                  {#if color && !icon && simpleView}
-                    <div
-                      class="loope small"
-                      style:background-color={color}
-                    ></div>
-                  {/if}
-                  {#if icon}
-                    <i
-                      class={icon}
-                      style:color={simpleView
-                        ? color
-                        : "var(--spectrum-global-color-gray-800)"}
-                    />
+                  {#if simpleView && color}
+                    <div class="loope" style:background-color={color} />
                   {/if}
                   <span> {label} </span>
                 </div>
               {/each}
-            {/if}
+            </div>
           </div>
-          <i class="ri-arrow-down-s-line" style:font-size={"18px"}></i>
-        </div>
+        {/if}
       {/if}
+
+      <input
+        tabindex="0"
+        bind:this={editor}
+        class="editor"
+        class:placeholder={localValue == []}
+        style:padding-left={cellOptions.icon && !localValue?.length
+          ? "32px"
+          : cellOptions.padding}
+        style:padding-right={cellOptions.padding}
+        style:padding-top={0}
+        style:padding-bottom={0}
+        style:border={"none"}
+        use:focus
+        on:focusout={cellState.focusout}
+        value={multi ? "" : localValue[0] ?? ""}
+        on:input={editorState.filterOptions}
+        on:keydown={editorState.handleKeyboard}
+        placeholder={cellOptions.placeholder ?? "Enter..."}
+      />
+      <div
+        id="btn_toggle"
+        class="actionIcon"
+        on:click|stopPropagation={editorState.toggle}
+      >
+        <i class="ri-arrow-down-s-line"></i>
+      </div>
     {:else}
       <div
         class="value"
-        tabindex={cellOptions.disabled || cellOptions.readonly ? "-1" : "0"}
-        on:focusin={cellState.focus}
         class:placeholder={localValue?.length < 1}
         style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
         style:padding-right={cellOptions.padding}
+        on:mousedown={inEdit ? editorState.toggle : () => {}}
       >
         <div
           class="items"
@@ -761,7 +685,7 @@
   {/if}
 </div>
 
-{#if cellOptions.controlType == "select" && $cellState == "Editing"}
+{#if inEdit && cellOptions.controlType == "select"}
   <SuperPopover
     {anchor}
     useAnchorWidth
@@ -789,7 +713,7 @@
           <div
             class="option"
             class:focused={focusedOptionIdx === idx}
-            on:click|stopPropagation={(e) => editorState.toggleOption(idx)}
+            on:mousedown|preventDefault={(e) => editorState.toggleOption(idx)}
             on:mouseenter={() => (focusedOptionIdx = idx)}
           >
             {#if multi || (color && !icon)}
