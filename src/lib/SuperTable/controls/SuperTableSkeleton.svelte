@@ -1,33 +1,33 @@
 <script>
-  import { getContext } from "svelte"
+  import { getContext } from "svelte";
   import Skeleton from "./Skeleton.svelte";
 
-  const tableDataStore = getContext("tableDataStore")
-  const tableStateStore = getContext("tableStateStore")
-  const tableSelectionStore = getContext("tableSelectionStore")
-
+  const tableDataStore = getContext("tableDataStore");
+  const tableStateStore = getContext("tableStateStore");
+  const tableSelectionStore = getContext("tableSelectionStore");
 </script>
 
 <div class="spectrum-Table" style="width: 100%;">
-
   <div class="spectrum-Table-head">
     <div style:min-height={"2.5rem"} class="spectrum-Table-headCell">
-      Loading ... 
+      Loading ...
     </div>
   </div>
 
   <div class="spectrum-Table-body">
-  {#each $tableStateStore.rowHeights as row, index }
-    <div class="spectrum-Table-row" style:min-height={ $tableStateStore.rowHeights[index] + "px" }>
-      <div class="spectrum-Table-cell" style="width: 100%;">
-        <Skeleton> Loading ... </Skeleton>
+    {#each $tableStateStore.rowHeights as row, index}
+      <div
+        class="spectrum-Table-row"
+        style:min-height={$tableStateStore.rowHeights[index] + "px"}
+      >
+        <div class="spectrum-Table-cell" style="width: 100%;">
+          <Skeleton>Loading ...</Skeleton>
+        </div>
       </div>
-    </div>
-  {/each}
+    {/each}
   </div>
 
   <div class="spectrum-Table-footer"></div>
-
 </div>
 
 <style>
@@ -59,7 +59,7 @@
     border-top: unset;
     border-bottom: unset;
     border-right-width: var(--super-table-column-right-border-size);
-    scrollbar-width: none;   
+    scrollbar-width: none;
   }
 
   .spectrum-Table-body::-webkit-scrollbar {

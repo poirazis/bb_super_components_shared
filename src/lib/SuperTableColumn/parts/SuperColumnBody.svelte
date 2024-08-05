@@ -5,7 +5,6 @@
 
   const stbSelected = getContext("stbSelected");
   const stbScrollPos = getContext("stbScrollPos");
-  const stbVerticalScroll = getContext("stbVerticalScroll");
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
 
@@ -17,6 +16,7 @@
   export let rowColors;
   export let inInsert;
   export let canInsert;
+  export let isLast;
 
   let hovered;
 
@@ -26,14 +26,6 @@
 
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
-  };
-
-  const syncScroll = (e) => {
-    if ($stbScrollPos != columnBodyAnchor.scrollTop) {
-      $stbScrollPos = columnBodyAnchor.scrollTop;
-      $stbVerticalScroll =
-        columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax;
-    }
   };
 </script>
 
@@ -49,11 +41,11 @@
       $columnSettings.highlighters == "both")}
   on:mouseenter={() => (hovered = true)}
   on:mouseleave={() => (hovered = false)}
-  on:scroll|self={syncScroll}
 >
   {#if rowHeights?.length}
     {#each rows as row, index}
       <SuperColumnRow
+        {isLast}
         {index}
         {row}
         odd={$columnSettings.zebraColors && index % 2 == 1}

@@ -11,8 +11,7 @@
     supportEditingMap,
   } from "./constants.js";
 
-  import SuperTableVerticalScroller from "./controls/SuperTableVerticalScroller.svelte";
-  import SuperTableHorizontalScroller from "./controls/SuperTableHorizontalScroller.svelte";
+  import ScrollbarsOverlay from "./overlays/ScrollbarsOverlay.svelte";
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableSelectionActionBar from "./controls/SuperTableSelectionActionBar.svelte";
@@ -36,22 +35,18 @@
 
   // Create Stores
   const stbScrollPos = new writable(0);
+  const stbScrollPercent = new writable(0);
+  const stbHorizontalScrollPos = new writable(0);
+  const stbHorizontalScrollPercent = new writable(0);
+
   const stbMenuID = new writable(0);
   const stbSelected = new writable([]);
-
   const stbHovered = new writable(-1);
   const stbEditing = new writable(-1);
   const stbSortColumn = new writable({});
   const stbSortOrder = new writable({});
-
   const stbRowHeights = new writable([]);
   const stbRowColors = new writable([]);
-
-  const stbVerticalScroll = new writable(0);
-  const stbVerticalRange = new writable(1);
-
-  const stbHorizontalScroll = new writable(0);
-  const stbHorizontalRange = new writable(1);
 
   export let datasource;
   export let idColumn;
@@ -256,6 +251,7 @@
     paginate: true,
   });
   $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
+  $: isEmpty = $stbData.loaded && !$stbData?.rows.length;
 
   $: populateColumns(
     $stbData,
@@ -280,13 +276,13 @@
   // Reactive Fetch on Scroll
   $: if (
     fetchOnScroll &&
-    $stbVerticalScroll > 0.8 &&
+    $stbScrollPercent > 0.8 &&
     $stbData.loading != true &&
     limit == $stbData?.rows.length
   ) {
     let old_limit = limit;
     limit = old_limit + fetchPageSize < 1000 ? old_limit + fetchPageSize : 1000;
-    $stbScrollPos = $stbScrollPos - $stbScrollPos * 0.1;
+    $stbScrollPercent -= 0.1;
   }
 
   // Autorefresh Timer
@@ -310,6 +306,48 @@
   // Super Table State Machine
   const stbState = fsm("Loading", {
     "*": {
+      handleWheel(e) {
+        if (e.deltaY) {
+          if ($stbScrollPos + e.deltaY <= 0) {
+            $stbScrollPos = 0;
+            $stbScrollPercent = 0;
+            e.preventDefault();
+            return;
+          }
+
+          if ($stbScrollPos + e.deltaY >= scrollHeight - maxBodyHeight) {
+            $stbScrollPos = scrollHeight - maxBodyHeight;
+            $stbScrollPercent = 1;
+            e.preventDefault();
+            return;
+          }
+
+          $stbScrollPos += e.deltaY;
+          $stbScrollPercent = $stbScrollPos / scrollHeight;
+        } else if (e.deltaX) {
+          if ($stbHorizontalScrollPos + e.deltaX < 0) {
+            $stbHorizontalScrollPos = 0;
+            $stbHorizontalScrollPercent = 0;
+            e.preventDefault();
+            return;
+          }
+
+          if (
+            $stbHorizontalScrollPos + e.deltaX >
+            columnsBodyAnchor?.scrollWidth - columnsBodyAnchor.clientWidth
+          ) {
+            $stbHorizontalScrollPos =
+              columnsBodyAnchor?.scrollWidth - columnsBodyAnchor.clientWidth;
+            $stbHorizontalScrollPercent = 1;
+            e.preventDefault();
+            return;
+          }
+
+          $stbHorizontalScrollPos += e.deltaX;
+          $stbHorizontalScrollPercent =
+            $stbHorizontalScrollPos / columnsBodyAnchor.scrollWidth;
+        }
+      },
       handleKeyboard(e) {},
       refreshScroll() {
         highlighted = highlighted;
@@ -458,7 +496,6 @@
     },
     Idle: {
       _enter() {
-        console.log("Entering IDle", visibleRowCount, $stbData?.rows.length);
         $stbRowHeights =
           visibleRowCount > $stbData?.rows.length
             ? new Array(visibleRowCount).fill(defaultRowHeight)
@@ -499,15 +536,6 @@
     Sorted: {},
     Empty: {},
   });
-
-  const syncScroll = (e) => {
-    if (columnsBodyAnchor) {
-      const { scrollLeftMax, scrollLeft, scrollWidth, clientWidth } =
-        columnsBodyAnchor;
-      $stbHorizontalRange = scrollLeftMax > 0 ? clientWidth / scrollWidth : 1;
-      $stbHorizontalScroll = scrollLeft / scrollLeftMax;
-    }
-  };
 
   const createFetch = (datasource) => {
     return fetchData({
@@ -623,14 +651,6 @@
     }
   };
 
-  beforeUpdate(() => {
-    if (columnsBodyAnchor) {
-      const { scrollWidth, clientWidth } = columnsBodyAnchor;
-      $stbHorizontalRange =
-        scrollWidth > clientWidth ? clientWidth / scrollWidth : 1;
-    }
-  });
-
   onDestroy(() => {
     if (timer) clearInterval(timer);
   });
@@ -663,19 +683,16 @@
 
   // Show Action Column
   $: showActionColumn =
-    $stbSettings?.features?.canDelete ||
-    (rowMenuItems?.length && rowMenu) ||
-    $stbSettings?.features?.canEdit == "advanced";
+    canDelete || (rowMenuItems?.length && rowMenu) || canEdit == "advanced";
 
-  $: showSelectionColumn = selectionColumn || (canEdit && rowSelectMode);
+  $: showSelectionColumn =
+    selectionColumn || (canEdit == "simple" && rowSelectMode);
 
   setContext("stbScrollPos", stbScrollPos);
-  setContext("stbVerticalScroll", stbVerticalScroll);
-  setContext("stbVerticalRange", stbVerticalRange);
   setContext("stbHovered", stbHovered);
   setContext("stbSelected", stbSelected);
   setContext("stbEditing", stbEditing);
-  setContext("tableState", stbState);
+  setContext("stbState", stbState);
   setContext("stbSettings", stbSettings);
   setContext("stbSortColumn", stbSortColumn);
   setContext("stbSortOrder", stbSortOrder);
@@ -684,6 +701,9 @@
   $: setContext("stbData", stbData);
 
   let visible = false;
+  let horizontalVisible = false;
+  let scrollHeight;
+  let clientHeight;
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -708,22 +728,15 @@
   on:mouseenter={() => (highlighted = true)}
   on:mouseleave={() => (highlighted = false)}
   on:keydown={stbState.handleKeyboard}
+  on:wheel={stbState.handleWheel}
 >
   {#key stbData}
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
-      {#if selectionColumn}
+      {#if showSelectionColumn && !isEmpty}
         <RowSelect
-          {stbState}
-          {stbSettings}
-          {stbData}
-          {stbSelected}
-          {stbHovered}
-          {stbEditing}
-          {stbScrollPos}
-          {stbVerticalScroll}
-          {stbRowHeights}
-          {stbRowColors}
+          bind:clientHeight
+          bind:scrollHeight
           {quiet}
           headerHeight={size == "custom"
             ? customCellPadding
@@ -732,11 +745,7 @@
         />
       {/if}
 
-      <div
-        bind:this={columnsBodyAnchor}
-        class="st-master-columns"
-        on:scroll|self={syncScroll}
-      >
+      <div bind:this={columnsBodyAnchor} class="st-master-columns">
         {#if $stbData?.loaded}
           {#if $stbSettings.superColumnsPos == "first"}
             <slot />
@@ -748,6 +757,9 @@
                 columnOptions={{
                   ...column,
                   ...commonColumnOptions,
+                  isFirst: idx == 0,
+                  isLast:
+                    idx == columns.length - 1 && !showActionColumn && visible,
                 }}
               />
             {/each}
@@ -763,16 +775,7 @@
 
       {#if showActionColumn}
         <RowActionMenu
-          {stbState}
-          {stbSettings}
-          {stbData}
-          {stbSelected}
-          {stbHovered}
-          {stbEditing}
-          {stbScrollPos}
-          {stbVerticalScroll}
-          {stbRowHeights}
-          {stbRowColors}
+          {stbHorizontalScrollPercent}
           {quiet}
           {rowMenuItems}
           {onInsert}
@@ -782,8 +785,7 @@
           {menuItemsVisible}
           {rowMenu}
           {visible}
-          {stbHorizontalRange}
-          {stbHorizontalScroll}
+          {horizontalVisible}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}
@@ -809,28 +811,19 @@
         ></SuperTableSelectionActionBar>
       {/if}
 
-      <SuperTableHorizontalScroller
-        {stbHorizontalScroll}
-        {stbHorizontalRange}
-        {highlighted}
-        offset={$stbSettings.rowSelectMode != "off" ||
-        $stbSettings.selectionColumn
-          ? "3rem"
-          : "0rem"}
-        verticalOffset={$stbSettings.showFooter ? "40px" : "8px"}
-      />
-
-      <SuperTableVerticalScroller
+      <ScrollbarsOverlay
         bind:visible
-        {stbVerticalScroll}
+        bind:horizontalVisible
+        anchor={columnsBodyAnchor}
+        {clientHeight}
+        {scrollHeight}
         {stbScrollPos}
+        {stbHorizontalScrollPos}
         {highlighted}
-        clientHeight={maxBodyHeight}
-        clientScrollHeight={$stbData?.rows.length > $stbSettings.visibleRowCount
-          ? $stbData?.rows.length * defaultRowHeight
-          : maxBodyHeight}
         offset={$stbSettings.showHeader ? "40px" : "8px"}
+        horizontalOffset={showSelectionColumn ? "2.4rem" : "8px"}
         bottomOffset={$stbSettings.showFooter ? "32px" : "8px"}
+        verticalOffset={$stbSettings.showFooter ? "32px" : "8px"}
       />
     </Provider>
   {/key}
@@ -852,7 +845,7 @@
     flex-direction: row;
     align-items: stretch;
     justify-content: stretch;
-    overflow-x: scroll;
+    overflow: scroll;
     scrollbar-width: none;
     background-color: transparent;
     min-height: var(--super-table-body-height);
@@ -907,6 +900,9 @@
     align-items: stretch;
     color: var(--spectrum-global-color-gray-400);
     border-bottom: var(--super-table-horizontal-dividers);
+  }
+  :global(.super-row.isLast) {
+    padding-right: 1.5rem;
   }
 
   :global(.super-row.odd) {

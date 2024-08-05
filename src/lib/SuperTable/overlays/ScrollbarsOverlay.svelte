@@ -1,0 +1,166 @@
+<script>
+  import { beforeUpdate } from "svelte";
+
+  export let verticalOffset = "8px";
+  export let stbScrollPos;
+  export let stbHorizontalScrollPos;
+
+  export let highlighted;
+  export let offset;
+  export let horizontalOffset = "0px";
+  export let bottomOffset;
+
+  export let clientHeight;
+  export let scrollHeight;
+  export let scrollWidth;
+
+  export let visible;
+  export let horizontalVisible;
+  export let anchor;
+
+  let startPos;
+  let horizontalStartPos;
+  let verticalRange;
+  let horizontalRange;
+  let dragging = false;
+  let horizontalDragging = false;
+  let mouseoffset = 0;
+  let width;
+  let left;
+
+  $: top = ($stbScrollPos / (scrollHeight - 32)) * 100 + "%";
+  $: left = ($stbHorizontalScrollPos / scrollWidth) * 100 + "%";
+  $: height = (clientHeight / scrollHeight) * 100 + "%";
+  $: verticalRange = scrollHeight - clientHeight;
+
+  beforeUpdate(() => {
+    if (!anchor) return;
+    horizontalRange = anchor?.scrollWidth - anchor?.clientWidth;
+    visible = verticalRange;
+    horizontalVisible = horizontalRange;
+    scrollWidth = anchor?.scrollWidth;
+    width = (anchor?.clientWidth / anchor?.scrollWidth) * 100 + "%";
+  });
+</script>
+
+<svelte:window
+  on:mouseup={() => {
+    dragging = false;
+    horizontalDragging = false;
+    mouseoffset = 0;
+    startPos = 0;
+    horizontalStartPos = 0;
+  }}
+  on:mousemove={(e) => {
+    if (dragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      mouseoffset = (e.clientY - startPos) * (scrollHeight / clientHeight);
+      $stbScrollPos = Math.max(mouseoffset, 0);
+      $stbScrollPos = Math.min($stbScrollPos, verticalRange);
+    }
+    if (horizontalDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      mouseoffset =
+        (e.clientX - horizontalStartPos) *
+        (anchor?.clientWidth / anchor?.scrollWidth);
+      $stbHorizontalScrollPos = Math.max(mouseoffset, 0);
+      $stbHorizontalScrollPos = Math.min(
+        horizontalRange,
+        $stbHorizontalScrollPos
+      );
+      anchor.scrollLeft = $stbHorizontalScrollPos;
+    }
+  }}
+/>
+
+{#if verticalRange}
+  <div
+    class="stb-scrollbar"
+    class:highlighted
+    style:--offset={offset}
+    style:--bottomOffset={bottomOffset}
+  >
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div
+      class="stb-scrollbar-indicator"
+      class:dragging
+      style:top
+      style:height
+      on:mousedown|self={(e) => {
+        dragging = true;
+        startPos = e.clientY;
+      }}
+    />
+  </div>
+{/if}
+
+{#if horizontalRange}
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div
+    class="stb-scrollbar horizontal"
+    class:highlighted
+    style:--horizontalOffset={horizontalOffset}
+    style:--vertical-offset={verticalOffset}
+  >
+    <div
+      class="stb-scrollbar-indicator horizontal"
+      style:left
+      style:width
+      class:dragging={horizontalDragging}
+      on:mousedown|self={(e) => {
+        horizontalDragging = true;
+        horizontalStartPos = e.clientX;
+      }}
+    />
+  </div>
+{/if}
+
+<style>
+  .stb-scrollbar {
+    position: absolute;
+    right: 8px;
+    top: calc(var(--offset) + 8px);
+    bottom: calc(var(--bottomOffset) + 8px);
+    width: 8px;
+    border-radius: 4px;
+    opacity: 0.2;
+    transition: opacity 230ms;
+    z-index: 1;
+  }
+
+  .stb-scrollbar.horizontal {
+    top: unset;
+    bottom: var(--vertical-offset);
+    left: calc(var(--horizontalOffset) + 8px);
+    width: calc(100% - 32px - var(--horizontalOffset));
+    height: 8px;
+  }
+
+  .highlighted {
+    opacity: 0.55 !important;
+  }
+  .stb-scrollbar-indicator {
+    position: relative;
+    width: 100%;
+    border-radius: 4px;
+    background-color: var(--spectrum-global-color-gray-500);
+    min-height: 2rem;
+    z-index: 2;
+  }
+  .stb-scrollbar-indicator:hover {
+    cursor: pointer;
+    background-color: var(--spectrum-global-color-gray-700);
+  }
+  .stb-scrollbar-indicator.dragging,
+  .stb-scrollbar-indicator.horizontal.dragging {
+    background-color: var(--spectrum-global-color-gray-700) !important;
+  }
+
+  .stb-scrollbar-indicator.horizontal {
+    min-height: unset;
+    min-width: 2rem;
+    height: 100%;
+  }
+</style>

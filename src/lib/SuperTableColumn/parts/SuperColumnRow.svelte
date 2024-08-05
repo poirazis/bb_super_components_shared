@@ -14,6 +14,7 @@
   export let isHovered;
   export let isEditing;
   export let odd;
+  export let isLast;
 
   export let bgColor;
   export let color;
@@ -54,6 +55,7 @@
   class:is-hovered={isHovered}
   class:is-editing={isEditing}
   class:odd
+  class:isLast
   style:height={height + "px"}
   style:color
   style:background-color={bgColor && !isHovered ? bgColor : null}

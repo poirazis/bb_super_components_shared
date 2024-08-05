@@ -6,18 +6,18 @@
   const { enrichButtonActions } = getContext("sdk");
   const context = getContext("context");
 
-  export let stbSettings;
-  export let stbState;
-  export let stbSelected;
-  export let stbHovered;
-  export let stbEditing;
-  export let stbData;
-  export let stbScrollPos;
-  export let stbVerticalScroll;
-  export let stbHorizontalRange;
-  export let stbHorizontalScroll;
-  export let stbRowHeights;
-  export let stbRowColors;
+  const stbState = getContext("stbState");
+  const stbSettings = getContext("stbSettings");
+  const stbData = getContext("stbData");
+  const stbScrollPos = getContext("stbScrollPos");
+  const stbVerticalScroll = getContext("stbVerticalScroll");
+  const stbHovered = getContext("stbHovered");
+  const stbSelected = getContext("stbSelected");
+  const stbRowHeights = getContext("stbRowHeights");
+  const stbRowColors = getContext("stbRowColors");
+  const stbEditing = getContext("stbEditing");
+
+  export let stbHorizontalScrollPercent;
   export let headerHeight;
   export let quiet;
 
@@ -29,10 +29,10 @@
   export let stbMenuID;
 
   export let visible;
+  export let horizontalVisible;
 
   let columnBodyAnchor;
   let mouseover;
-  let color;
   let menuAnchor;
   let openMenu;
   let menuIcon = "ri-more-fill";
@@ -40,6 +40,7 @@
   $: inInsert = $stbState == "Inserting";
   $: canInsert = $stbSettings.features.canInsert;
   $: canDelete = $stbSettings.features.canDelete;
+  $: canDeleteEvent = $stbSettings.features.canDelete == "advanced";
   $: canEditEvent = $stbSettings.features.canEdit == "advanced";
 
   $: inlineButtons =
@@ -59,12 +60,6 @@
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
   };
 
-  const syncScroll = (e) => {
-    $stbScrollPos = columnBodyAnchor.scrollTop;
-    $stbVerticalScroll =
-      columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax;
-  };
-
   const handleMenu = (e, rowID) => {
     menuAnchor = e.target;
     openMenu = !openMenu;
@@ -76,7 +71,7 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   class="super-column"
-  class:sticky={$stbHorizontalRange < 1 && $stbHorizontalScroll < 1}
+  class:sticky={$stbHorizontalScrollPercent < 1 && horizontalVisible}
   style="flex: none"
   on:mouseleave={() => ($stbHovered = null)}
 >
@@ -94,7 +89,6 @@
     class="spectrum-Table-body"
     style:background={quiet ? "transparent" : null}
     style:border-right={"var(--super-table-vertical-dividers)"}
-    on:scroll|self={syncScroll}
   >
     {#if $stbData?.rows?.length}
       {#each $stbData.rows as row, index}
@@ -121,25 +115,27 @@
               <SuperButton
                 size="M"
                 icon="ri-edit-2-line"
-                iconColor="var(--spectrum-global-color-blue-500)"
+                iconColor={$stbHovered === index
+                  ? "var(--spectrum-global-color-blue-500)"
+                  : "var(--spectrum-global-color-gray-500)"}
                 fillOnHover="true"
                 text=""
                 quiet="true"
                 context={{ menuRow }}
                 onClick={enrichButtonActions(onEdit, $context)}
               />
-              {#if canDelete}
-                <SuperButton
-                  size="M"
-                  icon="ri-delete-bin-2-line"
-                  iconColor="var(--spectrum-global-color-red-500)"
-                  fillOnHover="true"
-                  text=""
-                  quiet="true"
-                  context={{ menuRow }}
-                  onClick={enrichButtonActions(onDelete, $context)}
-                />
-              {/if}
+            {/if}
+            {#if canDelete || canDeleteEvent}
+              <SuperButton
+                size="M"
+                icon="ri-delete-bin-2-line"
+                iconColor="var(--spectrum-global-color-red-500)"
+                fillOnHover="true"
+                text=""
+                quiet="true"
+                context={{ menuRow }}
+                onClick={enrichButtonActions(onDelete, $context)}
+              />
             {/if}
 
             {#if rowMenu && inlineButtons?.length}
@@ -176,9 +172,7 @@
           style:height={$stbRowHeights[0]}
           style:align-items={"center"}
         ></div>
-        {#if inInsert || canInsert}
-          <div class="spacer" style="min-height: 4rem" />
-        {/if}
+        <div class="spacer" style="min-height: 4rem" />
       {/if}
     {/if}
   </div>
@@ -235,7 +229,7 @@
     min-width: 2rem;
     flex: 0 0 auto;
   }
-  .spectrum-Table.sticky {
+  .super-column.sticky {
     filter: drop-shadow(-12px 0px 8px var(--spectrum-global-color-gray-50));
   }
   .spectrum-Table-headCell {

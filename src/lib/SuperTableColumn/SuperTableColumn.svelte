@@ -109,6 +109,7 @@
 
   $: inInsert = $stbState == "Inserting";
   $: canInsert = $stbSettings.features.canInsert;
+  $: isLast = columnOptions.isLast;
 
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
@@ -268,7 +269,6 @@
         ? columnOptions.fixedWidth
         : columnOptions.maxWidth || "unset";
   };
-
   setContext("stColumnSettings", columnSettings);
   setContext("stColumnState", columnState);
 </script>
@@ -310,6 +310,7 @@
     rows={$columnStore}
     rowHeights={$stbRowHeights}
     rowColors={$stbRowColors}
+    {isLast}
     {inInsert}
     {canInsert}
   >
