@@ -16,7 +16,8 @@
   export let autofocus;
 
   let timer;
-  let originalValue = value;
+  let originalValue;
+  let localValue = value;
   let editor;
   let clearIcon;
 
@@ -52,14 +53,13 @@
         if (e.explicitOriginalTarget != clearIcon) this.submit();
       },
       submit() {
-        if (originalValue != value) {
-          dispatch("change", value);
+        if (isDirty) {
+          dispatch("change", localValue);
         }
         return "View";
       },
       cancel() {
-        value = originalValue;
-        if (cellOptions.debounce) dispatch("change", value);
+        if (cellOptions.debounce) dispatch("change", originalValue);
         dispatch("cancel");
         return "View";
       },
@@ -71,16 +71,17 @@
   });
 
   $: inEdit = $cellState == "Editing";
+  $: isDirty = inEdit && originalValue != localValue;
   $: formattedValue = cellOptions?.template
     ? processStringSync(cellOptions.template, { value })
     : undefined;
 
   const debounce = (e) => {
-    value = e.target.value;
+    localValue = e.target.value;
     if (cellOptions?.debounce) {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        dispatch("change", value);
+        dispatch("change", localValue);
       }, cellOptions.debounce ?? 0);
     }
   };
@@ -100,6 +101,7 @@
 <div
   class="superCell"
   class:inEdit
+  class:isDirty
   class:focused={inEdit}
   class:inline={cellOptions.role == "inlineInput"}
   class:tableCell={cellOptions.role == "tableCell"}

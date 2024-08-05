@@ -1,36 +1,40 @@
 <script>
   import { getContext } from "svelte";
   import SuperColumnRow from "./SuperColumnRow.svelte";
+  import SuperColumnRowNew from "./SuperColumnRowNew.svelte";
 
   const stbSelected = getContext("stbSelected");
   const stbScrollPos = getContext("stbScrollPos");
-  const stbVerticalScroll = getContext("stbVerticalScroll")
+  const stbVerticalScroll = getContext("stbVerticalScroll");
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
 
-  export let rows = []
-  export let rowHeights
-  export let rowColors
-  export let columnState
-  export let columnOptions
+  const columnSettings = getContext("stColumnSettings");
+  const columnState = getContext("stColumnState");
 
-  let hovered
+  export let rows = [];
+  export let rowHeights;
+  export let rowColors;
+  export let inInsert;
+  export let canInsert;
 
-  let columnBodyAnchor
+  let hovered;
 
-  $: synchScrollPosition($stbScrollPos)
+  let columnBodyAnchor;
 
-  const synchScrollPosition = ( position ) => { 
-    if (columnBodyAnchor) 
-      columnBodyAnchor.scrollTop = position 
-  }
+  $: synchScrollPosition($stbScrollPos);
 
-  const syncScroll = e => {
-    if ( $stbScrollPos != columnBodyAnchor.scrollTop ) { 
+  const synchScrollPosition = (position) => {
+    if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
+  };
+
+  const syncScroll = (e) => {
+    if ($stbScrollPos != columnBodyAnchor.scrollTop) {
       $stbScrollPos = columnBodyAnchor.scrollTop;
-      $stbVerticalScroll = columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax
+      $stbVerticalScroll =
+        columnBodyAnchor.scrollTop / columnBodyAnchor.scrollTopMax;
     }
-  }
+  };
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -38,41 +42,58 @@
   bind:this={columnBodyAnchor}
   class="spectrum-Table-body"
   tabindex="-1"
-  style:background-color={columnOptions.background}
+  style:background-color={$columnSettings.background}
   class:filtered={$columnState == "Filtered"}
-  class:is-editing={ $columnState == "EditingCell" && (columnOptions.highlighters == "vertical" || columnOptions.highlighters == "both" )}
-  on:mouseenter={ () => hovered = true }
-  on:mouseleave={ () => hovered = false }
-  on:scroll|capture|self={syncScroll}
-  >
+  class:is-editing={$columnState == "EditingCell" &&
+    ($columnSettings.highlighters == "vertical" ||
+      $columnSettings.highlighters == "both")}
+  on:mouseenter={() => (hovered = true)}
+  on:mouseleave={() => (hovered = false)}
+  on:scroll|self={syncScroll}
+>
   {#if rowHeights?.length}
-      {#each rows as row, index}
-        <SuperColumnRow
-          {row} 
-          odd={columnOptions.zebraColors && ( index % 2 == 1) }
-          {columnOptions}
-          height={rowHeights[index]}
-          bgColor={rowColors[index]?.bgcolor}
-          color={rowColors[index]?.color}
-          isHovered={ $stbHovered == index}
-          isEditing={ $stbEditing == index  && (columnOptions.highlighters == "horizontal" || columnOptions.highlighters == "both" )}
-          isSelected={ $stbSelected.includes(row.rowID) || $stbSelected.includes(row.rowID?.toString()) }
-          on:resize={ ( e ) => rowHeights[index] = e.detail }
-          on:hovered={ () => ($stbHovered = index)}
-          on:rowClicked
-          on:rowDblClicked
-          on:cellChanged
-          on:enteredit = {() => columnState.enteredit(index)}
-          on:exitedit = {columnState.exitedit}
-        >
-          <slot />
-        </SuperColumnRow>
-      {/each}
+    {#each rows as row, index}
+      <SuperColumnRow
+        {index}
+        {row}
+        odd={$columnSettings.zebraColors && index % 2 == 1}
+        height={rowHeights[index]}
+        bgColor={rowColors[index]?.bgcolor}
+        color={rowColors[index]?.color}
+        isHovered={$stbHovered == index}
+        isEditing={$stbEditing == index &&
+          ($columnSettings.highlighters == "horizontal" ||
+            $columnSettings.highlighters == "both")}
+        isSelected={$stbSelected.includes(row.rowID) ||
+          $stbSelected.includes(row.rowID?.toString())}
+        on:resize={(e) => (rowHeights[index] = e.detail)}
+        on:hovered={() => ($stbHovered = index)}
+        on:rowClicked
+        on:rowDblClicked
+        on:cellChanged
+        on:enteredit={() => columnState.enteredit(index)}
+        on:exitedit={columnState.exitedit}
+      >
+        <slot />
+      </SuperColumnRow>
+    {/each}
+
+    {#if inInsert || canInsert}
+      <SuperColumnRowNew
+        row={{}}
+        {$columnSettings}
+        height={rowHeights[0]}
+        {inInsert}
+        on:enteredit={columnState.enteredit}
+        on:exitedit={columnSettings.exitedit}
+      ></SuperColumnRowNew>
+      <div class="spacer" style="min-height: 4rem" />
     {/if}
+  {/if}
 </div>
 
 <style>
-  :global( .spectrum-Table-body > .spectrum-Table-row:last-of-type ){
+  :global(.spectrum-Table-body > .spectrum-Table-row:last-of-type) {
     border-bottom-style: none;
   }
   .spectrum-Table-body {

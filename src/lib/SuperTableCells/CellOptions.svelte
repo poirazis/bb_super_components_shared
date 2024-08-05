@@ -24,7 +24,7 @@
 
   // We always keep an internal value as an array
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
-  $: isDirty = originalValue !== JSON.stringify(localValue);
+  $: isDirty = inEdit && originalValue !== JSON.stringify(localValue);
 
   let anchor = null;
   let editor;
@@ -419,6 +419,7 @@
   tabindex={cellOptions.disabled ? "-1" : 0}
   class="superCell"
   class:inEdit
+  class:isDirty
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}

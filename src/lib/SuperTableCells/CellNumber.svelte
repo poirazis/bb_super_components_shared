@@ -9,13 +9,15 @@
   export let formattedValue;
   export let cellOptions;
 
-  let originalValue;
+  let originalValue = value;
   let inEdit;
+  let localValue = value ?? "";
 
   $: inEdit = $cellState == "Editing";
+  $: isDirty = inEdit && originalValue != localValue;
   $: formattedValue = cellOptions.template
     ? processStringSync(cellOptions.template, { value })
-    : undefined;
+    : "";
 
   export let cellState = fsm(cellOptions.initialState ?? "View", {
     "*": {
@@ -41,19 +43,17 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        originalValue = value;
+        originalValue = localValue;
         dispatch("enteredit");
       },
       _exit() {
         dispatch("exitedit");
       },
       focusout() {
-        if (originalValue !== value && !cellOptions.debounce)
-          dispatch("change", value);
+        if (isDirty && !cellOptions.debounce) dispatch("change", localValue);
 
         dispatch("focusout");
-
-        if (!cellOptions.lockState) return "View";
+        return "View";
       },
       cancel() {
         value = originalValue;
@@ -63,6 +63,7 @@
 
   let timer;
   const debounce = (e) => {
+    // Abort Invalid Keys
     if (
       (e.key.length === 1 && e.key !== "." && isNaN(e.key) && !e.ctrlKey) ||
       e.keyCode == 32 ||
@@ -70,14 +71,12 @@
     ) {
       e.preventDefault();
       return;
-    } else {
-      value = e.target.value;
-      if (cellOptions.debounce) {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          dispatch("change", value);
-        }, cellOptions.debounce ?? 0);
-      }
+    }
+    if (cellOptions.debounce) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dispatch("change", localValue);
+      }, cellOptions.debounce ?? 0);
     }
   };
 
@@ -94,7 +93,8 @@
   class:error={cellOptions.error}
   class:readonly={cellOptions.readonly}
   class:disabled={cellOptions.disabled}
-  class:inEdit={$cellState == "Editing"}
+  class:inEdit
+  class:isDirty
   class:inline={cellOptions?.role == "inline"}
   class:tableCell={cellOptions?.role == "tableCell"}
   class:formInput={cellOptions?.role == "formInput"}
@@ -103,6 +103,8 @@
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions?.background}
   style:font-weight={cellOptions?.fontWeight}
+  tabIndex="0"
+  on:focusin={cellState.focus}
 >
   {#if cellOptions?.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
@@ -118,7 +120,7 @@
         : cellOptions?.padding}
       style:text-align={"right"}
       placeholder={cellOptions?.placeholder}
-      value={value ?? ""}
+      bind:value={localValue}
       on:keydown={(e) => debounce(e)}
       on:focusout={cellState.focusout}
       use:focus
@@ -137,8 +139,6 @@
       class:placeholder={!value && !formattedValue}
       style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
       style:padding-right={cellOptions.padding}
-      tabIndex="0"
-      on:focusin={cellState.focus}
     >
       {formattedValue || value || cellOptions?.placeholder || ""}
     </div>

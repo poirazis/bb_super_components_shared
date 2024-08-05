@@ -54,6 +54,7 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
+        originalValue = JSON.stringify(value ?? []);
         if (!expanded || !localValue.length) editorState.open();
         if (expanded && localValue.length) anchor?.focus();
         dispatch("enteredit");
@@ -107,6 +108,7 @@
   });
 
   $: inEdit = $cellState == "Editing";
+  $: isDirty = inEdit && originalValue != JSON.stringify(localValue);
   $: simpleView = cellOptions.relViewMode == "text";
   $: inline = cellOptions.role == "inlineInput";
   $: expanded = cellOptions.controlType == "expanded";
@@ -162,7 +164,8 @@
   class="superCell"
   bind:this={anchor}
   tabindex={cellOptions.disabled ? "-1" : "0"}
-  class:inEdit={$cellState == "Editing"}
+  class:inEdit
+  class:isDirty
   class:focused={$cellState == "Editing"}
   class:inline
   class:multirow

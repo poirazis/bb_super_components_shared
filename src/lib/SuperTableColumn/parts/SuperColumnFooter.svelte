@@ -1,12 +1,15 @@
 <script>
-  export let columnState
-  export let columnOptions
+  import { getContext } from "svelte";
+  const columnSettings = getContext("stColumnSettings");
 </script>
 
-{#if columnOptions.showFooter}
-  <div class="spectrum-Table-headcell" style:height={ columnOptions.headerHeight }>
+{#if $columnSettings.showFooter}
+  <div
+    class="spectrum-Table-headcell"
+    style:height={$columnSettings.headerHeight}
+  >
     <span>
-      {columnOptions.displayName ?? columnOptions.name}
+      {$columnSettings.displayName ?? $columnSettings.name}
     </span>
   </div>
 {/if}
@@ -14,13 +17,13 @@
 <style>
   .spectrum-Table-headcell {
     width: 100%;
-		display: flex;
+    display: flex;
     height: 2rem;
-		align-items: center;
-		padding-left: 0.5rem;
-		padding-right: 0.5rem;
+    align-items: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     border-top: 2px solid var(--spectrum-alias-border-color-mid);
-		color: var(--spectrum-global-color-gray-600);
+    color: var(--spectrum-global-color-gray-600);
     background-color: var(--spectrum-global-color-gray-100);
   }
 

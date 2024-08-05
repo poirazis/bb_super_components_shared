@@ -1,5 +1,6 @@
 <script>
   export let stbVerticalScroll;
+  export let stbScrollPos;
   export let highlighted;
   export let offset = "0";
   export let bottomOffset = "0";
@@ -9,11 +10,30 @@
 
   export let visible;
 
+  let startPos;
+  let dragging = false;
+  let mouseoffset = 0;
+
   $: top =
     $stbVerticalScroll * 100 * (1 - clientHeight / clientScrollHeight) + "%";
   $: height = (clientHeight / clientScrollHeight) * 100 + "%";
   $: visible = clientHeight / clientScrollHeight < 1;
 </script>
+
+<svelte:window
+  on:mouseup={() => {
+    dragging = false;
+    mouseoffset = 0;
+    startPos = 0;
+  }}
+  on:mousemove={(e) => {
+    if (dragging) {
+      mouseoffset =
+        (e.clientY - startPos) * (clientScrollHeight / clientHeight);
+      $stbScrollPos = mouseoffset;
+    }
+  }}
+/>
 
 {#if clientHeight / clientScrollHeight < 1}
   <div
@@ -22,7 +42,16 @@
     style:--offset={offset}
     style:--bottomOffset={bottomOffset}
   >
-    <div class="stb-scrollbar-indicator" style:top style:height />
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div
+      class="stb-scrollbar-indicator"
+      style:top
+      style:height
+      on:mousedown|self={(e) => {
+        dragging = true;
+        startPos = e.clientY;
+      }}
+    />
   </div>
 {/if}
 
@@ -46,5 +75,9 @@
     width: 100%;
     border-radius: 4px;
     background-color: var(--spectrum-global-color-gray-500);
+  }
+  .stb-scrollbar-indicator:hover {
+    cursor: pointer;
+    background-color: var(--spectrum-global-color-gray-700);
   }
 </style>

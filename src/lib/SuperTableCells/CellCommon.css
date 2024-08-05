@@ -8,13 +8,16 @@
 .superCell:focus {
   outline: none;
 }
-
 .superCell.tableCell.inEdit:focus-within {
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
 }
 .superCell.tableCell.focused {
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
 }
+.superCell.isDirty {
+  border: 1px solid var(--spectrum-global-color-green-500) !important;
+}
+
 .superCell > .value {
   flex: 1 1 auto;
   padding: 0.3rem 0.5rem;

@@ -73,12 +73,15 @@
   let open;
 
   $: innerDate = value ? new Date(value) : new Date();
+
   $: formattedValue =
     cellOptions.template && value
       ? processStringSync(cellOptions.template, { value: innerDate })
       : undefined;
+
   $: inEdit = $cellState == "Editing";
   $: inline = cellOptions.role == "inlineInpur";
+  $: isDirty = inEdit && originalValue != value;
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -89,6 +92,7 @@
   tabindex="0"
   class="superCell"
   class:inEdit
+  class:isDirty
   class:focused={open}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}

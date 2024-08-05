@@ -7,6 +7,7 @@
   const context = getContext("context");
 
   export let stbSettings;
+  export let stbState;
   export let stbSelected;
   export let stbHovered;
   export let stbEditing;
@@ -22,8 +23,8 @@
 
   export let rowMenu;
   export let rowMenuItems;
-  export let onInsert;
   export let onDelete;
+  export let onEdit;
   export let menuItemsVisible = 0;
   export let stbMenuID;
 
@@ -35,6 +36,11 @@
   let menuAnchor;
   let openMenu;
   let menuIcon = "ri-more-fill";
+
+  $: inInsert = $stbState == "Inserting";
+  $: canInsert = $stbSettings.features.canInsert;
+  $: canDelete = $stbSettings.features.canDelete;
+  $: canEditEvent = $stbSettings.features.canEdit == "advanced";
 
   $: inlineButtons =
     menuItemsVisible < rowMenuItems?.length
@@ -69,8 +75,9 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
-  class="spectrum-Table"
+  class="super-column"
   class:sticky={$stbHorizontalRange < 1 && $stbHorizontalScroll < 1}
+  style="flex: none"
   on:mouseleave={() => ($stbHovered = null)}
 >
   {#if $stbSettings.showHeader}
@@ -79,17 +86,7 @@
       style:height={headerHeight}
       on:mouseenter={() => (mouseover = true)}
       on:mouseleave={() => (mouseover = false)}
-    >
-      {#if $stbSettings.features.canInsert}
-        <SuperButton
-          size="M"
-          icon="ri-add-fill"
-          fillOnHover="true"
-          text=""
-          quiet="true"
-        />
-      {/if}
-    </div>
+    ></div>
   {/if}
 
   <div
@@ -106,7 +103,7 @@
           $stbSelected.includes(rowID) ||
           $stbSelected.includes(rowID?.toString())}
         <div
-          class="spectrum-Table-row"
+          class="super-row spectrum-Table-row"
           on:mouseenter={() => ($stbHovered = index)}
           class:is-selected={selected}
           class:is-hovered={$stbHovered === index}
@@ -120,18 +117,31 @@
         >
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <div class="row-menu" on:mousedown={(e) => ($stbMenuID = rowID)}>
-            {#if $stbSettings.features.canDelete}
+            {#if canEditEvent}
               <SuperButton
                 size="M"
-                icon="ri-delete-bin-2-line"
-                iconColor="var(--spectrum-global-color-red-500)"
+                icon="ri-edit-2-line"
+                iconColor="var(--spectrum-global-color-blue-500)"
                 fillOnHover="true"
                 text=""
                 quiet="true"
                 context={{ menuRow }}
-                onClick={enrichButtonActions(onDelete, {})}
+                onClick={enrichButtonActions(onEdit, $context)}
               />
+              {#if canDelete}
+                <SuperButton
+                  size="M"
+                  icon="ri-delete-bin-2-line"
+                  iconColor="var(--spectrum-global-color-red-500)"
+                  fillOnHover="true"
+                  text=""
+                  quiet="true"
+                  context={{ menuRow }}
+                  onClick={enrichButtonActions(onDelete, $context)}
+                />
+              {/if}
             {/if}
+
             {#if rowMenu && inlineButtons?.length}
               {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
                 <SuperButton
@@ -160,6 +170,16 @@
           {/if}
         </div>
       {/each}
+      {#if inInsert || canInsert}
+        <div
+          class="super-row spectrum-Table-row"
+          style:height={$stbRowHeights[0]}
+          style:align-items={"center"}
+        ></div>
+        {#if inInsert || canInsert}
+          <div class="spacer" style="min-height: 4rem" />
+        {/if}
+      {/if}
     {/if}
   </div>
   {#if $stbSettings.showFooter}
@@ -228,49 +248,6 @@
     border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
     border-right: var(--super-table-vertical-dividers);
   }
-  .spectrum-Table-row {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    padding: unset;
-    margin: unset;
-    color: var(--spectrum-global-color-gray-400);
-    border-bottom: var(--super-table-horizontal-dividers);
-  }
-  .spectrum-Table-row.odd {
-    background-color: var(--spectrum-global-color-gray-75);
-  }
-  .is-hovered {
-    background-color: var(--spectrum-global-color-gray-75) !important;
-    color: var(--spectrum-global-color-gray-800);
-  }
-
-  .is-hovered.is-selected {
-    background-color: var(
-      --spectrum-table-m-regular-row-background-color-selected-hover,
-      var(--spectrum-alias-highlight-selected-hover)
-    ) !important;
-  }
-
-  .is-hovered.is-selected {
-    background-color: var(
-      --spectrum-table-m-regular-row-background-color-selected-hover,
-      var(--spectrum-alias-highlight-selected-hover)
-    ) !important;
-    color: var(--spectrum-global-color-gray-800) !important;
-  }
-  .is-selected {
-    background-color: var(
-      --spectrum-table-m-regular-row-background-color-selected,
-      var(--spectrum-alias-highlight-selected)
-    ) !important;
-    font-weight: 800;
-    color: var(--spectrum-global-color-gray-800);
-  }
-
-  .is-editing {
-    background-color: var(--spectrum-global-color-gray-100) !important;
-  }
 
   .spectrum-Table-body {
     height: var(--super-table-body-height);
@@ -293,47 +270,5 @@
     background-color: var(--spectrum-global-color-gray-100);
     border-top: 2px solid var(--spectrum-alias-border-color-mid);
     overflow: hidden;
-  }
-
-  .loope {
-    height: 14px;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 2px;
-    font-weight: 600;
-    font-size: 12px;
-    border: 1px solid var(--spectrum-global-color-gray-400);
-  }
-  .loope:hover {
-    border: 1px solid var(--spectrum-global-color-gray-700);
-    cursor: pointer;
-  }
-
-  .loader {
-    width: 20px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background:
-      radial-gradient(
-          farthest-side,
-          var(--spectrum-global-color-gray-500) 94%,
-          #0000
-        )
-        top/4px 4px no-repeat,
-      conic-gradient(#0000 30%, var(--spectrum-global-color-gray-500));
-    -webkit-mask: radial-gradient(
-      farthest-side,
-      #0000 calc(100% - 4px),
-      #000 0
-    );
-    mask: radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 0);
-    animation: l13 1s infinite linear;
-  }
-  @keyframes l13 {
-    100% {
-      transform: rotate(1turn);
-    }
   }
 </style>

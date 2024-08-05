@@ -14,9 +14,11 @@
    * @property {boolean} hovered - To enter hovered state
    */
 
-  import { getContext } from "svelte";
+  import { getContext, setContext } from "svelte";
   import { writable, derived } from "svelte/store";
   import fsm from "svelte-fsm";
+
+  const { memo } = getContext("sdk");
 
   import SuperColumnHeader from "./parts/SuperColumnHeader.svelte";
   import SuperColumnBody from "./parts/SuperColumnBody.svelte";
@@ -28,7 +30,6 @@
   import CellBoolean from "../SuperTableCells/CellBoolean.svelte";
   import CellDatetime from "../SuperTableCells/CellDatetime.svelte";
   import CellLink from "../SuperTableCells/CellLink.svelte";
-  import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import CellJSON from "../SuperTableCells/CellJSON.svelte";
   import CellAttachment from "../SuperTableCells/CellAttachment.svelte";
 
@@ -40,6 +41,22 @@
   const stbEditing = getContext("stbEditing");
   const stbRowHeights = getContext("stbRowHeights");
   const stbRowColors = getContext("stbRowColors");
+
+  // Cell Components Map
+  const cellComponents = {
+    string: CellString,
+    number: CellNumber,
+    bigint: CellNumber,
+    options: CellOptions,
+    array: CellOptions,
+    jsonarray: CellOptions,
+    boolean: CellBoolean,
+    datetime: CellDatetime,
+    link: CellLink,
+    json: CellJSON,
+    attachment: CellAttachment,
+    bb_reference: CellLink,
+  };
 
   // Props
   export let columnOptions;
@@ -57,21 +74,41 @@
 
   let sortOrder = "ascending";
 
-  // Cell Components Map
-  const cellComponents = {
-    string: CellString,
-    number: CellNumber,
-    bigint: CellNumber,
-    options: CellOptions,
-    array: CellOptions,
-    jsonarray: CellOptions,
-    boolean: CellBoolean,
-    datetime: CellDatetime,
-    link: CellLink,
-    json: CellJSON,
-    attachment: CellAttachment,
-    bb_reference: CellLink,
-  };
+  const columnSettings = memo({});
+  $: columnSettings.set({
+    ...columnOptions,
+    cellComponent: cellComponents[columnOptions.schema.type] ?? CellString,
+    cellOptions: {
+      role: "tableCell",
+      search: true,
+      autocomplete: true,
+      readonly: !columnOptions.canEdit,
+      align: columnOptions.align,
+      color: columnOptions.color,
+      background: columnOptions.background ?? "transparent",
+      fontWeight: columnOptions.fontWeight,
+      padding: columnOptions.cellPadding,
+      template: columnOptions.template,
+      useOptionColors: columnOptions.useOptionColors,
+      optionsViewMode: columnOptions.optionsViewMode,
+      optionsSource: columnOptions.optionsSource,
+      customOptions: columnOptions.customOptions,
+      useOptionColors: columnOptions.useOptionColors,
+      useOptionIcons: columnOptions.useOptionIcons,
+      relViewMode: columnOptions.relViewMode,
+      controlType: "select",
+      placeholder: " ",
+      datasource: columnOptions.data?.datasource,
+      limit: columnOptions.data?.limit,
+      valueColumn: columnOptions.data?.valueColumn,
+      labelColumn: columnOptions.data?.labelColumn,
+      fullTable: columnOptions.data?.fullTable,
+      columnList: columnOptions.data?.columnList,
+    },
+  });
+
+  $: inInsert = $stbState == "Inserting";
+  $: canInsert = $stbSettings.features.canInsert;
 
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
@@ -192,40 +229,6 @@
     },
   });
 
-  $: columnOptions.cellComponent =
-    $columnState == "Loading"
-      ? CellSkeleton
-      : cellComponents[columnOptions.schema.type] ?? CellString;
-
-  $: columnOptions.cellOptions = {
-    role: "tableCell",
-    search: true,
-    autocomplete: true,
-    readonly: !columnOptions.canEdit,
-    align: columnOptions.align,
-    color: columnOptions.color,
-    background: columnOptions.background ?? "transparent",
-    fontWeight: columnOptions.fontWeight,
-    padding: columnOptions.cellPadding,
-    template: columnOptions.template,
-    useOptionColors: columnOptions.useOptionColors,
-    optionsViewMode: columnOptions.optionsViewMode,
-    optionsSource: columnOptions.optionsSource,
-    customOptions: columnOptions.customOptions,
-    useOptionColors: columnOptions.useOptionColors,
-    useOptionIcons: columnOptions.useOptionIcons,
-    relViewMode: columnOptions.relViewMode,
-    controlType: "select",
-    addNew: false,
-    placeholder: " ",
-    datasource: columnOptions.data?.datasource,
-    limit: columnOptions.data?.limit,
-    valueColumn: columnOptions.data?.valueColumn,
-    labelColumn: columnOptions.data?.labelColumn,
-    fullTable: columnOptions.data?.fullTable,
-    columnList: columnOptions.data?.columnList,
-  };
-
   // Reactive declaration.
   // nameStore is used in our derived store that holds the column data
   let colsStore = new writable([]);
@@ -265,6 +268,9 @@
         ? columnOptions.fixedWidth
         : columnOptions.maxWidth || "unset";
   };
+
+  setContext("stColumnSettings", columnSettings);
+  setContext("stColumnState", columnState);
 </script>
 
 <svelte:window
@@ -278,7 +284,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnAnchor}
-  class="superTableColumn"
+  class="super-column"
   class:resizing
   class:considerResizing={considerResizing && !resizing}
   style:min-width={getMinWidth($lockWidth, columnOptions)}
@@ -296,50 +302,24 @@
     />
   {/if}
 
-  <SuperColumnHeader {columnState} {columnOptions} {sortOrder} />
-
+  <SuperColumnHeader />
   <SuperColumnBody
     on:rowClicked={(e) => stbState.rowClicked(e.detail)}
     on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
     on:cellChanged={(e) => stbState.cellChanged(e.detail)}
-    {columnState}
-    {columnOptions}
     rows={$columnStore}
     rowHeights={$stbRowHeights}
     rowColors={$stbRowColors}
+    {inInsert}
+    {canInsert}
   >
     <slot />
   </SuperColumnBody>
 
-  <SuperColumnFooter {columnState} {columnOptions} />
+  <SuperColumnFooter />
 </div>
 
 <style>
-  .superTableColumn {
-    flex: 1 1 auto;
-    position: relative;
-    border-right: var(--super-table-vertical-dividers);
-    color: var(--super-table-color);
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    overflow-x: hidden;
-  }
-  .grabber {
-    width: 5px;
-    position: absolute;
-    right: 0px;
-    top: 8px;
-    border-radius: 2px;
-    z-index: 10;
-    background-color: var(--spectrum-global-color-gray-200);
-    transition: all 130ms ease-in-out;
-  }
-  .grabber:hover {
-    width: 5px;
-    background-color: var(--spectrum-global-color-gray-600);
-    cursor: col-resize;
-  }
   .resizing {
     border-right: 1px solid var(--primaryColor);
   }

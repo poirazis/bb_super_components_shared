@@ -1,21 +1,16 @@
 <script>
   import { getContext, createEventDispatcher } from "svelte";
   import { elementSizeStore } from "svelte-legos";
+  import { readonly } from "svelte/store";
 
-  const { Provider, processStringSync } = getContext("sdk");
+  const { processStringSync } = getContext("sdk");
 
   const dispatch = createEventDispatcher();
   const columnSettings = getContext("stColumnSettings");
   const columnState = getContext("stColumnState");
 
-  export let index;
   export let row;
-  export let isSelected;
-  export let isHovered;
-  export let isEditing;
-  export let odd;
-
-  export let bgColor;
+  export let inInsert = true;
   export let color;
 
   // the proposed height
@@ -49,27 +44,21 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={rowElement}
-  class="super-row spectrum-Table-row"
-  class:is-selected={isSelected}
-  class:is-hovered={isHovered}
-  class:is-editing={isEditing}
-  class:odd
-  style:height={height + "px"}
+  class="super-row"
+  style:height
   style:color
-  style:background-color={bgColor && !isHovered ? bgColor : null}
   on:mouseenter={() => dispatch("hovered")}
   on:mouseleave={() => dispatch("unHovered")}
-  on:click={() => {
-    dispatch("rowClicked", row.rowID);
-  }}
-  on:dblclick={() => dispatch("rowDblClicked", row.rowID)}
-  on:contextmenu|preventDefault={() =>
-    dispatch("contextmenu", { rowID: row.rowID })}
 >
-  {#if !$columnSettings.hasChildren}
+  {#if inInsert}
     <svelte:component
       this={$columnSettings.cellComponent}
-      cellOptions={$columnSettings.cellOptions}
+      cellOptions={{
+        ...$columnSettings.cellOptions,
+        readonly: false,
+        initialState: "View",
+      }}
+      autofocus
       fieldSchema={$columnSettings.schema}
       value={row.rowValue}
       formattedValue={getCellValue(row.rowValue)}
@@ -84,15 +73,5 @@
           field: $columnSettings.name,
         })}
     />
-  {:else}
-    <Provider data={{ id: row?.rowID, value: row?.rowValue, row: {} }}>
-      <div
-        bind:this={contents}
-        class="contentsWrapper"
-        style:justify-content={$columnSettings.align}
-      >
-        <slot />
-      </div>
-    </Provider>
   {/if}
 </div>

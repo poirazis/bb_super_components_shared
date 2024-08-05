@@ -23,6 +23,7 @@
     API,
     processStringSync,
     notificationStore,
+    enrichButtonActions,
     getAction,
     ActionTypes,
     Provider,
@@ -30,6 +31,8 @@
     QueryUtils,
     memo,
   } = getContext("sdk");
+
+  const context = getContext("context");
 
   // Create Stores
   const stbScrollPos = new writable(0);
@@ -114,6 +117,7 @@
   export let onRowDblClick;
   export let onInsert;
   export let onDelete;
+  export let onEdit;
 
   let timer;
   let anchor;
@@ -130,6 +134,7 @@
   const dataSourceStore = memo(datasource);
   const filterStore = memo(filter);
   const stbSettings = memo({});
+
   $: dataSourceStore.set(datasource);
   $: filterStore.set(filter);
   $: stbSettings.set({
@@ -334,7 +339,14 @@
       unregisterColumn() {},
       exportData() {},
       deleteRow() {},
-      addRow() {},
+      addRow() {
+        if (canInsert == "advanced") {
+          let event = enrichButtonActions(onInsert, $context);
+          event?.();
+        } else {
+          return "Inserting";
+        }
+      },
       toggleSelectRow(rowID) {
         if ($stbSettings.rowSelectMode == "multi") {
           if ($stbSelected.includes(rowID)) {
@@ -446,6 +458,7 @@
     },
     Idle: {
       _enter() {
+        console.log("Entering IDle", visibleRowCount, $stbData?.rows.length);
         $stbRowHeights =
           visibleRowCount > $stbData?.rows.length
             ? new Array(visibleRowCount).fill(defaultRowHeight)
@@ -459,11 +472,10 @@
       },
     },
     Loading: {
-      loaded: "Idle",
       synch(fetchState) {
         if (fetchState?.loaded && stbColumnFilters?.length > 0)
           return "Filtered";
-        else return "Idle";
+        else if (fetchState?.loaded) return "Idle";
       },
     },
     Filtered: {
@@ -477,6 +489,12 @@
       },
     },
     Editing: {},
+    Inserting: {
+      _enter() {},
+      save() {
+        return "Idle";
+      },
+    },
     Empty: {},
     Sorted: {},
     Empty: {},
@@ -542,7 +560,7 @@
       fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth ?? "8rem",
       canEdit: bbcolumn.autocolumn
         ? false
-        : canEdit && supportEditingMap[schema[bbcolumn.name].type],
+        : canEdit == "simple" && supportEditingMap[schema[bbcolumn.name].type],
       canFilter: supportFilteringMap[schema[bbcolumn.name]?.type]
         ? canFilter
         : false,
@@ -646,8 +664,10 @@
   // Show Action Column
   $: showActionColumn =
     $stbSettings?.features?.canDelete ||
-    $stbSettings?.features?.canInsert ||
-    (rowMenuItems?.length && rowMenu);
+    (rowMenuItems?.length && rowMenu) ||
+    $stbSettings?.features?.canEdit == "advanced";
+
+  $: showSelectionColumn = selectionColumn || (canEdit && rowSelectMode);
 
   setContext("stbScrollPos", stbScrollPos);
   setContext("stbVerticalScroll", stbVerticalScroll);
@@ -692,7 +712,7 @@
   {#key stbData}
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
-      {#if $stbData?.rows?.length && (selectionColumn || (canEdit && rowSelectMode != "off"))}
+      {#if selectionColumn}
         <RowSelect
           {stbState}
           {stbSettings}
@@ -728,7 +748,6 @@
                 columnOptions={{
                   ...column,
                   ...commonColumnOptions,
-                  canEdit: column.canEdit,
                 }}
               />
             {/each}
@@ -758,6 +777,7 @@
           {rowMenuItems}
           {onInsert}
           {onDelete}
+          {onEdit}
           {stbMenuID}
           {menuItemsVisible}
           {rowMenu}
@@ -803,6 +823,7 @@
       <SuperTableVerticalScroller
         bind:visible
         {stbVerticalScroll}
+        {stbScrollPos}
         {highlighted}
         clientHeight={maxBodyHeight}
         clientScrollHeight={$stbData?.rows.length > $stbSettings.visibleRowCount
@@ -841,7 +862,6 @@
   .st-master-columns::-webkit-scrollbar {
     display: none;
   }
-
   .empty {
     display: flex;
     align-items: center;
@@ -855,5 +875,79 @@
     z-index: 2;
     background-color: hsla(0, 0%, 50%, 0.1);
     border-radius: 0.5rem;
+  }
+  :global(.super-column) {
+    flex: 1 1 auto;
+    position: relative;
+    border-right: var(--super-table-vertical-dividers);
+    color: var(--super-table-color);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+  }
+  :global(.super-column > .grabber) {
+    width: 5px;
+    position: absolute;
+    right: 0px;
+    top: 8px;
+    border-radius: 2px;
+    z-index: 10;
+    background-color: var(--spectrum-global-color-gray-200);
+    transition: all 130ms ease-in-out;
+  }
+  :global(.super-column > .grabber:hover) {
+    width: 5px;
+    background-color: var(--spectrum-global-color-gray-600);
+    cursor: col-resize;
+  }
+  :global(.super-row) {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    color: var(--spectrum-global-color-gray-400);
+    border-bottom: var(--super-table-horizontal-dividers);
+  }
+
+  :global(.super-row.odd) {
+    background-color: var(--spectrum-global-color-gray-75);
+  }
+  :global(.super-row.is-hovered) {
+    background-color: var(--spectrum-global-color-gray-75) !important;
+  }
+  :global(.super-row.is-selected) {
+    background-color: var(
+      --spectrum-table-m-regular-row-background-color-selected-hover,
+      var(--spectrum-alias-highlight-selected-hover)
+    ) !important;
+  }
+  :global(.super-row.is-hovered.is-selected) {
+    background-color: var(
+      --spectrum-table-m-regular-row-background-color-selected-hover,
+      var(--spectrum-alias-highlight-selected-hover)
+    ) !important;
+    color: var(--spectrum-global-color-gray-900) !important;
+  }
+  :global(.super-row.is-editing) {
+    background-color: var(
+      --spectrum-table-m-regular-row-background-color-selected-hover,
+      var(--spectrum-alias-highlight-selected-hover)
+    ) !important;
+    color: var(--spectrum-global-color-gray-900) !important;
+  }
+  :global(.super-row.is-inserting) {
+    border: 2px solid
+      var(
+        --spectrum-table-m-regular-row-background-color-selected-hover,
+        var(--spectrum-alias-highlight-selected-hover)
+      );
+    background-color: var(--spectrum-global-color-gray-75) !important;
+    color: var(--spectrum-global-color-gray-900) !important;
+  }
+
+  :global(.super-row.contentsWrapper) {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
   }
 </style>

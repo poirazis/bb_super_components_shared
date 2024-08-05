@@ -64,6 +64,8 @@
     : undefined;
 
   $: inline = cellOptions.role == "inlineInput";
+  $: inEdit = $cellState == "Editing";
+  $: isDirty = inEdit && originalValue !== value;
 
   const focus = (node) => {
     node.focus();
@@ -75,7 +77,8 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="superCell"
-  class:inEdit={$cellState == "Editing"}
+  class:inEdit
+  class:isDirty
   class:inline
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}

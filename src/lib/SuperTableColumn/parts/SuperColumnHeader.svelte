@@ -1,23 +1,25 @@
 <script>
+  import { getContext } from "svelte";
   import SuperPopover from "../../SuperPopover/SuperPopover.svelte";
 
-  export let columnState;
-  export let columnOptions;
+  const columnSettings = getContext("stColumnSettings");
+  const columnState = getContext("stColumnState");
+
   export let sortOrder;
 
   let headerAnchor;
   let picker;
   let showFilteringOptions = false;
   let filterValue;
-  let filterOperator = columnOptions.defaultFilteringOperator;
+  let filterOperator = $columnSettings.defaultFilteringOperator;
 
   $: cellOptions = {
-    align: columnOptions.align,
-    color: columnOptions.color,
-    background: columnOptions.background,
-    fontWeight: columnOptions.fontWeight,
-    padding: columnOptions.cellOptions.padding,
-    placeholder: columnOptions.filteringOperators?.find(
+    align: $columnSettings.align,
+    color: $columnSettings.color,
+    background: $columnSettings.background,
+    fontWeight: $columnSettings.fontWeight,
+    padding: $columnSettings.cellOptions.padding,
+    placeholder: $columnSettings.filteringOperators?.find(
       (x) => x.value == filterOperator
     )?.label,
     clearValueIcon: true,
@@ -33,7 +35,7 @@
   const handleValueChange = (e) => {
     if (e.detail != undefined && e.detail != null && e.detail != "") {
       filterValue = e.detail;
-      if (columnOptions.schema.type == "boolean" && filterValue === false) {
+      if ($columnSettings.schema.type == "boolean" && filterValue === false) {
         columnState.filter(buildFilter("notEqual", true));
       } else if (Array.isArray(e.detail) && e.detail.length == 0) {
         columnState.clear();
@@ -64,10 +66,10 @@
     }
 
     return {
-      field: columnOptions.name,
+      field: $columnSettings.name,
       operator: operator,
       value: temp,
-      type: columnOptions.schema.type,
+      type: $columnSettings.schema.type,
       valueType: "Value",
     };
   };
@@ -88,32 +90,32 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-{#if columnOptions.showHeader}
+{#if $columnSettings.showHeader}
   <div
     bind:this={headerAnchor}
     class="spectrum-Table-headCell"
     class:enterting={$columnState == "Entering"}
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:height={columnOptions.headerHeight}
-    style:padding-left={columnOptions.cellOptions.padding}
-    style:padding-right={columnOptions.cellOptions.padding}
+    style:height={$columnSettings.headerHeight}
+    style:padding-left={$columnSettings.cellOptions.padding}
+    style:padding-right={$columnSettings.cellOptions.padding}
   >
     {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
-      {#if columnOptions.canFilter && columnOptions.defaultFilteringOperator}
+      {#if $columnSettings.canFilter && $columnSettings.defaultFilteringOperator}
         <i class="ri-search-line icon" on:click={columnState.filter}> </i>
       {/if}
 
       <div
         class="headerLabel"
-        style:justify-content={columnOptions?.headerAlign}
+        style:justify-content={$columnSettings?.headerAlign}
       >
         <div
           class="innerText"
-          class:sortable={columnOptions.canSort}
+          class:sortable={$columnSettings.canSort}
           on:click={columnState.sort}
         >
-          {columnOptions.displayName ?? columnOptions.name}
+          {$columnSettings.displayName ?? $columnSettings.name}
         </div>
       </div>
 
@@ -122,7 +124,7 @@
         </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      {#if columnOptions.canFilter == "advanced"}
+      {#if $columnSettings.canFilter == "advanced"}
         <i
           class="ri-settings-line"
           style="align-self: center; font-size: 14px;"
@@ -131,10 +133,10 @@
         />
       {/if}
       <svelte:component
-        this={columnOptions.cellComponent}
+        this={$columnSettings.cellComponent}
         {cellOptions}
         value={filterValue}
-        fieldSchema={columnOptions.schema}
+        fieldSchema={$columnSettings.schema}
         multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
         on:change={handleValueChange}
         on:cancel={columnState.cancel}
@@ -143,7 +145,7 @@
     {/if}
   </div>
 
-  {#if columnOptions.canFilter == "advanced"}
+  {#if $columnSettings.canFilter == "advanced"}
     <SuperPopover
       anchor={headerAnchor}
       align="left"
@@ -157,7 +159,7 @@
         role="menu"
         style="background-color: var(--spectrum-global-color-gray-75 );"
       >
-        {#each columnOptions.filteringOperators as option}
+        {#each $columnSettings.filteringOperators as option}
           <li
             class="spectrum-Menu-item"
             class:selected={option.value == filterOperator}
