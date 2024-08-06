@@ -28,6 +28,8 @@
   export let onLoopStart;
   export let onLoopEnd;
 
+  export let anchor;
+
   $: useIcon = icon;
   $: useColor = iconColor;
 
@@ -64,6 +66,7 @@
 </script>
 
 <button
+  bind:this={anchor}
   on:click={() => {
     working = true;
     useIcon = disabledIcon ? disabledIcon : icon;

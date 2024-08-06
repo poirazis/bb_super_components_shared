@@ -307,6 +307,9 @@
   const stbState = fsm("Loading", {
     "*": {
       handleWheel(e) {
+        if (!clientHeight) clientHeight = maxBodyHeight;
+        if (!scrollHeight)
+          scrollHeight = $stbRowHeights?.length * $stbRowHeights[0];
         if (e.deltaY) {
           if ($stbScrollPos + e.deltaY <= 0) {
             $stbScrollPos = 0;
@@ -451,7 +454,7 @@
       rowClicked(rowID) {
         let row = $stbData.rows.find((x) => x[idColumn] == rowID);
         onRowClick?.({ row });
-        if (rowSelectMode != "off" && !canEdit) this.toggleSelectRow(rowID);
+        if (rowSelectMode && canEdit != "simple") this.toggleSelectRow(rowID);
       },
       getRowColors() {
         if ($stbData?.loading) return;
@@ -815,8 +818,10 @@
         bind:visible
         bind:horizontalVisible
         anchor={columnsBodyAnchor}
-        {clientHeight}
-        {scrollHeight}
+        clientHeight={clientHeight ? clientHeight : maxBodyHeight}
+        scrollHeight={scrollHeight
+          ? scrollHeight
+          : $stbRowHeights?.length * $stbRowHeights[0]}
         {stbScrollPos}
         {stbHorizontalScrollPos}
         {highlighted}
