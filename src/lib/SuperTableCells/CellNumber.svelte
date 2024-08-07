@@ -14,6 +14,7 @@
   let localValue = value ?? "";
 
   $: inEdit = $cellState == "Editing";
+  $: inline = cellOptions.role == "inlineInput";
   $: isDirty = inEdit && originalValue != localValue;
   $: formattedValue = cellOptions.template
     ? processStringSync(cellOptions.template, { value })
@@ -95,7 +96,7 @@
   class:disabled={cellOptions.disabled}
   class:inEdit
   class:isDirty
-  class:inline={cellOptions?.role == "inline"}
+  class:inline
   class:tableCell={cellOptions?.role == "tableCell"}
   class:formInput={cellOptions?.role == "formInput"}
   style:color={cellOptions?.color}

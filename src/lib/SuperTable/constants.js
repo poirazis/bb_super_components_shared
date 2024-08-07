@@ -72,10 +72,12 @@ export const supportEditingMap = {
   array: true,
   link: true,
   bb_reference: true,
+  bb_reference_single: true,
   options: true,
   datetime: true,
   boolean: true,
   number: true,
   bigint: true,
   attachment: true,
+  attachment_single: true,
 };

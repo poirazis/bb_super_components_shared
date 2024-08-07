@@ -145,6 +145,7 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
+        if (!cellOptions.autocomplete) anchor?.focus();
         originalValue = JSON.stringify(
           Array.isArray(value) ? value : value ? [value] : []
         );
@@ -637,7 +638,7 @@
     {:else}
       <div
         class="value"
-        class:placeholder={localValue?.length < 1}
+        class:placeholder={localValue?.length < 1 && inEdit}
         style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
         style:padding-right={cellOptions.padding}
         on:mousedown={inEdit ? editorState.toggle : () => {}}
@@ -648,7 +649,7 @@
           style:justify-content={cellOptions.align ?? "flex-start"}
         >
           {#if localValue.length < 1}
-            {cellOptions.placeholder ?? ""}
+            {inEdit ? cellOptions.placeholder ?? "" : ""}
           {:else if localValue.length > 0}
             {#each localValue as val (val)}
               {@const color = getOptionColor(val)}
@@ -678,7 +679,7 @@
             {/each}
           {/if}
         </div>
-        {#if cellOptions.role != "tableCell"}
+        {#if cellOptions.role != "tableCell" && !cellOptions.readonly}
           <i class="ri-arrow-down-s-line" style="font-size: 18px;"></i>
         {/if}
       </div>

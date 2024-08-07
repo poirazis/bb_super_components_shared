@@ -54,7 +54,9 @@
     datetime: CellDatetime,
     link: CellLink,
     json: CellJSON,
+    attachment_single: CellAttachment,
     attachment: CellAttachment,
+    bb_reference_single: CellLink,
     bb_reference: CellLink,
   };
 

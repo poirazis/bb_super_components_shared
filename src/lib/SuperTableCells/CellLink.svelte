@@ -19,7 +19,6 @@
   export let limit;
 
   let originalValue = JSON.stringify(value);
-  $: localValue = enrichValue(value);
 
   let searchTerm;
   let anchor;
@@ -107,6 +106,9 @@
     },
   });
 
+  $: multi = !fieldSchema.type.includes("_single");
+  $: isUser = fieldSchema.type.includes("bb_reference");
+  $: localValue = enrichValue(value);
   $: inEdit = $cellState == "Editing";
   $: isDirty = inEdit && originalValue != JSON.stringify(localValue);
   $: simpleView = cellOptions.relViewMode == "text";
@@ -116,7 +118,8 @@
     cellOptions.controlType == "expanded" && (value?.length > 1 || inEdit);
   $: singleSelect =
     fieldSchema?.relationshipType == "one-to-many" ||
-    fieldSchema?.relationshipType == "self";
+    fieldSchema?.relationshipType == "self" ||
+    !multi;
 
   const handleKeyboard = (e) => {
     if (e.keyCode == 32 && $cellState == "Editing") {
@@ -141,8 +144,10 @@
   const enrichValue = (x) => {
     if (fieldSchema.relationshipType == "self" && x) {
       return safeParse(x);
-    } else {
+    } else if (multi) {
       return value ? [...value] : [];
+    } else {
+      return value ? [value] : [];
     }
   };
 

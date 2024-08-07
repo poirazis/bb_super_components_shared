@@ -16,11 +16,14 @@
   let tableId = fieldSchema.tableId;
   let appliedFilter = [];
 
+  $: isBBReference = fieldSchema.type.includes("bb_reference");
+  $: isMultiReference = isBBReference && !fieldSchema.type.includes("_single");
+  $: type = isBBReference ? "user" : "table";
   $: localValue = Array.isArray(value) ? value : [];
   $: fetch = fetchData({
     API,
     datasource: {
-      type: "table",
+      type,
       tableId: tableId,
     },
     options: {
@@ -29,7 +32,7 @@
     },
   });
 
-  $: primaryDisplay = $fetch?.definition?.primaryDisplay;
+  $: primaryDisplay = $fetch?.definition?.primaryDisplay || "email";
 
   const rowSelected = (val) => {
     if (value) {
@@ -39,11 +42,11 @@
   };
 
   const selectRow = (val) => {
-    if (schema.relationshipType == "many-to-many") {
+    if (schema.relationshipType == "many-to-many" || isMultiReference) {
       localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
     } else if (schema.relationshipType == "many-to-one") {
       localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
-    } else if (schema.relationshipType == "one-to-many") {
+    } else if (schema.relationshipType == "one-to-many" || !isMultiReference) {
       localValue = [{ _id: val._id, primaryDisplay: val[primaryDisplay] }];
     }
     value = localValue;
@@ -87,6 +90,8 @@
       filter: appliedFilter,
     });
   };
+
+  $: console.log($fetch);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -104,7 +109,7 @@
   {/if}
 
   {#if $fetch?.loaded && $fetch?.rows?.length}
-    {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one"}
+    {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one" || isMultiReference}
       <div class="listWrapper">
         <div class="list">
           <div class="options">
@@ -144,7 +149,7 @@
       </div>
     {/if}
 
-    {#if schema.relationshipType == "one-to-many"}
+    {#if schema.relationshipType == "one-to-many" || !isMultiReference}
       <div class="listWrapper">
         <div class="list">
           <div class="options">

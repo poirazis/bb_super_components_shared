@@ -7,6 +7,7 @@
   export let value;
   export let formattedValue;
   export let cellOptions;
+  export let fieldSchema;
 
   let originalValue = value;
   let anchor;
@@ -14,7 +15,8 @@
   let open;
   let focusedOptionIdx;
 
-  let options = value ?? [];
+  $: multi = !fieldSchema.type.includes("single");
+  $: localvalue = value && multi ? value : value ? [value] : [];
 
   const dispatch = createEventDispatcher();
   const { processStringSync } = getContext("sdk");
@@ -111,18 +113,16 @@
       on:click={() => (open = !open)}
       use:focus
     >
-      {#if value}
-        <div class="items">
-          {#each value as file}
-            <div
-              class="item"
-              style:border={"1px solid var(--spectrum-global-color-gray-500)"}
-            >
-              <span>{file.extension.toUpperCase()}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <div class="items">
+        {#each localvalue as file}
+          <div
+            class="item"
+            style:border={"1px solid var(--spectrum-global-color-gray-500)"}
+          >
+            <span>{file.extension.toUpperCase()}</span>
+          </div>
+        {/each}
+      </div>
 
       <i class="ri-add-line"></i>
     </div>
@@ -136,18 +136,16 @@
         : cellOptions.padding}
       class="value"
     >
-      {#if value}
-        <div class="items">
-          {#each value as file}
-            <div
-              class="item"
-              style:border={"1px solid var(--spectrum-global-color-gray-300)"}
-            >
-              <span>{file.extension.toUpperCase()}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <div class="items">
+        {#each localvalue as file}
+          <div
+            class="item"
+            style:border={"1px solid var(--spectrum-global-color-gray-300)"}
+          >
+            <span>{file?.extension.toUpperCase()}</span>
+          </div>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>
@@ -161,8 +159,8 @@
       on:wheel={(e) => e.stopPropagation()}
       on:mouseleave={() => (focusedOptionIdx = -1)}
     >
-      {#if options?.length}
-        {#each options as option, idx (idx)}
+      {#if localvalue?.length}
+        {#each localvalue as option, idx (idx)}
           <div
             class="option"
             class:focused={focusedOptionIdx === idx}

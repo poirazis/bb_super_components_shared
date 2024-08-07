@@ -27,20 +27,26 @@
   let mouseoffset = 0;
   let width;
   let left;
+  let localWidth;
 
   $: top = ($stbScrollPos / (scrollHeight - 32)) * 100 + "%";
   $: left = ($stbHorizontalScrollPos / scrollWidth) * 100 + "%";
   $: height = (clientHeight / scrollHeight) * 100 + "%";
   $: verticalRange = scrollHeight - clientHeight;
+  $: calculate(localWidth);
 
   beforeUpdate(() => {
+    calculate();
+  });
+
+  export const calculate = () => {
     if (!anchor) return;
     horizontalRange = anchor?.scrollWidth - anchor?.clientWidth;
     visible = verticalRange;
     horizontalVisible = horizontalRange;
     scrollWidth = anchor?.scrollWidth;
     width = (anchor?.clientWidth / anchor?.scrollWidth) * 100 + "%";
-  });
+  };
 </script>
 
 <svelte:window
@@ -99,6 +105,7 @@
 {#if horizontalRange}
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
+    bind:clientWidth={localWidth}
     class="stb-scrollbar horizontal"
     class:highlighted
     style:--horizontalOffset={horizontalOffset}
