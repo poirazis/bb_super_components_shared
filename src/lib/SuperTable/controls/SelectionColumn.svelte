@@ -44,6 +44,7 @@
 {#if stbState}
   <div
     class="super-column"
+    class:sticky
     on:mouseleave={() => ($stbHovered = null)}
     style:max-width={"2.4rem"}
     style:min-width={"2.4rem"}
@@ -135,7 +136,7 @@
         {/each}
       {:else}
         {#each $stbRowHeights as height, index}
-          <div class="super-row spectrum-Table-row" style:height>
+          <div class="super-row spectrum-Table-row" style:min-height={height}>
             {index + 1}
           </div>
         {/each}

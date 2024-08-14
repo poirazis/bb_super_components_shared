@@ -1,4 +1,7 @@
 <script>
+  import { createEventDispatcher } from "svelte";
+  const dispatch = createEventDispatcher();
+
   export let size;
   export let menuItem = false;
   export let menuAlign = "right";
@@ -70,6 +73,7 @@
   on:click={() => {
     working = true;
     useIcon = disabledIcon ? disabledIcon : icon;
+    dispatch("click", anchor);
     handleClick();
   }}
   on:mouseleave={!disabled && (hoverIcon || fillOnHover || hoverIconColor)

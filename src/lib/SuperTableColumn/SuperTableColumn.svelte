@@ -307,8 +307,6 @@
 
   setContext("stColumnSettings", columnSettings);
   setContext("stColumnState", columnState);
-
-  $: console.log($columnSettings);
 </script>
 
 <svelte:window

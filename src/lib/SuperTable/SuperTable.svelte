@@ -15,8 +15,8 @@
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import SuperTableSelectionActionBar from "./controls/SuperTableSelectionActionBar.svelte";
-  import RowActionMenu from "./controls/RowActionMenu.svelte";
-  import RowSelect from "./controls/RowSelect.svelte";
+  import ActionColumn from "./controls/ActionColumn.svelte";
+  import SelectionColumn from "./controls/SelectionColumn.svelte";
 
   const {
     API,
@@ -70,7 +70,6 @@
   export let size;
   export let canInsert, canDelete, canEdit, canSort, canResize, canFilter;
   export let deleteIconPosition = "left";
-  export let showFilterOperators;
   export let superColumnsPos;
 
   export let debounce = 750;
@@ -78,6 +77,7 @@
   export let rowSelectMode;
   export let rowMenu;
   export let rowMenuItems;
+  export let rowMenuIcon = "ri-more-fill";
   export let menuItemsVisible = 0;
   export let selectionMenu;
   export let selectionMenuItems;
@@ -156,6 +156,7 @@
     dividersColor,
     showFooter,
     showHeader,
+    rowMenuIcon,
     headerHeight:
       size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
     features: {
@@ -266,16 +267,12 @@
   );
   $: stbState.synch($stbData, $stbSettings);
   $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
-  $: isEmpty = $stbData.loaded && !$stbData?.rows.length;
+  $: isEmpty =
+    ($stbData.loaded && !$stbData?.rows.length) || columns.length < 1;
 
   // Generate Layout required variables first so we can render early on
   $: defaultRowHeight =
     size == "custom" ? customRowHeight : sizingMap[size].rowHeight;
-  $: if (size == "custom") {
-    $stbRowHeights = [...new Array(visibleRowCount).fill(defaultRowHeight)];
-  } else {
-    $stbRowHeights = [...new Array(visibleRowCount).fill(defaultRowHeight)];
-  }
 
   $: maxBodyHeight = visibleRowCount * defaultRowHeight;
 
@@ -335,7 +332,14 @@
 
   // Show Action Column
   $: showActionColumn =
-    canDelete || (rowMenuItems?.length && rowMenu) || canEdit == "advanced";
+    rowMenu == "columnRight" &&
+    (canDelete || canEdit == "advanced" || rowMenuItems.length);
+
+  $: showActionColumnLeft =
+    (canDelete && rowMenu == "columnLeft") ||
+    (canDelete && !rowMenu) ||
+    (rowMenuItems?.length && rowMenu == "columnLeft") ||
+    (canEdit == "advanced" && !rowMenu);
 
   $: showSelectionColumn =
     (rowSelectMode && selectionColumn) ||
@@ -561,9 +565,7 @@
       },
     },
     Loading: {
-      _enter() {
-        $stbRowHeights = new Array(visibleRowCount).fill(defaultRowHeight);
-      },
+      _enter() {},
       synch(fetchState) {
         if (fetchState?.loaded && stbColumnFilters?.length > 0)
           return "Filtered";
@@ -641,6 +643,7 @@
 
   const makeSuperColumn = (bbcolumn) => {
     let schema = $stbData.schema;
+
     let superColumn = {
       ...bbcolumn,
       fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth || "8rem",
@@ -761,10 +764,10 @@
   {#key stbData}
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
-      {#if showSelectionColumn && !isEmpty}
-        <RowSelect
+      {#if showSelectionColumn && !isEmpty && $stbData?.loaded}
+        <SelectionColumn
           {quiet}
-          sticky={stickFirstColumn && $stbHorizontalScrollPos}
+          sticky={$stbHorizontalScrollPos}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}
@@ -779,6 +782,27 @@
         >
           No Records Found
         </div>
+      {/if}
+
+      {#if showActionColumnLeft}
+        <ActionColumn
+          sticky={$stbHorizontalScrollPos}
+          {quiet}
+          {rowMenuItems}
+          {onInsert}
+          {onDelete}
+          {onEdit}
+          {stbMenuID}
+          {menuItemsVisible}
+          {rowMenu}
+          {visible}
+          {horizontalVisible}
+          {stbHorizontalScrollPos}
+          headerHeight={size == "custom"
+            ? customCellPadding
+            : sizingMap[size].headerHeight}
+          loading={$stbData?.loading}
+        />
       {/if}
 
       {#if $stbData?.loaded && stickFirstColumn && columns.length}
@@ -849,7 +873,7 @@
       </div>
 
       {#if showActionColumn}
-        <RowActionMenu
+        <ActionColumn
           {stbHorizontalScrollPercent}
           {quiet}
           {rowMenuItems}
@@ -861,6 +885,7 @@
           {rowMenu}
           {visible}
           {horizontalVisible}
+          right={true}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}

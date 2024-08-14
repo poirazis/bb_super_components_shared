@@ -17,7 +17,7 @@
 
   let timer;
   let originalValue;
-  let localValue = value;
+
   let editor;
   let clearIcon;
 
@@ -29,6 +29,9 @@
     },
     Loading: {},
     View: {
+      _enter() {
+        localValue = value;
+      },
       focus() {
         if (!cellOptions.readonly && !cellOptions.disabled) return "Editing";
       },
@@ -42,6 +45,7 @@
         dispatch("enteredit");
       },
       _exit() {
+        originalValue = undefined;
         dispatch("exitedit");
         dispatch("focusout");
       },
@@ -59,7 +63,7 @@
         return "View";
       },
       cancel() {
-        if (cellOptions.debounce) dispatch("change", originalValue);
+        value = originalValue;
         dispatch("cancel");
         return "View";
       },
@@ -70,6 +74,8 @@
     },
   });
 
+  $: localValue = value;
+  $: inline = cellOptions.role == "inlineInput";
   $: inEdit = $cellState == "Editing";
   $: isDirty = inEdit && originalValue != localValue;
   $: formattedValue = cellOptions?.template
@@ -107,7 +113,7 @@
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={inEdit}
-  class:inline={cellOptions.role == "inlineInput"}
+  class:inline
   class:tableCell={cellOptions.role == "tableCell"}
   class:formInput={cellOptions.role == "formInput"}
   class:disabled={cellOptions.disabled}
@@ -134,7 +140,7 @@
         ? "32px"
         : cellOptions.padding}
       value={value ?? ""}
-      placeholder={cellOptions.placeholder ?? "Enter..."}
+      placeholder={cellOptions.placeholder}
       on:input={debounce}
       on:focusout={cellState.focusout}
       on:keydown={cellState.handleKeyboard}
