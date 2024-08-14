@@ -91,7 +91,11 @@
   };
 
   onMount(() => {
-    if (autofocus) setTimeout(() => editor?.focus(), 10);
+    if (autofocus)
+      setTimeout(() => {
+        cellState.focus();
+        editor?.focus();
+      }, 30);
   });
 </script>
 
@@ -101,7 +105,7 @@
 <div
   class="superCell"
   class:inEdit
-  class:isDirty
+  class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={inEdit}
   class:inline={cellOptions.role == "inlineInput"}
   class:tableCell={cellOptions.role == "tableCell"}
@@ -124,7 +128,7 @@
       bind:this={editor}
       tabindex="0"
       class="editor"
-      class:placeholder={!value && !formattedValue}
+      class:placeholder={!value && !formattedValue && !localValue}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
       style:padding-right={cellOptions.clearValueIcon
         ? "32px"

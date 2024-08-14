@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { createEventDispatcher, getContext, onMount } from "svelte";
   import fsm from "svelte-fsm";
 
   const { processStringSync } = getContext("sdk");
@@ -8,6 +8,7 @@
   export let value = "";
   export let formattedValue;
   export let cellOptions;
+  export let autofocus;
 
   let originalValue = value;
   let inEdit;
@@ -84,6 +85,14 @@
   function focus(element) {
     element?.focus();
   }
+
+  onMount(() => {
+    if (autofocus)
+      setTimeout(() => {
+        cellState.focus();
+        editor?.focus();
+      }, 30);
+  });
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->

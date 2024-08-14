@@ -1,5 +1,5 @@
 <script>
-  import { getContext, setContext, beforeUpdate, onDestroy } from "svelte";
+  import { getContext, setContext, onDestroy } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
 
@@ -29,6 +29,7 @@
     fetchData,
     QueryUtils,
     memo,
+    builderStore,
   } = getContext("sdk");
 
   const context = getContext("context");
@@ -74,8 +75,8 @@
 
   export let debounce = 750;
 
-  export let rowSelectMode = "off";
-  export let rowMenu = false;
+  export let rowSelectMode;
+  export let rowMenu;
   export let rowMenuItems;
   export let menuItemsVisible = 0;
   export let selectionMenu;
@@ -83,12 +84,14 @@
   export let preselectedId;
   export let preselectedIds;
   export let selectionColumn;
+  export let numberingColumn;
+  export let stickFirstColumn = false;
   export let selectionLimit;
 
   export let columnSizing = "flex";
   export let columnMinWidth = "6rem";
   export let columnMaxWidth = "auto";
-  export let columnFixedWidth;
+  export let columnFixedWidth = "8rem";
   export let dividers, dividersColor;
 
   export let rowColorTemplate, rowBGColorTemplate;
@@ -117,19 +120,25 @@
   let timer;
   let anchor;
   let columns = [];
-  let autocolumnsList = [];
   let schema = {};
   let query = {};
   let queryExtensions = {};
   let stbColumnFilters = [];
   let highlighted;
   let columnsBodyAnchor;
+  let visible = false;
+  let horizontalVisible = false;
+  let scrollHeight;
+  let clientHeight;
+  let columnStates = [];
+  let clientWidth;
 
   // Deep compare datasource as its of type Object
-  const dataSourceStore = memo(datasource);
+  const dataSourceStore = memo({});
   const filterStore = memo(filter);
   const stbSettings = memo({});
 
+  $: inBuilder = $builderStore?.inBuilder;
   $: dataSourceStore.set(datasource);
   $: filterStore.set(filter);
   $: stbSettings.set({
@@ -151,7 +160,6 @@
       size == "custom" ? customCellPadding : sizingMap[size].headerHeight,
     features: {
       canFilter,
-      showFilterOperators,
       canSort,
       canEdit,
       canDelete,
@@ -201,7 +209,7 @@
   });
 
   $: if (rowSelectMode == "single") $stbSelected[0] = preselectedId;
-  $: if (rowSelectMode == "multi" && preselectedIds)
+  $: if (rowSelectMode == "multi" && !Array.isArray(preselectedIds))
     $stbSelected = preselectedIds?.split(",") || [];
 
   $: if (datasource.type == "provider") {
@@ -219,12 +227,11 @@
 
   $: commonColumnOptions = {
     hasChildren: false,
-    sizing: columnSizing,
-    maxWidth: columnMaxWidth ?? "16rem",
-    minWidth: columnMinWidth ?? "6rem",
-    canResize: canResize,
-    showFooter: showFooter,
-    showHeader: showHeader,
+    maxWidth: columnMaxWidth,
+    minWidth: columnMinWidth,
+    canResize,
+    showFooter,
+    showHeader,
     cellPadding:
       size == "custom" ? customCellPadding : sizingMap[size].cellPadding,
     headerHeight:
@@ -234,8 +241,6 @@
     optionsViewMode,
     relViewMode,
     zebraColors,
-    background: quiet ? "transparent" : null,
-    showFilterOperators: showFilterOperators,
   };
 
   $: defaultQuery = QueryUtils.buildQuery($filterStore);
@@ -248,19 +253,20 @@
     sortColumn,
     sortOrder,
     limit,
-    paginate: true,
+    paginate,
   });
-  $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
-  $: isEmpty = $stbData.loaded && !$stbData?.rows.length;
-
   $: populateColumns(
     $stbData,
     columnList,
     autocolumns,
     jsoncolumns,
     canFilter,
-    canEdit
+    canEdit,
+    columnSizing
   );
+  $: stbState.synch($stbData, $stbSettings);
+  $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
+  $: isEmpty = $stbData.loaded && !$stbData?.rows.length;
 
   // Generate Layout required variables first so we can render early on
   $: defaultRowHeight =
@@ -277,7 +283,7 @@
   $: if (
     fetchOnScroll &&
     $stbScrollPercent > 0.8 &&
-    $stbData.loading != true &&
+    !$stbData.loading &&
     limit == $stbData?.rows.length
   ) {
     let old_limit = limit;
@@ -301,37 +307,68 @@
     clearInterval(timer);
   }
 
-  $: stbState.synch($stbData, $stbSettings);
+  // Global Bindings
+  $: actions = [
+    {
+      type: ActionTypes.ClearRowSelection,
+      callback: () => ($stbSelected = []),
+    },
+    {
+      type: ActionTypes.RefreshDatasource,
+      callback: () => stbData.refresh(),
+    },
+  ];
+
+  // Build our data context
+  $: dataContext = {
+    rows: $stbData?.rows,
+    selectedRows: $stbData?.rows.filter((x) =>
+      $stbSelected.includes(x[idColumn])
+    ),
+    selectedIds: $stbSelected,
+    info: $stbData?.info,
+    datasource: datasource || {},
+    schema,
+    rowsLength: $stbData?.rows.length,
+    pageNumber: $stbData?.pageNumber + 1,
+  };
+
+  // Show Action Column
+  $: showActionColumn =
+    canDelete || (rowMenuItems?.length && rowMenu) || canEdit == "advanced";
+
+  $: showSelectionColumn =
+    (rowSelectMode && selectionColumn) ||
+    numberingColumn ||
+    (canEdit == "simple" && !selectionColumn);
 
   // Super Table State Machine
   const stbState = fsm("Loading", {
     "*": {
       handleWheel(e) {
-        if (!clientHeight) clientHeight = maxBodyHeight;
-        if (!scrollHeight)
-          scrollHeight = $stbRowHeights?.length * $stbRowHeights[0];
+        if ($stbData.loading) {
+          e.preventDefault();
+          return;
+        }
+
         if (e.deltaY) {
           if ($stbScrollPos + e.deltaY <= 0) {
             $stbScrollPos = 0;
             $stbScrollPercent = 0;
-            e.preventDefault();
             return;
           }
 
           if ($stbScrollPos + e.deltaY >= scrollHeight - maxBodyHeight) {
             $stbScrollPos = scrollHeight - maxBodyHeight;
             $stbScrollPercent = 1;
-            e.preventDefault();
             return;
           }
-
           $stbScrollPos += e.deltaY;
           $stbScrollPercent = $stbScrollPos / scrollHeight;
         } else if (e.deltaX) {
           if ($stbHorizontalScrollPos + e.deltaX < 0) {
             $stbHorizontalScrollPos = 0;
             $stbHorizontalScrollPercent = 0;
-            e.preventDefault();
             return;
           }
 
@@ -342,7 +379,6 @@
             $stbHorizontalScrollPos =
               columnsBodyAnchor?.scrollWidth - columnsBodyAnchor.clientWidth;
             $stbHorizontalScrollPercent = 1;
-            e.preventDefault();
             return;
           }
 
@@ -350,6 +386,9 @@
           $stbHorizontalScrollPercent =
             $stbHorizontalScrollPos / columnsBodyAnchor.scrollWidth;
         }
+      },
+      handleRowResize(idx, size) {
+        $stbRowHeights[idx] < size ? ($stbRowHeights[idx] = size) : null;
       },
       handleKeyboard(e) {},
       refreshScroll() {
@@ -503,15 +542,28 @@
           visibleRowCount > $stbData?.rows.length
             ? new Array(visibleRowCount).fill(defaultRowHeight)
             : new Array($stbData?.rows.length).fill(defaultRowHeight);
-
         this.getRowColors();
+      },
+      _exit() {
+        columnStates.forEach((columnState) => {
+          columnState.lockWidth();
+        });
       },
       synch(fetchState) {
         if (fetchState?.loading) return "Loading";
+        $stbRowHeights = new Array($stbData?.rows.length).fill(
+          defaultRowHeight
+        );
         this.getRowColors();
+        columnStates.forEach((columnState) => {
+          columnState.unlockWidth();
+        });
       },
     },
     Loading: {
+      _enter() {
+        $stbRowHeights = new Array(visibleRowCount).fill(defaultRowHeight);
+      },
       synch(fetchState) {
         if (fetchState?.loaded && stbColumnFilters?.length > 0)
           return "Filtered";
@@ -523,9 +575,12 @@
         this.getRowColors();
       },
       synch(fetchState) {
-        if (fetchState?.loaded && stbColumnFilters?.length > 0)
+        if (fetchState?.loaded && stbColumnFilters?.length > 0) {
+          $stbRowHeights = new Array($stbData?.rows.length).fill(
+            defaultRowHeight
+          );
           this.getRowColors();
-        else return "Idle";
+        } else return "Idle";
       },
     },
     Editing: {},
@@ -588,7 +643,8 @@
     let schema = $stbData.schema;
     let superColumn = {
       ...bbcolumn,
-      fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth ?? "8rem",
+      fixedWidth: bbcolumn.width ? bbcolumn.width : columnFixedWidth || "8rem",
+      sizing: bbcolumn.width ? "fixed" : columnSizing,
       canEdit: bbcolumn.autocolumn
         ? false
         : canEdit == "simple" && supportEditingMap[schema[bbcolumn.name].type],
@@ -620,11 +676,11 @@
 
   const populateColumns = (data, list, auto, json) => {
     let jsoncolumnslist = [];
+    let autocolumnsList = [];
+    columns = [];
 
     if (data?.schema) {
       schema = data.schema;
-      columns = [];
-      autocolumnsList = [];
 
       if (auto) {
         autocolumnsList = Object.keys(schema)
@@ -638,8 +694,9 @@
           .map((v) => makeSuperColumn(schema[v]));
       }
 
-      if (list?.length) columns = list.map((column) => makeSuperColumn(column));
-      else
+      if (list?.length) {
+        columns = list.map((column) => makeSuperColumn(column));
+      } else {
         columns = Object.keys(schema)
           .filter(
             (v) =>
@@ -649,47 +706,11 @@
               v != idColumn
           )
           .map((v) => makeSuperColumn(schema[v]));
+      }
 
       columns = [...columns, ...jsoncolumnslist, ...autocolumnsList];
     }
   };
-
-  onDestroy(() => {
-    if (timer) clearInterval(timer);
-  });
-
-  // Global Bindings
-  $: actions = [
-    {
-      type: ActionTypes.ClearRowSelection,
-      callback: () => ($stbSelected = []),
-    },
-    {
-      type: ActionTypes.RefreshDatasource,
-      callback: () => stbData.refresh(),
-    },
-  ];
-
-  // Build our data context
-  $: dataContext = {
-    rows: $stbData?.rows,
-    selectedRows: $stbData?.rows.filter((x) =>
-      $stbSelected.includes(x[idColumn])
-    ),
-    selectedIds: $stbSelected,
-    info: $stbData?.info,
-    datasource: datasource || {},
-    schema,
-    rowsLength: $stbData?.rows.length,
-    pageNumber: $stbData?.pageNumber + 1,
-  };
-
-  // Show Action Column
-  $: showActionColumn =
-    canDelete || (rowMenuItems?.length && rowMenu) || canEdit == "advanced";
-
-  $: showSelectionColumn =
-    selectionColumn || (canEdit == "simple" && rowSelectMode);
 
   setContext("stbScrollPos", stbScrollPos);
   setContext("stbHovered", stbHovered);
@@ -703,10 +724,9 @@
   setContext("stbRowColors", stbRowColors);
   $: setContext("stbData", stbData);
 
-  let visible = false;
-  let horizontalVisible = false;
-  let scrollHeight;
-  let clientHeight;
+  onDestroy(() => {
+    if (timer) clearInterval(timer);
+  });
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -732,19 +752,52 @@
   on:mouseleave={() => (highlighted = false)}
   on:keydown={stbState.handleKeyboard}
   on:wheel={stbState.handleWheel}
+  on:mousedown={(e) => {
+    if (inBuilder) {
+      e.preventDefault();
+    }
+  }}
 >
   {#key stbData}
     <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
       {#if showSelectionColumn && !isEmpty}
         <RowSelect
-          bind:clientHeight
-          bind:scrollHeight
           {quiet}
+          sticky={stickFirstColumn && $stbHorizontalScrollPos}
           headerHeight={size == "custom"
             ? customCellPadding
             : sizingMap[size].headerHeight}
           loading={$stbData?.loading}
+        />
+      {/if}
+
+      {#if isEmpty}
+        <div
+          class="empty"
+          style:top={columns.length ? $stbSettings.headerHeight + 16 : 16}
+        >
+          No Records Found
+        </div>
+      {/if}
+
+      {#if $stbData?.loaded && stickFirstColumn && columns.length}
+        {@const column = columns[0]}
+        {@const idx = 0}
+        <SuperTableColumn
+          bind:clientHeight
+          bind:scrollHeight
+          bind:clientWidth
+          bind:columnState={columnStates[idx]}
+          {stbState}
+          sticky={true}
+          scrollPos={$stbHorizontalScrollPos}
+          columnOptions={{
+            ...column,
+            ...commonColumnOptions,
+            isFirst: idx == 0,
+            isLast: idx == columns.length - 1 && !showActionColumn && visible,
+          }}
         />
       {/if}
 
@@ -755,16 +808,35 @@
           {/if}
           {#if columns?.length}
             {#each columns as column, idx}
-              <SuperTableColumn
-                {stbState}
-                columnOptions={{
-                  ...column,
-                  ...commonColumnOptions,
-                  isFirst: idx == 0,
-                  isLast:
-                    idx == columns.length - 1 && !showActionColumn && visible,
-                }}
-              />
+              {#if !stickFirstColumn && idx === 0}
+                <SuperTableColumn
+                  bind:clientHeight
+                  bind:scrollHeight
+                  bind:columnState={columnStates[idx]}
+                  {stbState}
+                  columnOptions={{
+                    ...column,
+                    ...commonColumnOptions,
+                    isFirst: idx == 0,
+                    isLast:
+                      idx == columns.length - 1 && !showActionColumn && visible,
+                  }}
+                />
+              {:else if stickFirstColumn && idx == 0}
+                <span style="display: none;"></span>
+              {:else}
+                <SuperTableColumn
+                  bind:columnState={columnStates[idx]}
+                  {stbState}
+                  columnOptions={{
+                    ...column,
+                    ...commonColumnOptions,
+                    isFirst: idx == 0,
+                    isLast:
+                      idx == columns.length - 1 && !showActionColumn && visible,
+                  }}
+                />
+              {/if}
             {/each}
           {/if}
 
@@ -796,15 +868,6 @@
         />
       {/if}
 
-      {#if $stbData.loaded && $stbData.rows.length == 0}
-        <div
-          class="empty"
-          style:top={columns.length ? $stbSettings.headerHeight + 16 : 16}
-        >
-          No Records Found
-        </div>
-      {/if}
-
       {#if selectionMenu}
         <SuperTableSelectionActionBar
           {anchor}
@@ -818,17 +881,21 @@
         bind:visible
         bind:horizontalVisible
         anchor={columnsBodyAnchor}
-        clientHeight={clientHeight ? clientHeight : maxBodyHeight}
-        scrollHeight={scrollHeight
-          ? scrollHeight
-          : $stbRowHeights?.length * $stbRowHeights[0]}
+        {clientHeight}
+        {scrollHeight}
         {stbScrollPos}
         {stbHorizontalScrollPos}
         {highlighted}
-        offset={$stbSettings.showHeader ? "40px" : "8px"}
-        horizontalOffset={showSelectionColumn ? "2.4rem" : "8px"}
-        bottomOffset={$stbSettings.showFooter ? "32px" : "8px"}
-        verticalOffset={$stbSettings.showFooter ? "32px" : "8px"}
+        verticalTopOffset={showHeader ? "40px" : "8px"}
+        verticalBottomOffset={showFooter ? "40px" : "8px"}
+        horizontalOffset={showSelectionColumn && stickFirstColumn
+          ? clientWidth + 40 + "px"
+          : stickFirstColumn
+            ? clientWidth + "px"
+            : showSelectionColumn
+              ? "2.4rem"
+              : "0.5rem"}
+        bottomOffset={showFooter ? "40px" : "8px"}
       />
     </Provider>
   {/key}
@@ -836,12 +903,13 @@
 
 <style>
   .st-master-wrapper {
+    flex: auto;
     position: relative;
     display: flex;
     flex-direction: row;
     justify-content: stretch;
     align-items: stretch;
-    border: 1px solid var(--spectrum-global-color-gray-300);
+    border: 1px solid var(--spectrum-global-color-gray-200);
   }
   .st-master-columns {
     position: relative;
@@ -854,7 +922,7 @@
     scrollbar-width: none;
     background-color: transparent;
     min-height: var(--super-table-body-height);
-    min-width: 400px;
+    min-width: 260px;
   }
 
   .st-master-columns::-webkit-scrollbar {
@@ -883,6 +951,12 @@
     flex-direction: column;
     align-items: stretch;
     overflow-x: hidden;
+  }
+  :global(.super-column.sticky) {
+    filter: drop-shadow(2px 0px 2px rgba(0, 0, 0, 0.5));
+    border-right: 1px solid var(--spectrum-global-color-gray-200);
+    background-color: var(--spectrum-global-color-gray-75) !important;
+    z-index: 1;
   }
   :global(.super-column > .grabber) {
     width: 5px;
@@ -929,12 +1003,8 @@
     ) !important;
     color: var(--spectrum-global-color-gray-900) !important;
   }
-  :global(.super-row.is-editing) {
-    background-color: var(
-      --spectrum-table-m-regular-row-background-color-selected-hover,
-      var(--spectrum-alias-highlight-selected-hover)
-    ) !important;
-    color: var(--spectrum-global-color-gray-900) !important;
+  :global(.super-row.is-editing, .spectrum-Table-body.is-editing) {
+    background-color: var(--spectrum-global-color-gray-75) !important;
   }
   :global(.super-row.is-inserting) {
     border: 2px solid

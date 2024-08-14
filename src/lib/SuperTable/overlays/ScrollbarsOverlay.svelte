@@ -1,14 +1,13 @@
 <script>
   import { beforeUpdate } from "svelte";
 
-  export let verticalOffset = "8px";
+  export let verticalTopOffset = "8px";
+  export let verticalBottomOffset = "8px";
   export let stbScrollPos;
   export let stbHorizontalScrollPos;
 
   export let highlighted;
-  export let offset;
   export let horizontalOffset = "0px";
-  export let bottomOffset;
 
   export let clientHeight;
   export let scrollHeight;
@@ -19,6 +18,7 @@
   export let anchor;
 
   let startPos;
+  let startScrollPos;
   let horizontalStartPos;
   let verticalRange;
   let horizontalRange;
@@ -61,23 +61,22 @@
     if (dragging) {
       e.preventDefault();
       e.stopPropagation();
-      mouseoffset = (e.clientY - startPos) * (scrollHeight / clientHeight);
-      $stbScrollPos = Math.max(mouseoffset, 0);
-      $stbScrollPos = Math.min($stbScrollPos, verticalRange);
+      mouseoffset =
+        (e.clientY - startPos) * (scrollHeight / clientHeight) + startScrollPos;
+      if (mouseoffset > 0 && mouseoffset <= verticalRange)
+        $stbScrollPos = mouseoffset;
     }
     if (horizontalDragging) {
       e.preventDefault();
       e.stopPropagation();
       mouseoffset =
         (e.clientX - horizontalStartPos) *
-        (anchor?.clientWidth / anchor?.scrollWidth);
-      $stbHorizontalScrollPos = Math.max(mouseoffset, 0);
-      $stbHorizontalScrollPos = Math.min(
-        horizontalRange,
-        $stbHorizontalScrollPos
-      );
-      anchor.scrollLeft = $stbHorizontalScrollPos;
+          (anchor?.clientWidth / anchor?.scrollWidth) +
+        startScrollPos;
+      if (mouseoffset > 0 && mouseoffset <= horizontalRange)
+        $stbHorizontalScrollPos = mouseoffset;
     }
+    anchor.scrollLeft = $stbHorizontalScrollPos;
   }}
 />
 
@@ -85,8 +84,8 @@
   <div
     class="stb-scrollbar"
     class:highlighted
-    style:--offset={offset}
-    style:--bottomOffset={bottomOffset}
+    style:--offset={verticalTopOffset}
+    style:--bottomOffset={verticalBottomOffset}
   >
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
@@ -97,6 +96,7 @@
       on:mousedown|self={(e) => {
         dragging = true;
         startPos = e.clientY;
+        startScrollPos = $stbScrollPos;
       }}
     />
   </div>
@@ -109,7 +109,7 @@
     class="stb-scrollbar horizontal"
     class:highlighted
     style:--horizontalOffset={horizontalOffset}
-    style:--vertical-offset={verticalOffset}
+    style:--vertical-offset={verticalBottomOffset}
   >
     <div
       class="stb-scrollbar-indicator horizontal"
@@ -119,6 +119,7 @@
       on:mousedown|self={(e) => {
         horizontalDragging = true;
         horizontalStartPos = e.clientX;
+        startScrollPos = $stbHorizontalScrollPos;
       }}
     />
   </div>

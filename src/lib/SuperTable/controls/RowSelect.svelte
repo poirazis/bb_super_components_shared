@@ -5,7 +5,6 @@
   const stbSettings = getContext("stbSettings");
   const stbData = getContext("stbData");
   const stbScrollPos = getContext("stbScrollPos");
-  const stbVerticalScroll = getContext("stbVerticalScroll");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbRowHeights = getContext("stbRowHeights");
@@ -19,6 +18,8 @@
   export let clientHeight;
   export let scrollHeight;
 
+  export let sticky;
+
   let columnBodyAnchor;
   let mouseover;
 
@@ -26,6 +27,7 @@
   $: loaded = $stbData?.rows?.length;
   $: inInsert = $stbState == "Inserting";
   $: canInsert = $stbSettings?.features.canInsert;
+  $: zebra = $stbSettings?.appearance?.zebraColors;
 
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
@@ -89,7 +91,6 @@
     <div
       bind:this={columnBodyAnchor}
       class="spectrum-Table-body"
-      style:background={quiet ? "transparent" : null}
       style:border-right={"var(--super-table-vertical-dividers)"}
     >
       {#if loaded}
@@ -105,13 +106,14 @@
               stbState.toggleSelectRow(row[$stbSettings.data.idColumn])}
             class:is-selected={selected}
             class:is-hovered={$stbHovered === index}
-            class:is-editing={$stbEditing == index &&
-              ($stbSettings.appearance.highlighters == "horizontal" ||
-                $stbSettings.appearance.highlighters == "both")}
-            class:odd={$stbSettings.appearance.zebraColors && index % 2 == 1}
+            class:is-editing={$stbEditing == index}
+            class:odd={zebra && index % 2 == 1}
             style:min-height={$stbRowHeights[index]}
-            style:background-color={$stbRowColors[index]?.bgcolor}
+            style:background-color={sticky
+              ? "var(--spectrum-global-color-gray-75)"
+              : $stbRowColors[index]?.bgcolor}
             style:align-items={"center"}
+            style:color={"var(--spectrum-global-color-gray-700)"}
           >
             {#if $stbEditing == index}
               <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
@@ -151,10 +153,14 @@
           >
           </i>
         </div>
-        {#if inInsert || canInsert}
-          <div class="spacer" style="min-height: 4rem" />
-        {/if}
       {/if}
+      <div
+        class="spacer"
+        style:background-color={sticky
+          ? "var(--spectrum-global-color-gray-75)"
+          : "transparent"}
+        style="min-height: 4rem"
+      />
     </div>
 
     {#if $stbSettings.showFooter}
@@ -188,6 +194,7 @@
     border: none;
     scrollbar-width: none;
     background-color: var(--spectrum-global-color-gray-50);
+    color: var(--spectrum-global-color-gray-700);
   }
   .spectrum-Table-body::-webkit-scrollbar {
     display: none;

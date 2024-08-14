@@ -1,7 +1,9 @@
 <script>
-  import { getContext } from "svelte";
+  import { getContext, beforeUpdate, createEventDispatcher } from "svelte";
   import SuperColumnRow from "./SuperColumnRow.svelte";
   import SuperColumnRowNew from "./SuperColumnRowNew.svelte";
+
+  const dispatch = createEventDispatcher();
 
   const stbSelected = getContext("stbSelected");
   const stbScrollPos = getContext("stbScrollPos");
@@ -18,6 +20,10 @@
   export let canInsert;
   export let isLast;
 
+  // interanlly used property
+  export let scrollHeight;
+  export let clientHeight;
+
   let hovered;
 
   let columnBodyAnchor;
@@ -27,6 +33,11 @@
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
   };
+
+  beforeUpdate(() => {
+    clientHeight = columnBodyAnchor?.clientHeight;
+    scrollHeight = columnBodyAnchor?.scrollHeight;
+  });
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -41,6 +52,9 @@
       $columnSettings.highlighters == "both")}
   on:mouseenter={() => (hovered = true)}
   on:mouseleave={() => (hovered = false)}
+  on:wheel={(e) => {
+    if (e.detail.deltaY) e.preventDefault();
+  }}
 >
   {#if rowHeights?.length}
     {#each rows as row, index}
@@ -58,7 +72,7 @@
             $columnSettings.highlighters == "both")}
         isSelected={$stbSelected.includes(row.rowID) ||
           $stbSelected.includes(row.rowID?.toString())}
-        on:resize={(e) => (rowHeights[index] = e.detail)}
+        on:resize={(e) => dispatch("rowResize", { idx: index, size: e.detail })}
         on:hovered={() => ($stbHovered = index)}
         on:rowClicked
         on:rowDblClicked
@@ -79,8 +93,8 @@
         on:enteredit={columnState.enteredit}
         on:exitedit={columnSettings.exitedit}
       ></SuperColumnRowNew>
-      <div class="spacer" style="min-height: 4rem" />
     {/if}
+    <div class="spacer" style="min-height: 4rem" />
   {/if}
 </div>
 
@@ -100,9 +114,6 @@
     scrollbar-width: none;
   }
   .spectrum-Table-body.filtered {
-    background-color: var(--spectrum-global-color-gray-75);
-  }
-  .is-editing {
     background-color: var(--spectrum-global-color-gray-75);
   }
   .spectrum-Table-body::-webkit-scrollbar {

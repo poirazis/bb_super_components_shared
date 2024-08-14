@@ -11,6 +11,7 @@
   export let filter = [];
   export let wide = true;
   export let search = true;
+  export let singleSelect;
 
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
@@ -28,7 +29,7 @@
     },
     options: {
       filter,
-      limit: 100,
+      limit: 1000,
     },
   });
 
@@ -42,14 +43,13 @@
   };
 
   const selectRow = (val) => {
-    if (schema.relationshipType == "many-to-many" || isMultiReference) {
-      localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
-    } else if (schema.relationshipType == "many-to-one") {
-      localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
-    } else if (schema.relationshipType == "one-to-many" || !isMultiReference) {
+    if (singleSelect) {
       localValue = [{ _id: val._id, primaryDisplay: val[primaryDisplay] }];
+    } else {
+      localValue.push({ _id: val._id, primaryDisplay: val[primaryDisplay] });
     }
-    value = localValue;
+
+    localValue = localValue;
     dispatch("change", localValue);
   };
 
@@ -90,8 +90,6 @@
       filter: appliedFilter,
     });
   };
-
-  $: console.log($fetch);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -109,7 +107,7 @@
   {/if}
 
   {#if $fetch?.loaded && $fetch?.rows?.length}
-    {#if schema.relationshipType == "many-to-many" || schema.relationshipType == "many-to-one" || isMultiReference}
+    {#if !singleSelect && wide}
       <div class="listWrapper">
         <div class="list">
           <div class="options">
@@ -147,22 +145,22 @@
           </div>
         </div>
       </div>
-    {/if}
-
-    {#if schema.relationshipType == "one-to-many" || !isMultiReference}
+    {:else}
       <div class="listWrapper">
         <div class="list">
           <div class="options">
-            {#each $fetch?.rows as row, idx}
-              {#if !rowSelected(row)}
-                <div
-                  class="option"
-                  on:mousedown|stopPropagation|preventDefault={selectRow(row)}
-                >
-                  {row[primaryDisplay]}
-                </div>
-              {/if}
-            {/each}
+            {#key localValue}
+              {#each $fetch?.rows as row, idx}
+                {#if !rowSelected(row)}
+                  <div
+                    class="option"
+                    on:mousedown|stopPropagation|preventDefault={selectRow(row)}
+                  >
+                    {row[primaryDisplay]}
+                  </div>
+                {/if}
+              {/each}
+            {/key}
           </div>
         </div>
       </div>

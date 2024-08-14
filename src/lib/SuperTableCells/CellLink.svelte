@@ -15,8 +15,8 @@
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
-  export let filter;
-  export let limit;
+  export let filter = {};
+  export let limit = 100;
 
   let originalValue = JSON.stringify(value);
 
@@ -26,7 +26,7 @@
   // Whether a DnD operation is giong on
   let inactive;
 
-  export let cellState = fsm("View", {
+  export let cellState = fsm(cellOptions.initialState ?? "View", {
     "*": {
       goTo(state) {
         return state;
@@ -53,9 +53,9 @@
     Error: { check: "View" },
     Editing: {
       _enter() {
-        originalValue = JSON.stringify(value ?? []);
-        if (!expanded || !localValue.length) editorState.open();
-        if (expanded && localValue.length) anchor?.focus();
+        originalValue = JSON.stringify(localValue);
+        if (!expanded) editorState.open();
+        else anchor?.focus();
         dispatch("enteredit");
       },
       _exit() {
@@ -76,7 +76,12 @@
         localValue = [];
       },
       submit() {
-        dispatch("change", localValue);
+        if (isDirty)
+          dispatch(
+            "change",
+            returnSingle && localValue ? localValue[0] : localValue
+          );
+
         editorState.close();
         return "View";
       },
@@ -115,11 +120,14 @@
   $: inline = cellOptions.role == "inlineInput";
   $: expanded = cellOptions.controlType == "expanded";
   $: multirow =
-    cellOptions.controlType == "expanded" && (value?.length > 1 || inEdit);
+    cellOptions.controlType == "expanded" && (localValue?.length > 1 || inEdit);
   $: singleSelect =
     fieldSchema?.relationshipType == "one-to-many" ||
+    fieldSchema?.relationshipType == "many-to-one" ||
     fieldSchema?.relationshipType == "self" ||
     !multi;
+
+  $: returnSingle = isUser && !multi;
 
   const handleKeyboard = (e) => {
     if (e.keyCode == 32 && $cellState == "Editing") {
@@ -130,15 +138,14 @@
   };
 
   const handleChange = (e) => {
-    localValue = [...e.detail];
+    localValue = e.detail;
+    let val = returnSingle ? localValue[0] ?? {} : localValue;
 
     if (expanded) {
-      dispatch("change", localValue);
+      dispatch("change", val);
     }
 
-    if (singleSelect) {
-      anchor?.focus();
-    }
+    if (singleSelect) anchor?.focus();
   };
 
   const enrichValue = (x) => {
@@ -168,9 +175,9 @@
 <div
   class="superCell"
   bind:this={anchor}
-  tabindex={cellOptions.disabled ? "-1" : "0"}
+  tabindex={"0"}
   class:inEdit
-  class:isDirty
+  class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={$cellState == "Editing"}
   class:inline
   class:multirow
@@ -200,19 +207,19 @@
 
   {#if expanded}
     <SuperList
-      items={value}
+      items={localValue}
       listItemKey={"_id"}
+      createNew={cellOptions.createNew}
+      itemButtons={cellOptions.itemButtons}
+      draggable={cellOptions.reordering}
+      numbering={cellOptions.numbering}
       {editorState}
       {cellState}
-      {cellOptions}
       bind:inactive
       on:change={handleChange}
+      on:reorder={() => anchor?.focus()}
       on:addrow={editorState.open}
-      on:itemClicked={(e) =>
-        cellOptions?.onItemClick({
-          itemId: e.detail.id,
-          itemText: e.detail.text,
-        })}
+      on:createNew={cellOptions?.onCreateNew}
     />
   {:else}
     <div
@@ -291,6 +298,7 @@
       <CellLinkPickerSelect
         {fieldSchema}
         {filter}
+        {singleSelect}
         value={localValue}
         wide={cellOptions.controlType != "expanded"}
         search={cellOptions.search}

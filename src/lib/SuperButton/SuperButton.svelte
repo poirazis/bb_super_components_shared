@@ -111,7 +111,7 @@
     <i class={disabled && disabledIcon ? disabledIcon : useIcon} />
   {:else}
     <span class="spectrum-ActionButton-label" style:color={textColor}
-      >{text}</span
+      >{text ?? ""}</span
     >
   {/if}
 </button>

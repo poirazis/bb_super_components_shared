@@ -15,7 +15,7 @@
   border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
 }
 .superCell.isDirty {
-  border: 1px solid var(--spectrum-global-color-green-500) !important;
+  border-left: 2px solid var(--spectrum-global-color-orange-400) !important;
 }
 
 .superCell > .value {

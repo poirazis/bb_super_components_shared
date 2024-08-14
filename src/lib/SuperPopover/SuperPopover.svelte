@@ -112,7 +112,8 @@
   }
 
   .spectrum-Popover {
-    border-color: var(--spectrum-global-color-gray-300);
+    border-color: var(--spectrum-global-color-gray-100);
+    background-color: var(--spectrum-global-color-gray-50);
     overflow: auto;
   }
 

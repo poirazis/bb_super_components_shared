@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { createEventDispatcher, getContext, onMount } from "svelte";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import { DatePicker } from "date-picker-svelte";
   const dispatch = new createEventDispatcher();
@@ -10,6 +10,7 @@
   export let value;
   export let formattedValue;
   export let cellOptions;
+  export let autofocus;
 
   let originalValue;
 
@@ -82,6 +83,13 @@
   $: inEdit = $cellState == "Editing";
   $: inline = cellOptions.role == "inlineInpur";
   $: isDirty = inEdit && originalValue != value;
+  onMount(() => {
+    if (autofocus)
+      setTimeout(() => {
+        cellState.focus();
+        editor?.focus();
+      }, 30);
+  });
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -92,7 +100,7 @@
   tabindex="0"
   class="superCell"
   class:inEdit
-  class:isDirty
+  class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={open}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}

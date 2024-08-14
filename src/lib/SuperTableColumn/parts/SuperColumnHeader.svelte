@@ -4,6 +4,7 @@
 
   const columnSettings = getContext("stColumnSettings");
   const columnState = getContext("stColumnState");
+  const { API } = getContext("sdk");
 
   export let sortOrder;
 
@@ -12,11 +13,30 @@
   let showFilteringOptions = false;
   let filterValue;
   let filterOperator = $columnSettings.defaultFilteringOperator;
+  let schema;
+  let filterColumn;
+  let hovered;
+
+  $: isLink = $columnSettings.schema.type == "link";
+  $: isReference =
+    $columnSettings.schema.type == "bb_reference" ||
+    $columnSettings.schema.type == "bb_reference_single";
+
+  $: if (isLink && !schema && $columnSettings.canFilter)
+    fetchDefinition($columnSettings.schema.tableId);
+
+  $: if (isLink && schema) {
+    filterColumn = "1:" + $columnSettings.name + "." + schema?.primaryDisplay;
+  } else {
+    filterColumn = $columnSettings.name;
+  }
+
+  $: isEntering = $columnState == "Entering";
 
   $: cellOptions = {
     align: $columnSettings.align,
     color: $columnSettings.color,
-    background: $columnSettings.background,
+    background: "var(--spectrum-global-color-gray-50)",
     fontWeight: $columnSettings.fontWeight,
     padding: $columnSettings.cellOptions.padding,
     placeholder: $columnSettings.filteringOperators?.find(
@@ -29,7 +49,7 @@
     debounce: 250,
     controlType: "select",
     initialState: "Editing",
-    role: "inline",
+    role: "inlineInput",
   };
 
   const handleValueChange = (e) => {
@@ -51,7 +71,6 @@
 
   const buildFilter = (operator, value) => {
     let temp;
-
     if (operator == "oneOf" && !Array.isArray(value)) {
       temp = value.split(",");
     } else if (
@@ -66,10 +85,10 @@
     }
 
     return {
-      field: $columnSettings.name,
+      field: filterColumn,
       operator: operator,
       value: temp,
-      type: $columnSettings.schema.type,
+      type: isLink ? "string" : $columnSettings.schema.type,
       valueType: "Value",
     };
   };
@@ -85,6 +104,12 @@
   const handleBlur = (e) => {
     if (!headerAnchor?.contains(e.explicitOriginalTarget)) columnState.cancel();
   };
+
+  const fetchDefinition = async (tableId) => {
+    if (tableId) {
+      schema = await API.fetchTableDefinition(tableId);
+    }
+  };
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -94,15 +119,17 @@
   <div
     bind:this={headerAnchor}
     class="spectrum-Table-headCell"
-    class:enterting={$columnState == "Entering"}
+    class:isEntering
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
     style:height={$columnSettings.headerHeight}
     style:padding-left={$columnSettings.cellOptions.padding}
     style:padding-right={$columnSettings.cellOptions.padding}
+    on:mouseenter={() => (hovered = true)}
+    on:mouseleave={() => (hovered = false)}
   >
     {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
-      {#if $columnSettings.canFilter && $columnSettings.defaultFilteringOperator}
+      {#if $columnSettings.canFilter && $columnSettings.defaultFilteringOperator && hovered}
         <i class="ri-search-line icon" on:click={columnState.filter}> </i>
       {/if}
 
@@ -133,7 +160,7 @@
         />
       {/if}
       <svelte:component
-        this={$columnSettings.cellComponent}
+        this={$columnSettings.headerComponent}
         {cellOptions}
         value={filterValue}
         fieldSchema={$columnSettings.schema}
@@ -180,7 +207,7 @@
     display: flex;
     align-items: center;
     border: 1px solid transparent;
-    border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
+    border-bottom: 1px solid var(--spectrum-global-color-gray-200);
     background-color: var(--spectrum-global-color-gray-100);
     padding-top: none;
     padding-bottom: none;
@@ -191,7 +218,7 @@
     gap: 0.5rem;
   }
 
-  .enterting {
+  .isEntering {
     gap: 0.5rem;
   }
   .filtered {
@@ -226,6 +253,7 @@
   }
 
   .icon {
+    transition: all 230ms;
     font-size: 14px;
     color: var(--spectrum-global-color-gray-400);
   }

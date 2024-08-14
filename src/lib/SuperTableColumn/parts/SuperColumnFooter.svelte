@@ -22,9 +22,9 @@
     align-items: center;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    border-top: 2px solid var(--spectrum-alias-border-color-mid);
-    color: var(--spectrum-global-color-gray-600);
-    background-color: var(--spectrum-global-color-gray-100);
+    border-top: 1px solid var(--spectrum-alias-border-color-mid);
+    color: var(--spectrum-global-color-gray-700);
+    background-color: var(--spectrum-global-color-gray-75);
   }
 
   .spectrum-Table-headcell > span {

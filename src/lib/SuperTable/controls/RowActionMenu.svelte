@@ -70,8 +70,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
-  class="super-column"
-  class:sticky={$stbHorizontalScrollPercent < 1 && horizontalVisible}
+  class="super-column action-column"
   style="flex: none"
   on:mouseleave={() => ($stbHovered = null)}
 >
@@ -79,6 +78,8 @@
     <div
       class="spectrum-Table-headCell"
       style:height={headerHeight}
+      style:border={"none"}
+      style:backgroud-color={"transparent"}
       on:mouseenter={() => (mouseover = true)}
       on:mouseleave={() => (mouseover = false)}
     ></div>
@@ -111,13 +112,27 @@
         >
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <div class="row-menu" on:mousedown={(e) => ($stbMenuID = rowID)}>
+            {#if rowMenu && inlineButtons?.length}
+              {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
+                <SuperButton
+                  {size}
+                  {icon}
+                  fillOnHover="true"
+                  {text}
+                  {disabled}
+                  {quiet}
+                  context={{ menuRow }}
+                  onClick={enrichButtonActions(onClick, {})}
+                />
+              {/each}
+            {/if}
             {#if canEditEvent}
               <SuperButton
                 size="M"
                 icon="ri-edit-2-line"
                 iconColor={$stbHovered === index
                   ? "var(--spectrum-global-color-blue-500)"
-                  : "var(--spectrum-global-color-gray-500)"}
+                  : "var(--spectrum-global-color-gray-700)"}
                 fillOnHover="true"
                 text=""
                 quiet="true"
@@ -127,7 +142,7 @@
             {/if}
             {#if canDelete || canDeleteEvent}
               <SuperButton
-                size="M"
+                size="S"
                 icon="ri-delete-bin-2-line"
                 iconColor="var(--spectrum-global-color-red-500)"
                 fillOnHover="true"
@@ -137,33 +152,17 @@
                 onClick={enrichButtonActions(onDelete, $context)}
               />
             {/if}
-
-            {#if rowMenu && inlineButtons?.length}
-              {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
-                <SuperButton
-                  {size}
-                  {icon}
-                  fillOnHover="true"
-                  {text}
-                  {disabled}
-                  quiet={true}
-                  context={{ menuRow }}
-                  onClick={enrichButtonActions(onClick, {})}
-                />
-              {/each}
+            {#if rowMenu && menuItems?.length}
+              <button
+                class="spectrum-ActionButton spectrum-ActionButton--sizeS spectrum-ActionButton--quiet"
+                class:is-selected={$stbMenuID == rowID && openMenu}
+                class:is-emphasized={false}
+                on:click|stopPropagation={(e) => handleMenu(e, rowID)}
+              >
+                <i class={menuIcon} />
+              </button>
             {/if}
           </div>
-
-          {#if rowMenu && menuItems?.length}
-            <button
-              class="spectrum-ActionButton spectrum-ActionButton--sizeM spectrum-ActionButton--quiet"
-              class:is-selected={$stbMenuID == rowID && openMenu}
-              class:is-emphasized={false}
-              on:click|stopPropagation={(e) => handleMenu(e, rowID)}
-            >
-              <i class={menuIcon} />
-            </button>
-          {/if}
         </div>
       {/each}
       {#if inInsert || canInsert}
@@ -172,10 +171,11 @@
           style:height={$stbRowHeights[0]}
           style:align-items={"center"}
         ></div>
-        <div class="spacer" style="min-height: 4rem" />
       {/if}
+      <div class="spacer" style="min-height: 4rem" />
     {/if}
   </div>
+
   {#if $stbSettings.showFooter}
     <div class="spectrum-Table-footer" style:height={headerHeight}></div>
   {/if}
@@ -217,9 +217,15 @@
     min-width: 120px;
   }
 
+  .action-column {
+    border-left: 1px solid var(--spectrum-global-color-gray-200);
+    background-color: transparent !important;
+  }
+
   .row-menu {
     display: flex;
     flex-direction: row;
+    align-items: center;
     gap: 4px;
     min-width: fit-content;
   }
@@ -230,7 +236,7 @@
     flex: 0 0 auto;
   }
   .super-column.sticky {
-    filter: drop-shadow(-12px 0px 8px var(--spectrum-global-color-gray-50));
+    border-left: 1px solid var(--spectrum-alias-border-color-mid);
   }
   .spectrum-Table-headCell {
     display: flex;

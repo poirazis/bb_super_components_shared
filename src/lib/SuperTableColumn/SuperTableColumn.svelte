@@ -59,15 +59,39 @@
     bb_reference_single: CellLink,
     bb_reference: CellLink,
   };
+  const headerComponents = {
+    string: CellString,
+    number: CellNumber,
+    bigint: CellNumber,
+    options: CellOptions,
+    array: CellOptions,
+    jsonarray: CellOptions,
+    boolean: CellBoolean,
+    datetime: CellDatetime,
+    link: CellString,
+    json: CellJSON,
+    attachment_single: null,
+    attachment: null,
+    bb_reference_single: CellString,
+    bb_reference: CellString,
+  };
 
   // Props
   export let columnOptions;
   export let stbState;
 
+  // Export the column's body scrolling info
+  export let clientHeight;
+  export let scrollHeight;
+  export let clientWidth;
+
+  export let sticky;
+  export let scrollPos;
+
   // Internal Variables
   let id = Math.random() * 100;
-  let resizing = false;
-  let considerResizing = false;
+  let resizing;
+  let considerResizing;
   let startPoint;
   let startWidth = 0;
   let width;
@@ -79,11 +103,17 @@
   const columnSettings = memo({});
   $: columnSettings.set({
     ...columnOptions,
+    background:
+      sticky && scrollPos
+        ? "var(--spectrum-global-color-gray-75)"
+        : columnOptions.background,
     cellComponent: cellComponents[columnOptions.schema.type] ?? CellString,
+    headerComponent: headerComponents[columnOptions.schema.type] ?? CellString,
     cellOptions: {
       role: "tableCell",
       search: true,
-      autocomplete: true,
+      autocomplete: false,
+      showDirty: true,
       readonly: !columnOptions.canEdit,
       align: columnOptions.align,
       color: columnOptions.color,
@@ -134,7 +164,10 @@
         return "Idle";
       },
       lockWidth() {
-        lockWidth = true;
+        $lockWidth = width;
+      },
+      unlockWidth() {
+        $lockWidth = 0;
       },
       startResizing(e) {
         e.stopPropagation();
@@ -271,8 +304,11 @@
         ? columnOptions.fixedWidth
         : columnOptions.maxWidth || "unset";
   };
+
   setContext("stColumnSettings", columnSettings);
   setContext("stColumnState", columnState);
+
+  $: console.log($columnSettings);
 </script>
 
 <svelte:window
@@ -286,7 +322,9 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnAnchor}
+  bind:clientWidth
   class="super-column"
+  class:sticky={sticky && scrollPos}
   class:resizing
   class:considerResizing={considerResizing && !resizing}
   style:min-width={getMinWidth($lockWidth, columnOptions)}
@@ -305,19 +343,25 @@
   {/if}
 
   <SuperColumnHeader />
-  <SuperColumnBody
-    on:rowClicked={(e) => stbState.rowClicked(e.detail)}
-    on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
-    on:cellChanged={(e) => stbState.cellChanged(e.detail)}
-    rows={$columnStore}
-    rowHeights={$stbRowHeights}
-    rowColors={$stbRowColors}
-    {isLast}
-    {inInsert}
-    {canInsert}
-  >
-    <slot />
-  </SuperColumnBody>
+  {#key $columnSettings.hasChildre}
+    <SuperColumnBody
+      bind:clientHeight
+      bind:scrollHeight
+      on:rowResize={(e) =>
+        stbState.handleRowResize(e.detail.idx, e.detail.size)}
+      on:rowClicked={(e) => stbState.rowClicked(e.detail)}
+      on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
+      on:cellChanged={(e) => stbState.cellChanged(e.detail)}
+      rows={$columnStore}
+      rowHeights={$stbRowHeights}
+      rowColors={$stbRowColors}
+      {isLast}
+      {inInsert}
+      {canInsert}
+    >
+      <slot />
+    </SuperColumnBody>
+  {/key}
 
   <SuperColumnFooter />
 </div>

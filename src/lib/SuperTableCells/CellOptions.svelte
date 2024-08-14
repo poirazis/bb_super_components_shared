@@ -1,6 +1,6 @@
 <script>
   import fsm from "svelte-fsm";
-  import { getContext, createEventDispatcher } from "svelte";
+  import { getContext, createEventDispatcher, onMount } from "svelte";
   import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
@@ -15,6 +15,7 @@
   export let value;
   export let fieldSchema;
   export let multi = false;
+  export let autofocus;
 
   let timer;
 
@@ -410,6 +411,14 @@
   const focus = (node) => {
     node?.focus();
   };
+
+  onMount(() => {
+    if (autofocus)
+      setTimeout(() => {
+        cellState.focus();
+        editor?.focus();
+      }, 30);
+  });
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -420,7 +429,7 @@
   tabindex={cellOptions.disabled ? "-1" : 0}
   class="superCell"
   class:inEdit
-  class:isDirty
+  class:isDirty={isDirty && cellOptions.showDirty}
   class:disabled={cellOptions.disabled}
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
@@ -638,7 +647,7 @@
     {:else}
       <div
         class="value"
-        class:placeholder={localValue?.length < 1 && inEdit}
+        class:placeholder={localValue?.length < 1 && !inEdit}
         style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
         style:padding-right={cellOptions.padding}
         on:mousedown={inEdit ? editorState.toggle : () => {}}
@@ -649,7 +658,7 @@
           style:justify-content={cellOptions.align ?? "flex-start"}
         >
           {#if localValue.length < 1}
-            {inEdit ? cellOptions.placeholder ?? "" : ""}
+            {cellOptions.placeholder ?? ""}
           {:else if localValue.length > 0}
             {#each localValue as val (val)}
               {@const color = getOptionColor(val)}

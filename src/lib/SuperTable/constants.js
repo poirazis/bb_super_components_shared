@@ -43,6 +43,9 @@ export const defaultOperatorMap = {
   boolean: "equal",
   number: "equal",
   bigint: "equal",
+  link: "fuzzy",
+  bb_reference_single: "equal",
+  bb_reference: "equal",
 };
 
 export const supportFilteringMap = {
@@ -53,7 +56,9 @@ export const supportFilteringMap = {
   boolean: true,
   number: true,
   bigint: true,
-  link: false,
+  link: true,
+  bb_reference_single: false,
+  bb_reference: false,
 };
 
 export const supportSortingMap = {

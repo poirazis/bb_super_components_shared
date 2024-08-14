@@ -1,9 +1,12 @@
 .superField {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   width: 100%;
   display: flex;
   align-items: stretch;
   min-width: 0;
+}
+.superField.multirow {
+  align-self: flex-start !important;
 }
 
 .superField:focus {
@@ -16,7 +19,7 @@
   text-overflow: ellipsis;
   width: var(--label-width);
   font-size: 13px;
-  line-height: 1.25rem;
+  line-height: 1.65rem;
   font-weight: 600;
   color: var(--spectrum-global-color-gray-700);
 }
@@ -33,7 +36,6 @@
   display: flex;
   justify-content: stretch;
   min-height: 2rem;
-  width: 100%;
 }
 
 .error {
