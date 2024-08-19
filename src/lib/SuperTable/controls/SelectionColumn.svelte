@@ -8,7 +8,6 @@
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbRowHeights = getContext("stbRowHeights");
-  const stbRowColors = getContext("stbRowColors");
   const stbEditing = getContext("stbEditing");
 
   export let loading;
@@ -46,8 +45,8 @@
     class="super-column"
     class:sticky
     on:mouseleave={() => ($stbHovered = null)}
-    style:max-width={"2.4rem"}
-    style:min-width={"2.4rem"}
+    style:max-width={"3rem"}
+    style:min-width={"2rem"}
   >
     {#if $stbSettings?.showHeader}
       <div
@@ -112,7 +111,7 @@
             style:min-height={$stbRowHeights[index]}
             style:background-color={sticky
               ? "var(--spectrum-global-color-gray-75)"
-              : $stbRowColors[index]?.bgcolor}
+              : null}
             style:align-items={"center"}
             style:color={"var(--spectrum-global-color-gray-700)"}
           >

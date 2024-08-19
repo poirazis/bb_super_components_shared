@@ -9,13 +9,15 @@
   const stbScrollPos = getContext("stbScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
+  const stbRowHeights = getContext("stbRowHeights");
+  const stbMenuID = getContext("stbMenuID");
+  const stbMenuAnchor = getContext("stbMenuAnchor");
 
   const columnSettings = getContext("stColumnSettings");
   const columnState = getContext("stColumnState");
 
   export let rows = [];
   export let rowHeights;
-  export let rowColors;
   export let inInsert;
   export let canInsert;
   export let isLast;
@@ -56,23 +58,24 @@
     if (e.detail.deltaY) e.preventDefault();
   }}
 >
-  {#if rowHeights?.length}
+  {#if rows.length}
     {#each rows as row, index}
       <SuperColumnRow
         {isLast}
         {index}
         {row}
+        height={$stbRowHeights[index]}
         odd={$columnSettings.zebraColors && index % 2 == 1}
-        height={rowHeights[index]}
-        bgColor={rowColors[index]?.bgcolor}
-        color={rowColors[index]?.color}
-        isHovered={$stbHovered == index}
+        isHovered={$stbHovered == index || $stbMenuID == row.rowID}
         isEditing={$stbEditing == index &&
           ($columnSettings.highlighters == "horizontal" ||
             $columnSettings.highlighters == "both")}
         isSelected={$stbSelected.includes(row.rowID) ||
           $stbSelected.includes(row.rowID?.toString())}
         on:resize={(e) => dispatch("rowResize", { idx: index, size: e.detail })}
+        on:contextmenu={(e) => (
+          ($stbMenuID = e.detail.rowID), ($stbMenuAnchor = e.detail.anchor)
+        )}
         on:hovered={() => ($stbHovered = index)}
         on:rowClicked
         on:rowDblClicked

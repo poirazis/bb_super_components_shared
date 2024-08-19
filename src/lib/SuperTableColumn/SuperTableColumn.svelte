@@ -39,8 +39,6 @@
   const stbSortOrder = getContext("stbSortOrder");
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
-  const stbRowHeights = getContext("stbRowHeights");
-  const stbRowColors = getContext("stbRowColors");
 
   // Cell Components Map
   const cellComponents = {
@@ -276,6 +274,7 @@
     derived([stbData, colsStore], ([$stbData, $colsStore]) => {
       return $stbData?.rows?.map((row) => ({
         rowID: row[$stbSettings.data.idColumn],
+        rowMeta: row["_st_meta"] || {},
         rowValue:
           $colsStore.length > 1
             ? row[$colsStore[0]]?.[$colsStore[1]]
@@ -351,8 +350,6 @@
       on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
       on:cellChanged={(e) => stbState.cellChanged(e.detail)}
       rows={$columnStore}
-      rowHeights={$stbRowHeights}
-      rowColors={$stbRowColors}
       {isLast}
       {inInsert}
       {canInsert}

@@ -8,12 +8,11 @@
 
   const stbState = getContext("stbState");
   const stbSettings = getContext("stbSettings");
+  const stbRowHeights = getContext("stbRowHeights");
   const stbData = getContext("stbData");
   const stbScrollPos = getContext("stbScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
-  const stbRowHeights = getContext("stbRowHeights");
-  const stbRowColors = getContext("stbRowColors");
   const stbEditing = getContext("stbEditing");
 
   export let headerHeight;
@@ -94,6 +93,7 @@
     {#if $stbData?.rows?.length}
       {#each $stbData.rows as row, index}
         {@const rowID = row[$stbSettings.data.idColumn]}
+        {@const meta = row["_st_meta"]}
         {@const selected =
           $stbSelected.includes(rowID) ||
           $stbSelected.includes(rowID?.toString())}
@@ -170,7 +170,7 @@
       {#if inInsert || canInsert}
         <div
           class="super-row spectrum-Table-row"
-          style:height={$stbRowHeights[0]}
+          style:height={"2rem"}
           style:align-items={"center"}
         ></div>
       {/if}

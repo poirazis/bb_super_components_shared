@@ -16,14 +16,12 @@
   export let odd;
   export let isLast;
 
-  export let bgColor;
-  export let color;
-
   // the proposed height
   export let height;
   export let minHeight;
 
   let contents, size, cellHeight, rowElement;
+  $: meta = row.rowMeta;
 
   $: if ($columnSettings.hasChildren && contents)
     size = elementSizeStore(contents);
@@ -41,7 +39,7 @@
   const getCellValue = (value) => {
     return $columnSettings.template
       ? processStringSync($columnSettings.template, { value })
-      : undefined;
+      : "";
   };
 </script>
 
@@ -57,8 +55,8 @@
   class:odd
   class:isLast
   style:height={height + "px"}
-  style:color
-  style:background-color={bgColor && !isHovered ? bgColor : null}
+  style:color={meta.color ? meta.color : "inherit"}
+  style:background-color={meta.bgcolor && !isHovered ? meta.bgcolor : null}
   on:mouseenter={() => dispatch("hovered")}
   on:mouseleave={() => dispatch("unHovered")}
   on:click={() => {
@@ -66,7 +64,7 @@
   }}
   on:dblclick={() => dispatch("rowDblClicked", row.rowID)}
   on:contextmenu|preventDefault={() =>
-    dispatch("contextmenu", { rowID: row.rowID })}
+    dispatch("contextmenu", { rowID: row.rowID, anchor: rowElement })}
 >
   {#if !$columnSettings.hasChildren}
     <svelte:component

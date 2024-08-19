@@ -42,7 +42,11 @@
   }
 
   $: inEdit = $cellState == "Editing";
-  $: showHandle = inEdit && draggableItems.length > 1 && draggable;
+  $: showHandle =
+    inEdit &&
+    draggableItems.length > 1 &&
+    draggable &&
+    $editorState == "Closed";
   $: isEmpty = draggableItems?.length < 1;
 
   const dispatch = createEventDispatcher();
@@ -84,7 +88,7 @@
   const handleFinalize = (e) => {
     inactive = true;
     updateRowOrder(e);
-    dispatch("reorder");
+
     dispatch("change", serialiseUpdate());
   };
 
@@ -138,6 +142,7 @@
             aria-label="drag-handle"
             style={!inactive ? "cursor:grabbing" : "cursor:grab"}
             on:mousedown={() => {
+              editorState.close();
               inactive = false;
             }}
             on:mouseup={() => {
@@ -186,7 +191,7 @@
     </li>
   {/each}
 
-  {#if addNew && inEdit && $editorState == "Closed" && inactive}
+  {#if addNew && inEdit && $editorState == "Closed"}
     <li class="buttons">
       <div
         class="add-button"

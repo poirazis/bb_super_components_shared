@@ -200,7 +200,6 @@
 .superCell.inline {
   border: unset;
   border-radius: 2px;
-  max-height: 1.8rem;
   min-height: 1.8rem;
   min-width: unset;
 }
