@@ -26,7 +26,9 @@
   export let showPopover = true;
   export let clickOutsideOverride = false;
 
-  $: target = portalTarget || getContext("bbui-popover-root") || ".spectrum";
+  export let ignoreAnchor = true;
+
+  $: target = portalTarget || getContext(".component") || ".spectrum";
 
   export const show = () => {
     dispatch("open");
@@ -59,7 +61,7 @@
         node = node.parentNode;
       }
       // Hide the popover
-      if (!fromAnchor) hide();
+      if (!fromAnchor || (fromAnchor && !ignoreAnchor)) hide();
     }
   };
 
@@ -83,6 +85,7 @@
         align,
         maxHeight,
         maxWidth,
+        minWidth,
         useAnchorWidth,
         offset,
         offsetBelow,
@@ -98,7 +101,6 @@
       class:hide-popover={open && !showPopover}
       role="presentation"
       style="height: {customHeight}; --customZindex: {customZindex};"
-      style:min-width={minWidth}
       transition:fly|local={{ y: -20, duration: animate ? 200 : 0 }}
     >
       <slot />

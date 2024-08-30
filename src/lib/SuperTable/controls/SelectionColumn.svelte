@@ -203,8 +203,8 @@
     width: 100%;
     max-height: 2rem;
     border-right: var(--super-table-vertical-dividers);
-    background-color: var(--spectrum-global-color-gray-100);
-    border-top: 2px solid var(--spectrum-alias-border-color-mid);
+    background-color: var(--spectrum-global-color-gray-75) !important;
+    border-top: 1px solid var(--spectrum-alias-border-color-mid);
     overflow: hidden;
   }
 

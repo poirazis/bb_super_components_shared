@@ -734,11 +734,6 @@
   on:mouseleave={() => (highlighted = false)}
   on:keydown={stbState.handleKeyboard}
   on:wheel={stbState.handleWheel}
-  on:mousedown={(e) => {
-    if (inBuilder) {
-      e.preventDefault();
-    }
-  }}
 >
   {#if $stbData?.loaded}
     {#key stbData}

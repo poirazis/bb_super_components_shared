@@ -1,15 +1,15 @@
 export default function positionDropdown(element, opts) {
-  let resizeObserver
-  let latestOpts = opts
+  let resizeObserver;
+  let latestOpts = opts;
 
   // We need a static reference to this function so that we can properly
   // clean up the scroll listener.
   const scrollUpdate = () => {
-    updatePosition(latestOpts)
-  }
+    updatePosition(latestOpts);
+  };
 
   // Updates the position of the dropdown
-  const updatePosition = opts => {
+  const updatePosition = (opts) => {
     const {
       anchor,
       align,
@@ -19,110 +19,113 @@ export default function positionDropdown(element, opts) {
       offset = 5,
       customUpdate,
       offsetBelow,
-    } = opts
+    } = opts;
     if (!anchor) {
-      return
+      return;
     }
 
     // Compute bounds
-    const anchorBounds = anchor.getBoundingClientRect()
-    const elementBounds = element.getBoundingClientRect()
+    const anchorBounds = anchor.getBoundingClientRect();
+    const elementBounds = element.getBoundingClientRect();
     let styles = {
       maxHeight: null,
       minWidth: null,
       maxWidth,
       left: null,
       top: null,
-    }
+    };
 
     if (typeof customUpdate === "function") {
-      styles = customUpdate(anchorBounds, elementBounds, styles)
+      styles = customUpdate(anchorBounds, elementBounds, styles);
     } else {
       // Determine vertical styles
       if (align === "right-outside") {
-        styles.top = anchorBounds.top
+        styles.top = anchorBounds.top;
       } else if (
         window.innerHeight - anchorBounds.bottom <
         (maxHeight || 100)
       ) {
-        styles.top = anchorBounds.top - elementBounds.height - offset
-        styles.maxHeight = maxHeight || 240
+        styles.top = anchorBounds.top - elementBounds.height - offset;
+        styles.maxHeight = maxHeight || 240;
       } else {
-        styles.top = anchorBounds.bottom + (offsetBelow || offset)
+        styles.top = anchorBounds.bottom + (offsetBelow || offset);
         styles.maxHeight =
-          maxHeight || window.innerHeight - anchorBounds.bottom - 20
+          maxHeight || window.innerHeight - anchorBounds.bottom - 20;
       }
 
       // Determine horizontal styles
       if (!maxWidth && useAnchorWidth) {
-        styles.maxWidth = anchorBounds.width
+        styles.maxWidth = anchorBounds.width;
       }
       if (useAnchorWidth) {
-        styles.minWidth = anchorBounds.width
+        styles.minWidth = anchorBounds.width;
+      } else {
+        styles.minWidth = minWidth;
       }
+
       if (align === "right") {
         styles.left =
-          anchorBounds.left + anchorBounds.width - elementBounds.width
+          anchorBounds.left + anchorBounds.width - elementBounds.width;
       } else if (align === "right-outside") {
-        styles.left = anchorBounds.right + offset
+        styles.left = anchorBounds.right + offset;
       } else if (align === "left-outside") {
-        styles.left = anchorBounds.left - elementBounds.width - offset
+        styles.left = anchorBounds.left - elementBounds.width - offset;
       } else {
-        styles.left = anchorBounds.left
+        styles.left = anchorBounds.left;
       }
     }
 
     // Apply styles
     Object.entries(styles).forEach(([style, value]) => {
       if (value != null) {
-        element.style[style] = `${value.toFixed(0)}px`
+        element.style[style] = `${value.toFixed(0)}px`;
       } else {
-        element.style[style] = null
+        element.style[style] = null;
       }
-    })
-  }
+    });
+  };
 
   // The actual svelte action callback which creates observers on the relevant
   // DOM elements
-  const update = newOpts => {
-    latestOpts = newOpts
+  const update = (newOpts) => {
+    latestOpts = newOpts;
 
     // Cleanup old state
     if (resizeObserver) {
-      resizeObserver.disconnect()
+      resizeObserver.disconnect();
     }
 
     // Do nothing if no anchor
-    const { anchor } = newOpts
+    const { anchor } = newOpts;
     if (!anchor) {
-      return
+      return;
     }
 
     // Observe both anchor and element and resize the popover as appropriate
-    resizeObserver = new ResizeObserver(() => updatePosition(newOpts))
-    resizeObserver.observe(anchor)
-    resizeObserver.observe(element)
-    resizeObserver.observe(document.body)
-  }
+    resizeObserver = new ResizeObserver(() => updatePosition(newOpts));
+    resizeObserver.observe(anchor);
+    resizeObserver.observe(element);
+    resizeObserver.observe(document.body);
+  };
 
   // Apply initial styles which don't need to change
-  element.style.position = "absolute"
-  element.style.zIndex = "9999"
+  element.style.position = "absolute";
+  element.style.zIndex = "9999";
 
   // Set up a scroll listener
-  document.addEventListener("scroll", scrollUpdate, true)
+  document.addEventListener("scroll", scrollUpdate, true);
 
   // Perform initial update
-  update(opts)
+  update(opts);
 
   return {
     update,
     destroy() {
       // Cleanup
       if (resizeObserver) {
-        resizeObserver.disconnect()
+        resizeObserver.disconnect();
       }
-      document.removeEventListener("scroll", scrollUpdate, true)
+      document.removeEventListener("scroll", scrollUpdate, true);
     },
-  }
+  };
 }

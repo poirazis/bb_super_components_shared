@@ -4,6 +4,7 @@
   import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
+  import SuperList from "../SuperList/SuperList.svelte";
 
   import "./CellCommon.css";
 
@@ -17,17 +18,32 @@
   export let multi = false;
   export let autofocus;
 
-  let timer;
+  $: ({ optionsSource, labelColumn, valueColumn, customOptions, controlType } =
+    cellOptions);
 
+  let timer;
   let originalValue = JSON.stringify(
     Array.isArray(value) ? value : value ? [value] : []
   );
+
+  // Handle Options from Data Source
+  const dataSourceStore = memo(cellOptions?.datasource ?? {});
+  $: dataSourceStore.set(cellOptions.datasource);
+  $: fetch = createFetch($dataSourceStore);
+  $: optionsSource == "data" && $fetch
+    ? cellState.syncFetch($fetch)
+    : optionsSource == "custom"
+      ? cellState.loadCustomOptions(customOptions)
+      : cellState.loadSchemaOptions();
+
+  // React to property changes
+  $: cellState.refresh(optionsSource);
 
   // We always keep an internal value as an array
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
   $: isDirty = inEdit && originalValue !== JSON.stringify(localValue);
 
-  let anchor = null;
+  let anchor;
   let editor;
   let options = [];
   let optionColors = {};
@@ -36,15 +52,24 @@
   let filteredOptions = [];
   let focusedOptionIdx = -1;
   let picker;
-  let fetch;
+  let inactive = true;
 
   let colorsArray = [
     "hsla(0, 90%, 75%, 0.3)",
+    "hsla(25, 90%, 75%, 0.3)",
     "hsla(50, 80%, 75%, 0.3)",
-    "hsla(120, 90%, 75%, 0.3)",
+    "hsla(75, 80%, 75%, 0.3)",
+    "hsla(100, 80%, 75%, 0.3)",
+    "hsla(125, 90%, 75%, 0.3)",
+    "hsla(150, 90%, 75%, 0.3)",
+    "hsla(175, 90%, 75%, 0.3)",
     "hsla(200, 90%, 75%, 0.3)",
-    "hsla(240, 90%, 75%, 0.3)",
-    "hsla(320, 90%, 75%, 0.3)",
+    "hsla(225, 90%, 75%, 0.3)",
+    "hsla(250, 90%, 75%, 0.3)",
+    "hsla(275, 90%, 75%, 0.3)",
+    "hsla(300, 90%, 75%, 0.3)",
+    "hsla(325, 90%, 75%, 0.3)",
+    "hsla(350, 90%, 75%, 0.3)",
   ];
 
   export let cellState = fsm("View", {
@@ -52,45 +77,44 @@
       goTo(state) {
         return state;
       },
-      loadOptions() {
-        if (
-          !cellOptions.fullTable &&
-          cellOptions.optionsSource == "data" &&
-          !fetch
-        ) {
-          fetch = createFetch(cellOptions.datasource);
-        }
+      refresh() {
+        optionsSource == "data" && $fetch
+          ? cellState.syncFetch($fetch)
+          : optionsSource == "custom"
+            ? cellState.loadCustomOptions(customOptions)
+            : optionsSource == "schema";
+        cellState.loadSchemaOptions();
       },
-      fetchOptions() {
-        if (cellOptions.fullTable) {
-          return;
-        } else if (cellOptions.optionsSource == "data" && $fetch?.loaded) {
-          options = $fetch.rows.map((x) => x[cellOptions.valueColumn]);
-          $fetch.rows.forEach((row) => {
-            optionColors[row[cellOptions.valueColumn]] =
-              cellOptions.colorTemplate
-                ? processStringSync(cellOptions.colorTemplate, { row })
-                : null;
-            optionIcons[row[cellOptions.valueColumn]] = cellOptions.iconTemplate
+      loadSchemaOptions() {
+        options = fieldSchema?.constraints?.inclusion || [];
+        optionColors = fieldSchema?.optionColors || {};
+        filteredOptions = options;
+      },
+      loadDataOptions(rows) {
+        if (rows && rows.length) {
+          options = rows.map((x) => x[valueColumn]);
+          rows.forEach((row, idx) => {
+            optionColors[row[valueColumn]] = cellOptions.colorTemplate
+              ? processStringSync(cellOptions.colorTemplate, { row })
+              : colorsArray[idx % colorsArray.length];
+            optionIcons[row[valueColumn]] = cellOptions.iconTemplate
               ? processStringSync(cellOptions.iconTemplate, { row })
               : null;
-            optionLabels[row[cellOptions.valueColumn]] = cellOptions.labelColumn
-              ? row[cellOptions.labelColumn]
-              : row[cellOptions.valueColumn];
+            optionLabels[row[valueColumn]] = labelColumn
+              ? row[labelColumn]
+              : row[valueColumn];
           });
-        } else if (cellOptions.optionsSource == "data" && !$fetch?.loaded) {
-          options = [];
-        } else if (cellOptions.optionsSource == "custom") {
-          options = [];
-          if (cellOptions.customOptions.length) {
-            options = cellOptions.customOptions.map((x) => x.value || x);
-            cellOptions.customOptions.forEach((e) => {
-              optionLabels[e.value || e] = e.label || e;
-            });
-          }
-        } else {
-          options = fieldSchema?.constraints?.inclusion || [];
-          optionColors = fieldSchema?.optionColors || {};
+        }
+        filteredOptions = options;
+      },
+      loadCustomOptions(customOptions) {
+        options = [];
+        if (customOptions?.length) {
+          options = customOptions?.map((x) => x.value || x);
+          customOptions.forEach((e, idx) => {
+            optionLabels[e.value || e] = e.label || e;
+            optionColors[e.value || e] = colorsArray[idx % 6];
+          });
         }
         filteredOptions = options;
       },
@@ -108,27 +132,11 @@
     View: {
       _enter() {},
       syncFetch(fetch) {
-        if (fetch?.loaded) this.fetchOptions(fetch?.loaded);
+        if (optionsSource == "data" && fetch?.loaded)
+          this.loadDataOptions($fetch?.rows);
       },
       focus() {
         if (!cellOptions.readonly && !cellOptions.disabled) {
-          if (
-            cellOptions.optionsSource == "data" &&
-            !fetch &&
-            !cellOptions.fullTable
-          ) {
-            this.loadOptions();
-            return "Loading";
-          }
-
-          if (
-            cellOptions.optionsSource == "data" &&
-            cellOptions.cache == false
-          ) {
-            fetch = undefined;
-            this.loadOptions();
-            return "Loading";
-          }
           return "Editing";
         }
       },
@@ -159,6 +167,10 @@
       },
       handleKeyboard(e) {},
       focusout(e) {
+        if (anchor?.matches(":focus-within") || !inactive) {
+          return;
+        }
+
         editorState.close();
         this.submit();
         dispatch("focusout");
@@ -365,11 +377,6 @@
   $: inEdit = $cellState == "Editing";
   $: inline = cellOptions.role == "inlineInput";
   $: simpleView = cellOptions.optionsViewMode != "pills";
-  $: if (cellOptions.prefetch || cellOptions.controlType != "select") {
-    cellState.loadOptions("View");
-  }
-  $: cellState.fetchOptions(cellOptions);
-  $: cellState.syncFetch($fetch);
 
   const createFetch = (datasource) => {
     return fetchData({
@@ -426,7 +433,7 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={anchor}
-  tabindex={cellOptions.disabled ? "-1" : 0}
+  tabindex={cellOptions?.disabled ? "-1" : "0"}
   class="superCell"
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
@@ -450,18 +457,37 @@
   {#if $cellState == "Loading"}
     <CellSkeleton>Initializing ..</CellSkeleton>
   {:else}
-    {#if cellOptions.icon && cellOptions.controlType == "select"}
+    {#if cellOptions.icon && controlType == "select"}
       <i class={cellOptions.icon + " frontIcon"}></i>
     {/if}
 
-    {#if cellOptions.controlType == "checkbox"}
+    {#if controlType == "list"}
+      <SuperList
+        items={localValue}
+        itemsColors={optionColors}
+        showColors={cellOptions.useOptionColors}
+        createNew={cellOptions.createNew}
+        itemButtons={cellOptions.itemButtons}
+        numbering={cellOptions.numbering}
+        reorderOnly={cellOptions.reorderOnly}
+        placeholder={cellOptions.placeholder}
+        {editorState}
+        {cellState}
+        bind:inactive
+        on:togglePicker={editorState.toggle}
+        on:change={(e) => {
+          localValue = [...e.detail];
+          anchor?.focus();
+        }}
+      />
+    {:else if controlType == "checkbox"}
       <div
         class="options checkboxes editor"
+        style:flex-direction={cellOptions.direction}
         tabindex="0"
         bind:this={editor}
         on:focusout={cellState.focusout}
         on:focus={cellState.focus}
-        style:grid-template-columns={"repeat( " + columns + " , 1fr"}
         on:mouseleave={() => (focusedOptionIdx = -1)}
       >
         {#each options as option, idx (idx)}
@@ -493,9 +519,10 @@
           </div>
         {/each}
       </div>
-    {:else if cellOptions.controlType == "radio"}
+    {:else if controlType == "radio"}
       <div
         class="options checkboxes editor"
+        style:flex-direction={cellOptions.direction}
         tabindex="0"
         bind:this={editor}
         on:focusout={cellState.focusout}
@@ -535,9 +562,10 @@
           </div>
         {/each}
       </div>
-    {:else if cellOptions.controlType == "switch"}
+    {:else if controlType == "switch"}
       <div
         class="options checkboxes editor"
+        style:flex-direction={cellOptions.direction}
         bind:this={editor}
         tabindex="0"
         on:focusout={cellState.focusout}
@@ -689,21 +717,24 @@
           {/if}
         </div>
         {#if cellOptions.role != "tableCell" && !cellOptions.readonly}
-          <i class="ri-arrow-down-s-line" style="font-size: 18px;"></i>
+          <i
+            class="ri-arrow-down-s-line"
+            style="font-size: 18px; margin-left: 8px;"
+          ></i>
         {/if}
       </div>
     {/if}
   {/if}
 </div>
-
-{#if inEdit && cellOptions.controlType == "select"}
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+{#if inEdit && (controlType == "select" || controlType == "list")}
   <SuperPopover
     {anchor}
     useAnchorWidth
-    dismissible={false}
+    maxHeight={400}
     open={$editorState == "Open"}
+    on:close={editorState.close}
   >
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
       bind:this={picker}
       class="options"
@@ -720,16 +751,20 @@
           {@const color = getOptionColor(option)}
           {@const label = getOptionLabel(option)}
           {@const icon = getOptionIcon(option)}
+          {@const selected = localValue?.includes(option)}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <div
             class="option"
+            style:display={cellOptions.controlType == "list" && selected
+              ? "none"
+              : "flex"}
             class:focused={focusedOptionIdx === idx}
             on:mousedown|preventDefault={(e) => editorState.toggleOption(idx)}
             on:mouseenter={() => (focusedOptionIdx = idx)}
           >
             {#if multi || (color && !icon)}
               <div class="loope small" style:background-color={color}>
-                {#if localValue?.includes(option)}
+                {#if selected}
                   <i class="ri-check-line" />
                 {/if}
               </div>
@@ -757,8 +792,9 @@
   }
 
   .options.checkboxes {
-    display: grid;
-    padding: 0.25rem 0.25rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    column-gap: 1rem;
   }
   .option {
     line-height: 20px;
@@ -782,8 +818,8 @@
   }
 
   .loope {
-    min-height: 14px;
-    min-width: 14px;
+    height: 14px;
+    width: 14px;
     line-height: 12px;
     border-radius: 2px;
     display: grid;

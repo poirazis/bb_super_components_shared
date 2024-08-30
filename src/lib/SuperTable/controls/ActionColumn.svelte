@@ -263,7 +263,7 @@
     max-height: 2rem;
     border-right: var(--super-table-vertical-dividers);
     background-color: var(--spectrum-global-color-gray-75);
-    border-top: 2px solid var(--spectrum-alias-border-color-mid);
+    border-top: 1px solid var(--spectrum-alias-border-color-mid);
     overflow: hidden;
   }
 </style>
