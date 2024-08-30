@@ -7,6 +7,7 @@
   import SuperList from "../SuperList/SuperList.svelte";
 
   import "./CellCommon.css";
+  import { writable } from "svelte/store";
 
   const dispatch = createEventDispatcher();
   const { API, QueryUtils, fetchData, processStringSync, memo } =
@@ -29,7 +30,8 @@
   // Handle Options from Data Source
   const dataSourceStore = memo(cellOptions?.datasource ?? {});
   $: dataSourceStore.set(cellOptions.datasource);
-  $: fetch = createFetch($dataSourceStore);
+  $: fetch =
+    optionsSource == "data" ? createFetch($dataSourceStore) : writable({});
   $: optionsSource == "data" && $fetch
     ? cellState.syncFetch($fetch)
     : optionsSource == "custom"
@@ -79,11 +81,12 @@
       },
       refresh() {
         optionsSource == "data" && $fetch
-          ? cellState.syncFetch($fetch)
+          ? this.syncFetch($fetch)
           : optionsSource == "custom"
-            ? cellState.loadCustomOptions(customOptions)
-            : optionsSource == "schema";
-        cellState.loadSchemaOptions();
+            ? this.loadCustomOptions(customOptions)
+            : optionsSource == "schema"
+              ? cellState.loadSchemaOptions()
+              : () => {};
       },
       loadSchemaOptions() {
         options = fieldSchema?.constraints?.inclusion || [];
@@ -107,11 +110,11 @@
         }
         filteredOptions = options;
       },
-      loadCustomOptions(customOptions) {
-        options = [];
+      loadCustomOptions() {
         if (customOptions?.length) {
+          options = [];
           options = customOptions?.map((x) => x.value || x);
-          customOptions.forEach((e, idx) => {
+          options.forEach((e, idx) => {
             optionLabels[e.value || e] = e.label || e;
             optionColors[e.value || e] = colorsArray[idx % 6];
           });
