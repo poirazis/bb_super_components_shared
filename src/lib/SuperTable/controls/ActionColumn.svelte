@@ -39,7 +39,7 @@
   $: inInsert = $stbState == "Inserting";
   $: canInsert = $stbSettings.features.canInsert;
   $: canDelete = $stbSettings.features.canDelete;
-  $: canDeleteEvent = $stbSettings.features.canDelete == "advanced";
+
   $: canEditEvent = $stbSettings.features.canEdit == "advanced";
   $: menuIcon = $stbSettings.rowMenuIcon;
 
@@ -80,9 +80,20 @@
       class="spectrum-Table-headCell"
       style:height={headerHeight}
       style:backgroud-color={"transparent"}
-      on:mouseenter={() => (mouseover = true)}
-      on:mouseleave={() => (mouseover = false)}
-    ></div>
+      style:justify-content={"center"}
+    >
+      {#if canDelete && $stbSelected.length > 1}
+        <SuperButton
+          size="XS"
+          icon="ri-delete-bin-2-line"
+          iconColor="var(--spectrum-global-color-red-500)"
+          fillOnHover="true"
+          text=""
+          disabled={$stbSelected.length < 1}
+          quiet="true"
+          on:click={(e) => stbState.deleteSelectedRows()}
+        />{/if}
+    </div>
   {/if}
 
   <div
@@ -101,7 +112,7 @@
           class="super-row spectrum-Table-row"
           on:mouseenter={() => ($stbHovered = index)}
           class:is-selected={selected}
-          class:is-hovered={$stbHovered === index}
+          class:is-hovered={$stbHovered === index || $stbMenuID == rowID}
           class:is-editing={$stbEditing == index &&
             ($stbSettings.appearance.highlighters == "horizontal" ||
               $stbSettings.appearance.highlighters == "both")}
@@ -113,7 +124,7 @@
             : "transparent"}
         >
           <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <div class="row-menu" on:mousedown={(e) => ($stbMenuID = rowID)}>
+          <div class="row-menu">
             {#if rowMenu && inlineButtons?.length}
               {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
                 <SuperButton
@@ -142,7 +153,7 @@
                 onClick={enrichButtonActions(onEdit, $context)}
               />
             {/if}
-            {#if canDelete || canDeleteEvent}
+            {#if canDelete}
               <SuperButton
                 size="S"
                 icon="ri-delete-bin-2-line"
@@ -150,8 +161,7 @@
                 fillOnHover="true"
                 text=""
                 quiet="true"
-                context={{ menuRow }}
-                onClick={enrichButtonActions(onDelete, $context)}
+                on:click={(e) => stbState.deleteRow(rowID)}
               />
             {/if}
             {#if rowMenu && menuItems?.length}
@@ -185,14 +195,24 @@
 
 {#if openMenu}
   <SuperPopover
-    open={openMenu}
+    open
     anchor={menuAnchor}
+    minWidth={150}
     align={right ? "right" : "left"}
-    on:close={() => (openMenu = false)}
+    on:close={() => {
+      openMenu = false;
+      $stbMenuID = undefined;
+    }}
   >
     {#if menuItems?.length}
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="action-menu">
+      <div
+        class="action-menu"
+        on:mouseup={() => {
+          $stbMenuID = undefined;
+          openMenu = false;
+        }}
+      >
         {#each menuItems as { text, icon, disabled, onClick, size }}
           <SuperButton
             {size}

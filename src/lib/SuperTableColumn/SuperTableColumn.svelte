@@ -1,24 +1,9 @@
 <script>
-  /**
-   * The complete set of options that can be passed to a Super Column.
-   * @typedef {Object} columnOptions
-   * @property {Object} schema - The schema of the Cell ( as per Budibase Field Schema ). if Not set, the Cell will render as String
-   * @property {string} mode - Can be Field / TableCell / or Unstyled
-   * @property {string} state - The State of the Cell. Can be View / Edit / Disabled
-   * @property {string} placeholder - The Cell Placeholder Text
-   * @property {string} align - Horizontal Alignment
-   * @property {string} color - Use Font Color
-   * @property {string} weight - Use Font Weight
-   * @property {string} bgColor - The Background Color
-   * @property {string} padding - The padding to be applied to the Cell
-   * @property {boolean} hovered - To enter hovered state
-   */
-
   import { getContext, setContext } from "svelte";
-  import { writable, derived } from "svelte/store";
+  import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
 
-  const { memo } = getContext("sdk");
+  const { memo, derivedMemo } = getContext("sdk");
 
   import SuperColumnHeader from "./parts/SuperColumnHeader.svelte";
   import SuperColumnBody from "./parts/SuperColumnBody.svelte";
@@ -39,6 +24,7 @@
   const stbSortOrder = getContext("stbSortOrder");
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
+  const stbState = getContext("stbState");
 
   // Cell Components Map
   const cellComponents = {
@@ -76,7 +62,6 @@
 
   // Props
   export let columnOptions;
-  export let stbState;
 
   // Export the column's body scrolling info
   export let clientHeight;
@@ -95,60 +80,91 @@
   let width;
   let columnAnchor;
   let lockWidth = new writable(0);
-
   let sortOrder = "ascending";
 
-  const columnSettings = memo({});
-  $: columnSettings.set({
+  const columnOptionsStore = memo({
     ...columnOptions,
+    cellComponent: cellComponents[columnOptions.schema.type] ?? CellString,
+    headerComponent: headerComponents[columnOptions.schema.type] ?? CellString,
+  });
+
+  $: columnOptionsStore.set({
+    ...columnOptions,
+    cellComponent: cellComponents[columnOptions.schema.type] ?? CellString,
+    headerComponent: headerComponents[columnOptions.schema.type] ?? CellString,
     background:
       sticky && scrollPos
         ? "var(--spectrum-global-color-gray-75)"
         : columnOptions.background,
-    cellComponent: cellComponents[columnOptions.schema.type] ?? CellString,
-    headerComponent: headerComponents[columnOptions.schema.type] ?? CellString,
-    cellOptions: {
-      role: "tableCell",
-      search: true,
-      autocomplete: false,
-      showDirty: true,
-      readonly: !columnOptions.canEdit,
-      align: columnOptions.align,
-      color: columnOptions.color,
-      background: columnOptions.background ?? "transparent",
-      fontWeight: columnOptions.fontWeight,
-      padding: columnOptions.cellPadding,
-      template: columnOptions.template,
-      useOptionColors: columnOptions.useOptionColors,
-      optionsViewMode: columnOptions.optionsViewMode,
-      optionsSource: columnOptions.optionsSource,
-      customOptions: columnOptions.customOptions,
-      useOptionColors: columnOptions.useOptionColors,
-      useOptionIcons: columnOptions.useOptionIcons,
-      relViewMode: columnOptions.relViewMode,
-      controlType: "select",
-      placeholder: " ",
-      datasource: columnOptions.data?.datasource,
-      limit: columnOptions.data?.limit,
-      valueColumn: columnOptions.data?.valueColumn,
-      labelColumn: columnOptions.data?.labelColumn,
-      fullTable: columnOptions.data?.fullTable,
-      columnList: columnOptions.data?.columnList,
-    },
   });
+
+  const rowCellOptions = derivedMemo(
+    columnOptionsStore,
+    ($columnOptionsStore) => {
+      return {
+        role: "tableCell",
+        search: true,
+        autocomplete: false,
+        showDirty: true,
+        readonly: !$columnOptionsStore.canEdit,
+        align: $columnOptionsStore.align,
+        color: $columnOptionsStore.color,
+        background: $columnOptionsStore.background ?? "transparent",
+        fontWeight: $columnOptionsStore.fontWeight,
+        padding: $columnOptionsStore.cellPadding,
+        template: $columnOptionsStore.template,
+        useOptionColors: $columnOptionsStore.useOptionColors,
+        optionsViewMode: $columnOptionsStore.optionsViewMode,
+        optionsSource: $columnOptionsStore.optionsSource,
+        customOptions: $columnOptionsStore.customOptions,
+        useOptionColors: $columnOptionsStore.useOptionColors,
+        useOptionIcons: $columnOptionsStore.useOptionIcons,
+        relViewMode: $columnOptionsStore.relViewMode,
+        controlType: "select",
+        placeholder: " ",
+        datasource: $columnOptionsStore.data?.datasource,
+        limit: $columnOptionsStore.data?.limit,
+        valueColumn: $columnOptionsStore.data?.valueColumn,
+        labelColumn: $columnOptionsStore.data?.labelColumn,
+        fullTable: $columnOptionsStore.data?.fullTable,
+        columnList: $columnOptionsStore.data?.columnList,
+      };
+    }
+  );
+
+  const headerCellOptions = derivedMemo(
+    columnOptionsStore,
+    ($columnOptionsStore) => {
+      let filterOperator;
+      return {
+        align: $columnOptionsStore?.align,
+        color: $columnOptionsStore?.color,
+        background: "var(--spectrum-global-color-gray-50)",
+        fontWeight: $columnOptionsStore?.fontWeight,
+        padding: $columnOptionsStore?.cellPadding,
+        placeholder: $columnOptionsStore?.filteringOperators?.find(
+          (x) => x.value == filterOperator
+        )?.label,
+        clearValueIcon: true,
+        disabled: filterOperator == "empty" || filterOperator == "notEmpty",
+        readonly: filterOperator == "empty" || filterOperator == "notEmpty",
+        useOptionColors: true,
+        debounce: 250,
+        controlType: "select",
+        initialState: "Editing",
+        role: "inlineInput",
+      };
+    }
+  );
 
   $: inInsert = $stbState == "Inserting";
   $: canInsert = $stbSettings.features.canInsert;
   $: isLast = columnOptions.isLast;
-
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
     "*": {
       tableState(state) {
         return state;
-      },
-      initializeColumn(field) {
-        if (!field) return;
       },
       enteredit(index) {
         $stbEditing = index;
@@ -162,7 +178,7 @@
         return "Idle";
       },
       lockWidth() {
-        $lockWidth = width;
+        $lockWidth = clientWidth;
       },
       unlockWidth() {
         $lockWidth = 0;
@@ -224,7 +240,6 @@
         $lockWidth = columnAnchor.clientWidth;
       },
       filter(filterObj) {
-        stbState.removeFilter(id);
         stbState.addFilter({ ...filterObj, id: id });
         return "Filtered";
       },
@@ -263,29 +278,12 @@
     },
   });
 
-  // Reactive declaration.
-  // nameStore is used in our derived store that holds the column data
-  let colsStore = new writable([]);
-  $: columnOptions.name
-    ? colsStore.set(columnOptions.name.split("."))
-    : ($colsStore = []);
-
-  $: columnStore =
-    derived([stbData, colsStore], ([$stbData, $colsStore]) => {
-      return $stbData?.rows?.map((row) => ({
-        rowID: row[$stbSettings.data.idColumn],
-        rowMeta: row["_st_meta"] || {},
-        rowValue:
-          $colsStore.length > 1
-            ? row[$colsStore[0]]?.[$colsStore[1]]
-            : row[$colsStore[0]],
-      }));
-    }) || null;
-
-  $: columnState.initializeColumn(columnOptions.name);
-  $: if ($stbSortColumn == columnOptions.name && $columnState == "Idle") {
+  $: if ($stbSortColumn == $columnOptionsStore.name && $columnState == "Idle") {
     columnState.sort($stbSortOrder);
-  } else if ($stbSortColumn != columnOptions.name && $columnState == "Sorted") {
+  } else if (
+    $stbSortColumn != $columnOptionsStore.name &&
+    $columnState == "Sorted"
+  ) {
     columnState.unsort();
   }
 
@@ -304,7 +302,9 @@
         : columnOptions.maxWidth || "unset";
   };
 
-  setContext("stColumnSettings", columnSettings);
+  setContext("stColumnOptions", columnOptionsStore);
+  setContext("stRowCellOptions", rowCellOptions);
+  setContext("stHeaderCellOptions", headerCellOptions);
   setContext("stColumnState", columnState);
 </script>
 
@@ -316,6 +316,7 @@
     if (resizing) columnState.resize(e);
   }}
 />
+
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnAnchor}
@@ -324,14 +325,14 @@
   class:sticky={sticky && scrollPos}
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:min-width={getMinWidth($lockWidth, columnOptions)}
-  style:max-width={getMaxWidth($lockWidth, columnOptions)}
+  style:min-width={getMinWidth($lockWidth)}
+  style:max-width={getMaxWidth($lockWidth)}
   on:mouseleave={() => ($stbHovered = null)}
 >
-  {#if columnOptions.showHeader && columnOptions.canResize}
+  {#if $columnOptionsStore.showHeader && $columnOptionsStore.canResize}
     <div
       class="grabber"
-      style:height={columnOptions.headerHeight - 16}
+      style:height={$columnOptionsStore.headerHeight - 16}
       on:mousedown={columnState.startResizing}
       on:dblclick={columnState.resetSize}
       on:mouseenter={() => (considerResizing = true)}
@@ -339,26 +340,28 @@
     />
   {/if}
 
-  <SuperColumnHeader />
-  {#key $columnSettings.hasChildre}
-    <SuperColumnBody
-      bind:clientHeight
-      bind:scrollHeight
-      on:rowResize={(e) =>
-        stbState.handleRowResize(e.detail.idx, e.detail.size)}
-      on:rowClicked={(e) => stbState.rowClicked(e.detail)}
-      on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
-      on:cellChanged={(e) => stbState.cellChanged(e.detail)}
-      rows={$columnStore}
-      {isLast}
-      {inInsert}
-      {canInsert}
-    >
-      <slot />
-    </SuperColumnBody>
-  {/key}
+  {#if $columnOptionsStore.showHeader}
+    <SuperColumnHeader />
+  {/if}
 
-  <SuperColumnFooter />
+  <SuperColumnBody
+    bind:clientHeight
+    bind:scrollHeight
+    on:rowResize={(e) => stbState.handleRowResize(e.detail.idx, e.detail.size)}
+    on:rowClicked={(e) => stbState.rowClicked(e.detail)}
+    on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
+    rows={$stbData.rows}
+    field={$columnOptionsStore.name}
+    idField={$stbSettings.data.idColumn}
+    {isLast}
+    {inInsert}
+    {canInsert}
+  >
+    <slot />
+  </SuperColumnBody>
+  {#if $columnOptionsStore.showFooter}
+    <SuperColumnFooter />
+  {/if}
 </div>
 
 <style>

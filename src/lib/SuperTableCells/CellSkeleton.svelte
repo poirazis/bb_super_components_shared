@@ -12,7 +12,7 @@
 
 <style>
   .skeleton {
-    height: 100%;
+    flex: auto;
     width: 100%;
     align-self: stretch;
     opacity: 0;

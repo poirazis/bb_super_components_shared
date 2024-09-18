@@ -10,7 +10,7 @@
   export let anchor;
   export let align = "right";
   export let portalTarget;
-  export let minWidth = "150px";
+  export let minWidth;
   export let maxWidth;
   export let maxHeight;
   export let open = false;
@@ -28,7 +28,7 @@
 
   export let ignoreAnchor = true;
 
-  $: target = portalTarget || getContext(".component") || ".spectrum";
+  $: target = portalTarget || ".spectrum";
 
   export const show = () => {
     dispatch("open");

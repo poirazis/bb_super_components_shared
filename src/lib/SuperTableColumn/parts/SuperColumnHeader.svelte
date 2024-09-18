@@ -2,7 +2,8 @@
   import { getContext } from "svelte";
   import SuperPopover from "../../SuperPopover/SuperPopover.svelte";
 
-  const columnSettings = getContext("stColumnSettings");
+  const columnOptions = getContext("stColumnOptions");
+  const cellOptions = getContext("stHeaderCellOptions");
   const columnState = getContext("stColumnState");
   const { API } = getContext("sdk");
 
@@ -12,50 +13,31 @@
   let picker;
   let showFilteringOptions = false;
   let filterValue;
-  let filterOperator = $columnSettings.defaultFilteringOperator;
+  let filterOperator = $columnOptions.defaultFilteringOperator;
   let schema;
   let filterColumn;
   let hovered;
 
-  $: isLink = $columnSettings.schema.type == "link";
+  $: isLink = $columnOptions.schema.type == "link";
   $: isReference =
-    $columnSettings.schema.type == "bb_reference" ||
-    $columnSettings.schema.type == "bb_reference_single";
+    $columnOptions.schema.type == "bb_reference" ||
+    $columnOptions.schema.type == "bb_reference_single";
 
-  $: if (isLink && !schema && $columnSettings.canFilter)
-    fetchDefinition($columnSettings.schema.tableId);
+  $: if (isLink && !schema && $columnOptions.canFilter)
+    fetchDefinition($columnOptions.schema.tableId);
 
   $: if (isLink && schema) {
-    filterColumn = "1:" + $columnSettings.name + "." + schema?.primaryDisplay;
+    filterColumn = "1:" + $columnOptions.name + "." + schema?.primaryDisplay;
   } else {
-    filterColumn = $columnSettings.name;
+    filterColumn = $columnOptions.name;
   }
 
   $: isEntering = $columnState == "Entering";
 
-  $: cellOptions = {
-    align: $columnSettings.align,
-    color: $columnSettings.color,
-    background: "var(--spectrum-global-color-gray-50)",
-    fontWeight: $columnSettings.fontWeight,
-    padding: $columnSettings.cellOptions.padding,
-    placeholder: $columnSettings.filteringOperators?.find(
-      (x) => x.value == filterOperator
-    )?.label,
-    clearValueIcon: true,
-    disabled: filterOperator == "empty" || filterOperator == "notEmpty",
-    readonly: filterOperator == "empty" || filterOperator == "notEmpty",
-    useOptionColors: true,
-    debounce: 250,
-    controlType: "select",
-    initialState: "Editing",
-    role: "inlineInput",
-  };
-
   const handleValueChange = (e) => {
     if (e.detail != undefined && e.detail != null && e.detail != "") {
       filterValue = e.detail;
-      if ($columnSettings.schema.type == "boolean" && filterValue === false) {
+      if ($columnOptions.schema.type == "boolean" && filterValue === false) {
         columnState.filter(buildFilter("notEqual", true));
       } else if (Array.isArray(e.detail) && e.detail.length == 0) {
         columnState.clear();
@@ -88,7 +70,7 @@
       field: filterColumn,
       operator: operator,
       value: temp,
-      type: isLink ? "string" : $columnSettings.schema.type,
+      type: isLink ? "string" : $columnOptions.schema.type,
       valueType: "Value",
     };
   };
@@ -115,34 +97,40 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-{#if $columnSettings.showHeader}
+{#if $columnOptions.showHeader}
   <div
     bind:this={headerAnchor}
     class="spectrum-Table-headCell"
     class:isEntering
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:height={$columnSettings.headerHeight}
-    style:padding-left={$columnSettings.cellOptions.padding}
-    style:padding-right={$columnSettings.cellOptions.padding}
-    on:mouseenter={() => (hovered = true)}
-    on:mouseleave={() => (hovered = false)}
+    style:height={$columnOptions.headerHeight}
+    style:padding-left={$cellOptions.padding}
+    style:padding-right={$cellOptions.padding}
+    on:mouseenter={() => {
+      hovered = true;
+      columnState.lockWidth();
+    }}
+    on:mouseleave={() => {
+      hovered = false;
+      columnState.unlockWidth();
+    }}
   >
     {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
-      {#if $columnSettings.canFilter && $columnSettings.defaultFilteringOperator && hovered}
+      {#if $columnOptions.canFilter && $columnOptions.defaultFilteringOperator && hovered}
         <i class="ri-search-line icon" on:click={columnState.filter}> </i>
       {/if}
 
       <div
         class="headerLabel"
-        style:justify-content={$columnSettings?.headerAlign}
+        style:justify-content={$columnOptions?.headerAlign}
       >
         <div
           class="innerText"
-          class:sortable={$columnSettings.canSort}
+          class:sortable={$columnOptions.canSort}
           on:click={columnState.sort}
         >
-          {$columnSettings.displayName ?? $columnSettings.name}
+          {$columnOptions.displayName ?? $columnOptions.name}
         </div>
       </div>
 
@@ -151,7 +139,7 @@
         </i>
       {/if}
     {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      {#if $columnSettings.canFilter == "advanced"}
+      {#if $columnOptions.canFilter == "advanced"}
         <i
           class="ri-settings-line"
           style="align-self: center; font-size: 14px;"
@@ -160,10 +148,10 @@
         />
       {/if}
       <svelte:component
-        this={$columnSettings.headerComponent}
-        {cellOptions}
+        this={$columnOptions.headerComponent}
+        cellOptions={$cellOptions}
         value={filterValue}
-        fieldSchema={$columnSettings.schema}
+        fieldSchema={$columnOptions.schema}
         multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
         on:change={handleValueChange}
         on:cancel={columnState.cancel}
@@ -172,7 +160,7 @@
     {/if}
   </div>
 
-  {#if $columnSettings.canFilter == "advanced"}
+  {#if $columnOptions.canFilter == "advanced"}
     <SuperPopover
       anchor={headerAnchor}
       align="left"
@@ -186,7 +174,7 @@
         role="menu"
         style="background-color: var(--spectrum-global-color-gray-75 );"
       >
-        {#each $columnSettings.filteringOperators as option}
+        {#each $columnOptions.filteringOperators as option}
           <li
             class="spectrum-Menu-item"
             class:selected={option.value == filterOperator}
@@ -203,17 +191,6 @@
 {/if}
 
 <style>
-  .spectrum-Table-headCell {
-    display: flex;
-    align-items: center;
-    border: 1px solid transparent;
-    border-bottom: 1px solid var(--spectrum-global-color-gray-200);
-    background-color: var(--spectrum-global-color-gray-100);
-    padding-top: none;
-    padding-bottom: none;
-    font-size: 12px;
-  }
-
   .spectrum-Table-headCell.idle {
     gap: 0.5rem;
   }

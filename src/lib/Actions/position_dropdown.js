@@ -15,6 +15,7 @@ export default function positionDropdown(element, opts) {
       align,
       maxHeight,
       maxWidth,
+      minWidth,
       useAnchorWidth,
       offset = 5,
       customUpdate,
@@ -59,7 +60,7 @@ export default function positionDropdown(element, opts) {
       }
       if (useAnchorWidth) {
         styles.minWidth = anchorBounds.width;
-      } else {
+      } else if (minWidth) {
         styles.minWidth = minWidth;
       }
 

@@ -1,15 +1,15 @@
 <script>
   import { getContext } from "svelte";
-  const columnSettings = getContext("stColumnSettings");
+  const columnOptions = getContext("stColumnOptions");
 </script>
 
-{#if $columnSettings.showFooter}
+{#if $columnOptions.showFooter}
   <div
     class="spectrum-Table-headcell"
-    style:height={$columnSettings.headerHeight}
+    style:height={$columnOptions.headerHeight}
   >
     <span>
-      {$columnSettings.displayName ?? $columnSettings.name}
+      {$columnOptions.displayName ?? $columnOptions.name}
     </span>
   </div>
 {/if}

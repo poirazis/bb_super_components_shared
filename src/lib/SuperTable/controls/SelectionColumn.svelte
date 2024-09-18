@@ -45,13 +45,15 @@
     class="super-column"
     class:sticky
     on:mouseleave={() => ($stbHovered = null)}
-    style:max-width={"3rem"}
-    style:min-width={"2rem"}
+    style:min-width={"2.25rem"}
+    style:max-width={"2.25rem"}
   >
     {#if $stbSettings?.showHeader}
       <div
         class="spectrum-Table-headCell"
         style:height={headerHeight}
+        style:padding={"unset"}
+        style:justify-content={"center"}
         on:mouseenter={() => (mouseover = true)}
         on:mouseleave={() => (mouseover = false)}
       >
@@ -173,16 +175,6 @@
   i {
     font-size: 16px;
     color: var(--spectrum-global-color-gray-500);
-  }
-  .spectrum-Table-headCell {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    padding: unset;
-    background-color: var(--spectrum-global-color-gray-100);
-    border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
-    border-right: var(--super-table-vertical-dividers);
   }
   .spectrum-Table-body {
     height: var(--super-table-body-height);

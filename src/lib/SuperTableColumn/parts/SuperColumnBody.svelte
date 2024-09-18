@@ -12,11 +12,14 @@
   const stbRowHeights = getContext("stbRowHeights");
   const stbMenuID = getContext("stbMenuID");
   const stbMenuAnchor = getContext("stbMenuAnchor");
+  const stbData = getContext("stbData");
 
-  const columnSettings = getContext("stColumnSettings");
+  const columnSettings = getContext("stColumnOptions");
   const columnState = getContext("stColumnState");
 
   export let rows = [];
+  export let field;
+  export let idField;
   export let rowHeights;
   export let inInsert;
   export let canInsert;
@@ -25,8 +28,6 @@
   // interanlly used property
   export let scrollHeight;
   export let clientHeight;
-
-  let hovered;
 
   let columnBodyAnchor;
 
@@ -52,11 +53,6 @@
   class:is-editing={$columnState == "EditingCell" &&
     ($columnSettings.highlighters == "vertical" ||
       $columnSettings.highlighters == "both")}
-  on:mouseenter={() => (hovered = true)}
-  on:mouseleave={() => (hovered = false)}
-  on:wheel={(e) => {
-    if (e.detail.deltaY) e.preventDefault();
-  }}
 >
   {#if rows.length}
     {#each rows as row, index}
@@ -64,14 +60,16 @@
         {isLast}
         {index}
         {row}
+        {field}
+        {idField}
         height={$stbRowHeights[index]}
         odd={$columnSettings.zebraColors && index % 2 == 1}
-        isHovered={$stbHovered == index || $stbMenuID == row.rowID}
+        isHovered={$stbHovered == index || $stbMenuID == row[idField]}
         isEditing={$stbEditing == index &&
           ($columnSettings.highlighters == "horizontal" ||
             $columnSettings.highlighters == "both")}
-        isSelected={$stbSelected.includes(row.rowID) ||
-          $stbSelected.includes(row.rowID?.toString())}
+        isSelected={$stbSelected.includes(row[idField]) ||
+          $stbSelected.includes(row[idField]?.toString())}
         on:resize={(e) => dispatch("rowResize", { idx: index, size: e.detail })}
         on:contextmenu={(e) => (
           ($stbMenuID = e.detail.rowID), ($stbMenuAnchor = e.detail.anchor)

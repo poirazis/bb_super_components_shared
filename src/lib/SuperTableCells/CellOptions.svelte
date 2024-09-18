@@ -19,32 +19,6 @@
   export let multi = false;
   export let autofocus;
 
-  $: ({ optionsSource, labelColumn, valueColumn, customOptions, controlType } =
-    cellOptions);
-
-  let timer;
-  let originalValue = JSON.stringify(
-    Array.isArray(value) ? value : value ? [value] : []
-  );
-
-  // Handle Options from Data Source
-  const dataSourceStore = memo(cellOptions?.datasource ?? {});
-  $: dataSourceStore.set(cellOptions.datasource);
-  $: fetch =
-    optionsSource == "data" ? createFetch($dataSourceStore) : writable({});
-  $: optionsSource == "data" && $fetch
-    ? cellState.syncFetch($fetch)
-    : optionsSource == "custom"
-      ? cellState.loadCustomOptions(customOptions)
-      : cellState.loadSchemaOptions();
-
-  // React to property changes
-  $: cellState.refresh(optionsSource);
-
-  // We always keep an internal value as an array
-  $: localValue = Array.isArray(value) ? value : value ? [value] : [];
-  $: isDirty = inEdit && originalValue !== JSON.stringify(localValue);
-
   let anchor;
   let editor;
   let options = [];
@@ -73,6 +47,42 @@
     "hsla(325, 90%, 75%, 0.3)",
     "hsla(350, 90%, 75%, 0.3)",
   ];
+
+  let timer;
+  let originalValue = JSON.stringify(
+    Array.isArray(value) ? value : value ? [value] : []
+  );
+
+  $: ({
+    optionsSource,
+    labelColumn,
+    valueColumn,
+    customOptions,
+    controlType,
+    useOptionColors,
+  } = cellOptions);
+
+  // Handle Options from Data Source
+  const dataSourceStore = memo(cellOptions?.datasource ?? {});
+  $: dataSourceStore.set(cellOptions.datasource);
+  $: fetch =
+    optionsSource == "data" ? createFetch($dataSourceStore) : writable({});
+  $: optionsSource == "data" && $fetch
+    ? cellState.syncFetch($fetch)
+    : optionsSource == "custom"
+      ? cellState.loadCustomOptions(customOptions)
+      : cellState.loadSchemaOptions();
+
+  // React to property changes
+  $: cellState.refresh(optionsSource);
+
+  // We always keep an internal value as an array
+  $: localValue = Array.isArray(value) ? value : value ? [value] : [];
+  $: isDirty = inEdit && originalValue !== JSON.stringify(localValue);
+  $: columns = cellOptions.optionsArrangement || 1;
+  $: inEdit = $cellState == "Editing";
+  $: inline = cellOptions.role == "inlineInput";
+  $: simpleView = cellOptions.optionsViewMode != "pills";
 
   export let cellState = fsm("View", {
     "*": {
@@ -116,7 +126,7 @@
           options = customOptions?.map((x) => x.value || x);
           options.forEach((e, idx) => {
             optionLabels[e.value || e] = e.label || e;
-            optionColors[e.value || e] = colorsArray[idx % 6];
+            optionColors[e.value || e] = colorsArray[idx % 15];
           });
         }
         filteredOptions = options;
@@ -376,11 +386,6 @@
     },
   });
 
-  $: columns = cellOptions.optionsArrangement || 1;
-  $: inEdit = $cellState == "Editing";
-  $: inline = cellOptions.role == "inlineInput";
-  $: simpleView = cellOptions.optionsViewMode != "pills";
-
   const createFetch = (datasource) => {
     return fetchData({
       API,
@@ -396,7 +401,8 @@
 
   const getOptionColor = (value) => {
     let color;
-    if (cellOptions.useOptionColors) color = optionColors[value];
+    if (useOptionColors)
+      color = optionColors[value] ?? colorsArray[getRandom(0, 15)];
 
     if (
       cellOptions.controlType == "select" &&
@@ -421,6 +427,11 @@
   const focus = (node) => {
     node?.focus();
   };
+  function getRandom(min, max) {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+  }
 
   onMount(() => {
     if (autofocus)
@@ -457,277 +468,239 @@
   on:focusout={cellState.focusout}
   on:keydown={editorState.handleKeyboard}
 >
-  {#if $cellState == "Loading"}
-    <CellSkeleton>Initializing ..</CellSkeleton>
-  {:else}
-    {#if cellOptions.icon && controlType == "select"}
-      <i class={cellOptions.icon + " frontIcon"}></i>
-    {/if}
+  {#key useOptionColors}
+    {#if $cellState == "Loading"}
+      <CellSkeleton>Initializing ..</CellSkeleton>
+    {:else}
+      {#if cellOptions.icon && controlType == "select"}
+        <i class={cellOptions.icon + " frontIcon"}></i>
+      {/if}
 
-    {#if controlType == "list"}
-      <SuperList
-        items={localValue}
-        itemsColors={optionColors}
-        showColors={cellOptions.useOptionColors}
-        createNew={cellOptions.createNew}
-        itemButtons={cellOptions.itemButtons}
-        numbering={cellOptions.numbering}
-        reorderOnly={cellOptions.reorderOnly}
-        placeholder={cellOptions.placeholder}
-        {editorState}
-        {cellState}
-        bind:inactive
-        on:togglePicker={editorState.toggle}
-        on:change={(e) => {
-          localValue = [...e.detail];
-          anchor?.focus();
-        }}
-      />
-    {:else if controlType == "checkbox"}
-      <div
-        class="options checkboxes editor"
-        style:flex-direction={cellOptions.direction}
-        tabindex="0"
-        bind:this={editor}
-        on:focusout={cellState.focusout}
-        on:focus={cellState.focus}
-        on:mouseleave={() => (focusedOptionIdx = -1)}
-      >
-        {#each options as option, idx (idx)}
-          {@const color = getOptionColor(option)}
-          {@const label = getOptionLabel(option)}
-          {@const icon = getOptionIcon(option)}
-          {@const selected = localValue?.includes(option)}
-          <div
-            class="option"
-            class:selected
-            class:focused={focusedOptionIdx === idx}
-            on:mousedown={(e) => editorState.toggleOption(idx)}
-            on:mouseenter={() => (focusedOptionIdx = idx)}
-          >
-            {#if icon}
-              <i class={icon} style:color> </i>
-            {/if}
+      {#if controlType == "list"}
+        <SuperList
+          items={localValue}
+          itemsColors={optionColors}
+          showColors={cellOptions.useOptionColors}
+          createNew={cellOptions.createNew}
+          itemButtons={cellOptions.itemButtons}
+          numbering={cellOptions.numbering}
+          reorderOnly={cellOptions.reorderOnly}
+          placeholder={cellOptions.placeholder}
+          {editorState}
+          {cellState}
+          bind:inactive
+          on:togglePicker={editorState.toggle}
+          on:change={(e) => {
+            localValue = [...e.detail];
+            anchor?.focus();
+          }}
+        />
+      {:else if controlType == "checkbox" || controlType == "radio"}
+        <div
+          class="radios"
+          class:column={cellOptions.direction == "column"}
+          on:mouseleave={() => (focusedOptionIdx = -1)}
+        >
+          {#each options as option, idx (idx)}
+            {@const color = getOptionColor(option)}
+            {@const label = getOptionLabel(option)}
+            {@const icon = getOptionIcon(option)}
+            {@const selected = localValue?.includes(option)}
             <div
-              class="loope"
-              style:background-color={color
-                ? color
-                : "var(--spectrum-global-color-gray-100)"}
+              class="radio"
+              class:selected
+              class:focused={focusedOptionIdx === idx}
+              on:mousedown={(e) => editorState.toggleOption(idx)}
+              on:mouseenter={() => (focusedOptionIdx = idx)}
             >
-              {#if selected}
-                <i class="ri-check-line" />
+              {#if icon}
+                <i class={icon} style:color> </i>
               {/if}
-            </div>
-            {label}
-          </div>
-        {/each}
-      </div>
-    {:else if controlType == "radio"}
-      <div
-        class="options checkboxes editor"
-        style:flex-direction={cellOptions.direction}
-        tabindex="0"
-        bind:this={editor}
-        on:focusout={cellState.focusout}
-        on:focus={cellState.focus}
-        style:grid-template-columns={"repeat( " + columns + " , 1fr"}
-        on:mouseleave={() => (focusedOptionIdx = -1)}
-      >
-        {#each options as option, idx (idx)}
-          {@const color = getOptionColor(option)}
-          {@const label = getOptionLabel(option)}
-          {@const icon = getOptionIcon(option)}
-          {@const selected = localValue?.includes(option)}
-          <div
-            class="option"
-            class:selected
-            class:focused={focusedOptionIdx === idx}
-            on:click={(e) => editorState.toggleOption(idx)}
-            on:mouseenter={() =>
-              (focusedOptionIdx = cellOptions.disabled ? null : idx)}
-          >
-            {#if icon}
-              <i class={icon} style:color> </i>
-            {/if}
-
-            <div
-              class="loope round"
-              style:background-color={color
-                ? color
-                : "var(--spectrum-global-color-gray-100)"}
-            >
-              {#if selected}
-                <div class="dot" />
-              {/if}
-            </div>
-
-            {label}
-          </div>
-        {/each}
-      </div>
-    {:else if controlType == "switch"}
-      <div
-        class="options checkboxes editor"
-        style:flex-direction={cellOptions.direction}
-        bind:this={editor}
-        tabindex="0"
-        on:focusout={cellState.focusout}
-        on:focus={cellState.focus}
-        on:mouseleave={() => (focusedOptionIdx = -1)}
-        style:grid-template-columns={"repeat( " + columns + " , 1fr"}
-      >
-        {#each options as option, idx (idx)}
-          {@const color = getOptionColor(option)}
-          {@const label = getOptionLabel(option)}
-          {@const selected = localValue.includes(option)}
-          <div
-            class="option"
-            class:focused={focusedOptionIdx === idx}
-            style:max-height={"1.75rem"}
-            on:click={(e) => editorState.toggleOption(idx, e.stopPropagation())}
-            on:mouseenter={() => (focusedOptionIdx = idx)}
-          >
-            <div
-              class="spectrum-Switch spectrum-Switch--emphasized"
-              style:--spectrum-switch-m-emphasized-handle-border-color-selected={color
-                ? color
-                : "var(--spectrum-global-color-blue-500)"}
-              style:--spectrum-switch-m-emphasized-track-color-selected={selected &&
-              color
-                ? color
-                : "var(--spectrum-global-color-blue-500)"}
-              style:--spectrum-switch-m-emphasized-track-color-selected-hover={color
-                ? color
-                : "var(--spectrum-global-color-blue-600)"}
-            >
-              <input
-                checked={localValue.includes(option)}
-                type="checkbox"
-                class="spectrum-Switch-input"
-                id={idx}
-              />
-              <span class="spectrum-Switch-switch" />
-              <label class="spectrum-Switch-label" class:selected for={idx}
-                >{label}</label
+              <div
+                class="loope"
+                class:round={controlType == "radio"}
+                style:background-color={color
+                  ? color
+                  : "var(--spectrum-global-color-gray-100)"}
               >
+                {#if selected}
+                  {#if controlType == "checkbox"}
+                    <i class="ri-check-line" />
+                  {:else}
+                    <div class="dot" />
+                  {/if}
+                {/if}
+              </div>
+              {label}
             </div>
-          </div>
-        {/each}
-      </div>
-    {:else if inEdit && cellOptions.autocomplete}
-      {#if multi}
-        {#if localValue.length > 0}
-          <div
-            class="editor"
-            style:width={"auto"}
-            style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-          >
+          {/each}
+        </div>
+      {:else if controlType == "switch"}
+        <div
+          class="radios"
+          class:column={cellOptions.direction == "column"}
+          on:mouseleave={() => (focusedOptionIdx = -1)}
+        >
+          {#each options as option, idx (idx)}
+            {@const color = getOptionColor(option)}
+            {@const label = getOptionLabel(option)}
+            {@const selected = localValue.includes(option)}
             <div
-              class="items"
-              class:simpleView
-              style:justify-content={cellOptions.align ?? "flex-start"}
+              class="radio"
+              class:selected
+              class:focused={focusedOptionIdx === idx}
+              style:max-height={"1.75rem"}
+              on:click={(e) =>
+                editorState.toggleOption(idx, e.stopPropagation())}
+              on:mouseenter={() => (focusedOptionIdx = idx)}
             >
+              <div
+                class="spectrum-Switch spectrum-Switch--emphasized"
+                style:--spectrum-switch-m-emphasized-handle-border-color-selected={color
+                  ? color
+                  : "var(--spectrum-global-color-blue-500)"}
+                style:--spectrum-switch-m-emphasized-track-color-selected={selected &&
+                color
+                  ? color
+                  : "var(--spectrum-global-color-blue-500)"}
+                style:--spectrum-switch-m-emphasized-track-color-selected-hover={color
+                  ? color
+                  : "var(--spectrum-global-color-blue-600)"}
+              >
+                <input
+                  checked={localValue.includes(option)}
+                  type="checkbox"
+                  class="spectrum-Switch-input"
+                  id={idx}
+                />
+                <span class="spectrum-Switch-switch" />
+                <label class="spectrum-Switch-label" class:selected for={idx}
+                  >{label}</label
+                >
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else if inEdit && cellOptions.autocomplete}
+        {#if multi}
+          {#if localValue.length > 0}
+            <div
+              class="editor"
+              style:width={"auto"}
+              style:padding-left={cellOptions.icon
+                ? "32px"
+                : cellOptions.padding}
+            >
+              <div
+                class="items"
+                class:simpleView
+                style:justify-content={cellOptions.align ?? "flex-start"}
+              >
+                {#each localValue as val (val)}
+                  {@const color = getOptionColor(val)}
+                  {@const label = getOptionLabel(val)}
+                  <div
+                    class="item"
+                    animate:flip={{ duration: 130 }}
+                    style:background-color={!simpleView ? color : "unset"}
+                    style:border={getOptionColor(val) || simpleView
+                      ? undefined
+                      : "1px solid var(--spectrum-global-color-gray-300)"}
+                  >
+                    {#if simpleView && color}
+                      <div class="loope" style:background-color={color} />
+                    {/if}
+                    <span> {label} </span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
+
+        <input
+          tabindex="0"
+          bind:this={editor}
+          class="editor"
+          class:placeholder={localValue == []}
+          style:padding-left={cellOptions.icon && !localValue?.length
+            ? "32px"
+            : cellOptions.padding}
+          style:padding-right={cellOptions.padding}
+          style:padding-top={0}
+          style:padding-bottom={0}
+          style:border={"none"}
+          use:focus
+          on:focusout={cellState.focusout}
+          value={multi ? "" : (localValue[0] ?? "")}
+          on:input={editorState.filterOptions}
+          on:keydown={editorState.handleKeyboard}
+          placeholder={cellOptions.placeholder ?? "Enter..."}
+        />
+        <div
+          id="btn_toggle"
+          class="actionIcon"
+          on:click|stopPropagation={editorState.toggle}
+        >
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+      {:else}
+        <div
+          class="value"
+          class:placeholder={localValue?.length < 1 && !inEdit}
+          style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
+          style:padding-right={cellOptions.padding}
+          on:mousedown={inEdit ? editorState.toggle : () => {}}
+        >
+          <div
+            class="items"
+            class:simpleView
+            style:justify-content={cellOptions.align ?? "flex-start"}
+          >
+            {#if localValue.length < 1}
+              {cellOptions.placeholder ?? ""}
+            {:else if localValue.length > 0}
               {#each localValue as val (val)}
                 {@const color = getOptionColor(val)}
                 {@const label = getOptionLabel(val)}
+                {@const icon = getOptionIcon(val)}
                 <div
                   class="item"
                   animate:flip={{ duration: 130 }}
                   style:background-color={!simpleView ? color : "unset"}
-                  style:border={getOptionColor(val) || simpleView
-                    ? undefined
+                  style:border={color || simpleView
+                    ? "unset"
                     : "1px solid var(--spectrum-global-color-gray-300)"}
                 >
-                  {#if simpleView && color}
-                    <div class="loope" style:background-color={color} />
+                  {#if color && !icon && simpleView}
+                    <div
+                      class="loope small"
+                      style:background-color={color}
+                    ></div>
+                  {/if}
+                  {#if icon}
+                    <i
+                      class={icon}
+                      style:color={simpleView
+                        ? color
+                        : "var(--spectrum-global-color-gray-800)"}
+                    />
                   {/if}
                   <span> {label} </span>
                 </div>
               {/each}
-            </div>
+            {/if}
           </div>
-        {/if}
-      {/if}
-
-      <input
-        tabindex="0"
-        bind:this={editor}
-        class="editor"
-        class:placeholder={localValue == []}
-        style:padding-left={cellOptions.icon && !localValue?.length
-          ? "32px"
-          : cellOptions.padding}
-        style:padding-right={cellOptions.padding}
-        style:padding-top={0}
-        style:padding-bottom={0}
-        style:border={"none"}
-        use:focus
-        on:focusout={cellState.focusout}
-        value={multi ? "" : localValue[0] ?? ""}
-        on:input={editorState.filterOptions}
-        on:keydown={editorState.handleKeyboard}
-        placeholder={cellOptions.placeholder ?? "Enter..."}
-      />
-      <div
-        id="btn_toggle"
-        class="actionIcon"
-        on:click|stopPropagation={editorState.toggle}
-      >
-        <i class="ri-arrow-down-s-line"></i>
-      </div>
-    {:else}
-      <div
-        class="value"
-        class:placeholder={localValue?.length < 1 && !inEdit}
-        style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-        style:padding-right={cellOptions.padding}
-        on:mousedown={inEdit ? editorState.toggle : () => {}}
-      >
-        <div
-          class="items"
-          class:simpleView
-          style:justify-content={cellOptions.align ?? "flex-start"}
-        >
-          {#if localValue.length < 1}
-            {cellOptions.placeholder ?? ""}
-          {:else if localValue.length > 0}
-            {#each localValue as val (val)}
-              {@const color = getOptionColor(val)}
-              {@const label = getOptionLabel(val)}
-              {@const icon = getOptionIcon(val)}
-              <div
-                class="item"
-                animate:flip={{ duration: 130 }}
-                style:background-color={!simpleView ? color : "unset"}
-                style:border={color || simpleView
-                  ? "unset"
-                  : "1px solid var(--spectrum-global-color-gray-300)"}
-              >
-                {#if color && !icon && simpleView}
-                  <div class="loope small" style:background-color={color}></div>
-                {/if}
-                {#if icon}
-                  <i
-                    class={icon}
-                    style:color={simpleView
-                      ? color
-                      : "var(--spectrum-global-color-gray-800)"}
-                  />
-                {/if}
-                <span> {label} </span>
-              </div>
-            {/each}
+          {#if cellOptions.role != "tableCell" && !cellOptions.readonly}
+            <i
+              class="ri-arrow-down-s-line"
+              style="font-size: 18px; margin-left: 8px;"
+            ></i>
           {/if}
         </div>
-        {#if cellOptions.role != "tableCell" && !cellOptions.readonly}
-          <i
-            class="ri-arrow-down-s-line"
-            style="font-size: 18px; margin-left: 8px;"
-          ></i>
-        {/if}
-      </div>
+      {/if}
     {/if}
-  {/if}
+  {/key}
 </div>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 {#if inEdit && (controlType == "select" || controlType == "list")}
@@ -791,35 +764,53 @@
     justify-content: flex-start;
     align-items: stretch;
     overflow-y: auto;
-    padding: 0.25rem;
+    color: var(--spectrum-global-color-gray-700);
   }
 
-  .options.checkboxes {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    column-gap: 1rem;
-  }
   .option {
+    min-height: 1.75rem;
     line-height: 20px;
-    padding: 0.25rem;
     display: flex;
     gap: 0.5rem;
     flex-direction: row;
     align-items: center;
     cursor: pointer;
-    color: var(--spectrum-global-color-gray-700);
+    padding: 0 0.35rem;
   }
 
+  .radios {
+    flex: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-items: flex-start;
+    gap: 0.25rem;
+    color: var(--spectrum-global-color-gray-700);
+  }
+  .radios.column {
+    gap: 0rem;
+    flex-direction: column;
+  }
+  .radio {
+    min-height: 1.75rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    padding: 0 0.5rem;
+  }
+  .radio:hover {
+    background-color: var(--spectrum-global-color-gray-100);
+  }
   .option > span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .option.selected {
+  .selected {
     color: var(--spectrum-global-color-gray-900);
   }
-
   .loope {
     height: 14px;
     width: 14px;
