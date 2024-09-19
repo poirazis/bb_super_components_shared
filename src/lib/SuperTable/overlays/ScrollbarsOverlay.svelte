@@ -1,10 +1,9 @@
 <script>
-  import { beforeUpdate } from "svelte";
+  import { beforeUpdate, getContext } from "svelte";
 
-  export let verticalTopOffset = "8px";
-  export let verticalBottomOffset = "8px";
-  export let stbScrollPos;
-  export let stbHorizontalScrollPos;
+  const stbScrollPos = getContext("stbScrollPos");
+  const stbHorizontalScrollPos = getContext("stbHorizontalScrollPos");
+  const stbSettings = getContext("stbSettings");
 
   export let highlighted;
   export let horizontalOffset = "0px";
@@ -29,6 +28,8 @@
   let left;
   let localWidth;
 
+  $: verticalTopOffset = $stbSettings.appearance.headerHeight + "px";
+  $: verticalBottomOffset = $stbSettings.showFooter ? "44px" : "8px";
   $: top = ($stbScrollPos / (scrollHeight - 32)) * 100 + "%";
   $: left = ($stbHorizontalScrollPos / scrollWidth) * 100 + "%";
   $: height = (clientHeight / scrollHeight) * 100 + "%";

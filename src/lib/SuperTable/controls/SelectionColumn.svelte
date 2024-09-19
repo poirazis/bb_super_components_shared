@@ -5,17 +5,15 @@
   const stbSettings = getContext("stbSettings");
   const stbData = getContext("stbData");
   const stbScrollPos = getContext("stbScrollPos");
+  const stbHorizontalScrollPos = getContext("stbHorizontalScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbRowHeights = getContext("stbRowHeights");
   const stbEditing = getContext("stbEditing");
 
-  export let loading;
-  export let headerHeight;
-  export let quiet;
-
   export let clientHeight;
   export let scrollHeight;
+  export let canScroll;
 
   export let sticky;
 
@@ -23,10 +21,15 @@
   let mouseover;
 
   $: synchScrollPosition($stbScrollPos);
-  $: loaded = $stbData?.rows?.length;
-  $: inInsert = $stbState == "Inserting";
-  $: canInsert = $stbSettings?.features.canInsert;
   $: zebra = $stbSettings?.appearance?.zebraColors;
+  $: quiet = $stbSettings?.appearance?.quiet;
+  $: idColumn = $stbSettings.data.idColumn;
+  $: partialSelection = $stbSelected.length;
+  $: fullSelection = $stbSelected.length == $stbData.rows.length;
+  $: loading = $stbData.loading;
+  $: canDelete = $stbSettings.features.canDelete;
+  $: numbering = $stbSettings.appearance.numberingColumn;
+  $: sticky = $stbHorizontalScrollPos > 0;
 
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
@@ -35,169 +38,178 @@
   beforeUpdate(() => {
     scrollHeight = columnBodyAnchor?.scrollHeight;
     clientHeight = columnBodyAnchor?.clientHeight;
+    canScroll = scrollHeight > clientHeight;
   });
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-{#if stbState}
+<div class="super-column selection-column" class:sticky>
+  {#if $stbSettings?.showHeader}
+    <div
+      class="selection-column-header"
+      on:mouseenter={() => (mouseover = true)}
+      on:mouseleave={() => (mouseover = false)}
+    >
+      {#if loading}
+        <div class="loader" />
+      {:else if $stbState == "Filtered" && mouseover}
+        <i
+          class="ri-filter-off-fill"
+          style:color={"var(--spectrum-global-color-red-500)"}
+          style:cursor={"pointer"}
+          on:click={stbState.clearFilter}
+        ></i>
+      {:else if $stbState == "Filtered"}
+        <i
+          class="ri-filter-fill"
+          style:color={"var(--spectrum-global-color-blue-500)"}
+        ></i>
+      {:else if $stbSettings.rowSelectMode == "multi"}
+        {#if fullSelection}
+          <i class="ri-check-line" on:click={stbState.toggleSelectAllRows} />
+        {:else if partialSelection}
+          <i
+            class="ri-checkbox-indeterminate-line"
+            on:click={stbState.toggleSelectAllRows}
+          ></i>
+        {:else}
+          <i
+            class="ri-checkbox-blank-line"
+            style:color={"var(--spectrum-global-color-gray-500)"}
+            on:click={stbState.toggleSelectAllRows}
+          />
+        {/if}
+      {/if}
+
+      {#if canDelete && $stbSelected.length > 1}
+        <i
+          class="ri-delete-bin-line delete"
+          style:color={"var(--spectrum-global-color-red-500)"}
+          on:click={(e) => stbState.deleteSelectedRows()}
+        />
+      {/if}
+    </div>
+  {/if}
+
   <div
-    class="super-column"
-    class:sticky
-    on:mouseleave={() => ($stbHovered = null)}
-    style:min-width={"2.25rem"}
-    style:max-width={"2.25rem"}
+    bind:this={columnBodyAnchor}
+    class="spectrum-Table-body"
+    class:quiet
+    style:border-right={"var(--super-table-vertical-dividers)"}
   >
-    {#if $stbSettings?.showHeader}
+    {#each $stbData.rows as row, index}
+      {@const hovered = $stbHovered == index}
+      {@const editing = $stbEditing == index}
+      {@const odd = zebra && index % 2 == 1}
+      {@const selected = $stbSelected?.includes(row[idColumn])}
       <div
-        class="spectrum-Table-headCell"
-        style:height={headerHeight}
-        style:padding={"unset"}
-        style:justify-content={"center"}
-        on:mouseenter={() => (mouseover = true)}
-        on:mouseleave={() => (mouseover = false)}
+        class="super-row spectrum-Table-row selection"
+        class:is-selected={selected}
+        class:is-hovered={hovered}
+        class:is-editing={editing}
+        class:odd
+        style:min-height={$stbRowHeights[index]}
+        style:background-color={sticky
+          ? "var(--spectrum-global-color-gray-75)"
+          : null}
+        on:mouseenter={() => ($stbHovered = index)}
       >
-        {#if loading}
-          <div class="loader" />
-        {:else if $stbState == "Filtered" && mouseover}
-          <i
-            class="ri-filter-off-fill"
-            style:color={"var(--spectrum-global-color-red-500)"}
-            style:cursor={"pointer"}
-            on:click={stbState.clearFilter}
-          ></i>
-        {:else if $stbState == "Filtered"}
-          <i
-            class="ri-filter-fill"
-            style:color={"var(--spectrum-global-color-blue-500)"}
-          ></i>
-        {:else if $stbSettings.rowSelectMode == "multi"}
-          {#if $stbSelected.length > 0 && $stbSelected.length < $stbData?.rows.length}
+        {#if editing}
+          <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
+        {:else if $stbSettings.rowSelectMode}
+          {#if selected}
             <i
-              class="ri-checkbox-indeterminate-line"
-              on:click={stbState.toggleSelectAllRows}
-            ></i>
-          {:else if $stbData?.rows.length && $stbSelected.length == $stbData?.rows.length}
-            <i class="ri-check-line" on:click={stbState.toggleSelectAllRows} />
+              class="ri-check-line"
+              style:color={"var(--spectrum-global-color-gray-800)"}
+              on:click={() => stbState.toggleSelectRow(row[idColumn])}
+            />
           {:else}
             <i
               class="ri-checkbox-blank-line"
-              style:color={"var(--spectrum-global-color-gray-500)"}
-              on:click={stbState.toggleSelectAllRows}
+              on:click={() => stbState.toggleSelectRow(row[idColumn])}
             />
           {/if}
+        {:else if numbering}
+          <span class="row-number">
+            {index + 1}
+          </span>
+        {/if}
+
+        {#if canDelete}
+          <i
+            class="ri-delete-bin-line delete"
+            class:hovered={hovered || selected}
+            on:click={(e) => stbState.deleteRow(row[idColumn])}
+          />
         {/if}
       </div>
-    {/if}
-
+    {/each}
     <div
-      bind:this={columnBodyAnchor}
-      class="spectrum-Table-body"
-      style:border-right={"var(--super-table-vertical-dividers)"}
-    >
-      {#if loaded}
-        {#each $stbData.rows as row, index}
-          {@const selected =
-            $stbSelected?.includes(row[$stbSettings.data.idColumn]) ||
-            $stbSelected?.includes(row[$stbSettings.data.idColumn]?.toString())}
-
-          <div
-            class="super-row spectrum-Table-row"
-            on:mouseenter={() => ($stbHovered = index)}
-            on:click={() =>
-              stbState.toggleSelectRow(row[$stbSettings.data.idColumn])}
-            class:is-selected={selected}
-            class:is-hovered={$stbHovered === index}
-            class:is-editing={$stbEditing == index}
-            class:odd={zebra && index % 2 == 1}
-            style:min-height={$stbRowHeights[index]}
-            style:background-color={sticky
-              ? "var(--spectrum-global-color-gray-75)"
-              : null}
-            style:align-items={"center"}
-            style:color={"var(--spectrum-global-color-gray-700)"}
-          >
-            {#if $stbEditing == index}
-              <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
-            {:else if $stbSettings.rowSelectMode}
-              {#if selected}
-                <i
-                  class="ri-check-line"
-                  style:color={"var(--spectrum-global-color-gray-800)"}
-                />
-              {:else if $stbSettings.rowSelectMode == "multi"}
-                <i class="ri-checkbox-blank-line" />
-              {:else}
-                <i class="ri-checkbox-blank-line" />
-              {/if}
-            {:else}
-              {index + 1}
-            {/if}
-          </div>
-        {/each}
-      {:else}
-        {#each $stbRowHeights as height, index}
-          <div class="super-row spectrum-Table-row" style:min-height={height}>
-            {index + 1}
-          </div>
-        {/each}
-      {/if}
-
-      {#if canInsert}
-        <div
-          class="super-row spectrum-Table-row"
-          style:height={$stbRowHeights[0]}
-          style:align-items={"center"}
-        >
-          <i
-            class={inInsert ? "ri-save-line" : "ri-add-line"}
-            on:click|self={inInsert ? stbState.save : stbState.addRow}
-          >
-          </i>
-        </div>
-      {/if}
-      <div
-        class="spacer"
-        style:background-color={sticky
-          ? "var(--spectrum-global-color-gray-75)"
-          : "transparent"}
-        style="min-height: 4rem"
-      />
-    </div>
-
-    {#if $stbSettings.showFooter}
-      <div class="spectrum-Table-footer" style:height={headerHeight}></div>
-    {/if}
+      class="spacer"
+      style:background-color={sticky
+        ? "var(--spectrum-global-color-gray-75)"
+        : "transparent"}
+      style="min-height: 4rem"
+    />
   </div>
-{/if}
+
+  {#if $stbSettings.showFooter}
+    <div class="spectrum-Table-footer"></div>
+  {/if}
+</div>
 
 <style>
+  .selection-column {
+    flex: none;
+  }
+  .selection-column-header {
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--spectrum-global-color-gray-200);
+    background-color: var(--spectrum-global-color-gray-100);
+    height: var(--super-table-header-height);
+    padding-left: 0.75rem !important;
+    gap: 1rem;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .selection {
+    flex: auto !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    gap: 1rem;
+    font-size: 14px;
+    font-weight: 500;
+    align-items: center;
+  }
+  .selection-column {
+    flex: none;
+  }
+
   i {
     font-size: 16px;
     color: var(--spectrum-global-color-gray-500);
   }
-  .spectrum-Table-body {
-    height: var(--super-table-body-height);
-    border-radius: 0px;
-    overflow-y: scroll !important;
-    overflow-x: hidden;
-    padding: 0px;
-    margin: 0px;
-    border: none;
-    scrollbar-width: none;
-    background-color: var(--spectrum-global-color-gray-50);
-    color: var(--spectrum-global-color-gray-700);
-  }
+
   .spectrum-Table-body::-webkit-scrollbar {
     display: none;
   }
-  .spectrum-Table-footer {
-    width: 100%;
-    max-height: 2rem;
-    border-right: var(--super-table-vertical-dividers);
-    background-color: var(--spectrum-global-color-gray-75) !important;
-    border-top: 1px solid var(--spectrum-alias-border-color-mid);
-    overflow: hidden;
+
+  .delete {
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .delete:hover,
+  .delete.hovered {
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--spectrum-global-color-red-500);
+  }
+
+  .row-number {
+    min-width: 1rem;
   }
 
   .loader {

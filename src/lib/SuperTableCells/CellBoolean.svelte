@@ -77,6 +77,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="superCell"
+  tabIndex="0"
   class:inEdit
   class:isDirty
   class:inline
@@ -91,6 +92,7 @@
   style:font-weight={cellOptions.fontWeight}
   style:padding-top={"unset"}
   style:padding-bottom={"unset"}
+  on:focusin={cellState.focus}
 >
   {#if cellOptions.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
@@ -132,8 +134,6 @@
   {:else}
     <div
       class="value"
-      tabIndex="0"
-      on:focusin={cellState.focus}
       style:justify-content={cellOptions.align ?? "center"}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
     >
@@ -150,7 +150,7 @@
 
 <style>
   .icon {
-    font-size: 20px;
+    font-size: 16px;
     color: var(--spectrum-global-color-green-400);
   }
 </style>

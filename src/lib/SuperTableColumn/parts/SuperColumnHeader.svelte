@@ -104,7 +104,6 @@
     class:isEntering
     class:filtered={$columnState == "Filtered"}
     class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:height={$columnOptions.headerHeight}
     style:padding-left={$cellOptions.padding}
     style:padding-right={$cellOptions.padding}
     on:mouseenter={() => {

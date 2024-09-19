@@ -95,7 +95,9 @@
     background:
       sticky && scrollPos
         ? "var(--spectrum-global-color-gray-75)"
-        : columnOptions.background,
+        : columnOptions.quiet
+          ? "transparent"
+          : columnOptions.background,
   });
 
   const rowCellOptions = derivedMemo(

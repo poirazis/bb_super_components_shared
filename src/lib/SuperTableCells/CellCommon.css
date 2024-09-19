@@ -1,5 +1,5 @@
 .superCell {
-  width: 100%;
+  flex: auto;
   display: flex;
   align-items: center;
   position: relative;

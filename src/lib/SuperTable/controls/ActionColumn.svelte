@@ -4,44 +4,35 @@
   import SuperButton from "../../SuperButton/SuperButton.svelte";
 
   const { enrichButtonActions } = getContext("sdk");
-  const context = getContext("context");
 
   const stbState = getContext("stbState");
   const stbSettings = getContext("stbSettings");
   const stbRowHeights = getContext("stbRowHeights");
   const stbData = getContext("stbData");
   const stbScrollPos = getContext("stbScrollPos");
+  const stbHorizontalScrollPos = getContext("stbHorizontalScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbEditing = getContext("stbEditing");
+  const stbMenuID = getContext("stMenuId");
 
-  export let headerHeight;
-  export let quiet;
+  const stbAPI = getContext("stbAPI");
+
   export let right;
-
   export let rowMenu;
   export let rowMenuItems;
-  export let onDelete;
-  export let onEdit;
   export let menuItemsVisible = 0;
-  export let stbMenuID;
-
-  export let visible;
-  export let horizontalVisible;
-  export let stbHorizontalScrollPos;
-  export let sticky;
+  export let canScroll;
 
   let columnBodyAnchor;
-  let mouseover;
   let menuAnchor;
   let openMenu;
 
-  $: inInsert = $stbState == "Inserting";
-  $: canInsert = $stbSettings.features.canInsert;
-  $: canDelete = $stbSettings.features.canDelete;
-
-  $: canEditEvent = $stbSettings.features.canEdit == "advanced";
+  $: quiet = $stbSettings.appearance.quiet;
+  $: zebra = $stbSettings?.appearance?.zebraColors;
   $: menuIcon = $stbSettings.rowMenuIcon;
+  $: idColumn = $stbSettings.data.idColumn;
+  $: sticky = $stbHorizontalScrollPos > 0 && !right;
 
   $: inlineButtons =
     menuItemsVisible < rowMenuItems?.length
@@ -54,7 +45,8 @@
       : [];
 
   $: synchScrollPosition($stbScrollPos);
-  $: menuRow = $stbData?.rows?.find((row) => row["_id"] == $stbMenuID) || {};
+
+  $: menuRow = $stbData?.rows?.find((row) => row[idColumn] == $stbMenuID) || {};
 
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
@@ -69,62 +61,30 @@
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div
-  class="super-column action-column"
-  class:right
-  class:sticky
-  on:mouseleave={() => ($stbHovered = null)}
->
-  {#if $stbSettings.showHeader}
-    <div
-      class="spectrum-Table-headCell"
-      style:height={headerHeight}
-      style:backgroud-color={"transparent"}
-      style:justify-content={"center"}
-    >
-      {#if canDelete && $stbSelected.length > 1}
-        <SuperButton
-          size="XS"
-          icon="ri-delete-bin-2-line"
-          iconColor="var(--spectrum-global-color-red-500)"
-          fillOnHover="true"
-          text=""
-          disabled={$stbSelected.length < 1}
-          quiet="true"
-          on:click={(e) => stbState.deleteSelectedRows()}
-        />{/if}
-    </div>
-  {/if}
+{#if inlineButtons.length || menuItems.length}
+  <div class="super-column action-column" class:right class:sticky>
+    {#if $stbSettings.showHeader}
+      <div class="spectrum-Table-headCell"></div>
+    {/if}
 
-  <div
-    bind:this={columnBodyAnchor}
-    class="spectrum-Table-body"
-    style:background={quiet ? "transparent" : null}
-  >
-    {#if $stbData?.rows?.length}
+    <div bind:this={columnBodyAnchor} class="spectrum-Table-body" class:quiet>
       {#each $stbData.rows as row, index}
-        {@const rowID = row[$stbSettings.data.idColumn]}
-        {@const meta = row["_st_meta"]}
-        {@const selected =
-          $stbSelected.includes(rowID) ||
-          $stbSelected.includes(rowID?.toString())}
+        {@const hovered = $stbHovered == index}
+        {@const editing = $stbEditing == index}
+        {@const odd = zebra && index % 2 == 1}
+        {@const selected = $stbSelected?.includes(row[idColumn])}
         <div
           class="super-row spectrum-Table-row"
           on:mouseenter={() => ($stbHovered = index)}
           class:is-selected={selected}
-          class:is-hovered={$stbHovered === index || $stbMenuID == rowID}
-          class:is-editing={$stbEditing == index &&
-            ($stbSettings.appearance.highlighters == "horizontal" ||
-              $stbSettings.appearance.highlighters == "both")}
-          class:odd={$stbSettings.appearance.zebraColors && index % 2 == 1}
+          class:is-hovered={hovered}
+          class:is-editing={editing}
+          class:odd
           style:min-height={$stbRowHeights[index]}
-          style:padding-right={visible && right ? "1.5rem" : "0rem"}
-          style:background-color={$stbHorizontalScrollPos && !right && sticky
-            ? "var(--spectrum-global-color-gray-75)"
-            : "transparent"}
+          style:padding-right={canScroll && right ? "1.5rem" : "0rem"}
         >
           <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <div class="row-menu">
+          <div class="row-buttons">
             {#if rowMenu && inlineButtons?.length}
               {#each inlineButtons as { text, icon, disabled, onClick, quiet, type, size }}
                 <SuperButton
@@ -132,37 +92,12 @@
                   {icon}
                   fillOnHover="true"
                   {text}
-                  {disabled}
+                  disabled={disabled || editing}
                   {quiet}
-                  context={{ menuRow }}
-                  onClick={enrichButtonActions(onClick, {})}
+                  on:click={() =>
+                    stbAPI.executeRowButtonAction(row[idColumn], onClick)}
                 />
               {/each}
-            {/if}
-            {#if canEditEvent}
-              <SuperButton
-                size="S"
-                icon="ri-edit-2-line"
-                iconColor={$stbHovered === index
-                  ? "var(--spectrum-global-color-blue-500)"
-                  : "var(--spectrum-global-color-gray-700)"}
-                fillOnHover="true"
-                text=""
-                quiet="true"
-                context={{ menuRow }}
-                onClick={enrichButtonActions(onEdit, $context)}
-              />
-            {/if}
-            {#if canDelete}
-              <SuperButton
-                size="S"
-                icon="ri-delete-bin-2-line"
-                iconColor="var(--spectrum-global-color-red-500)"
-                fillOnHover="true"
-                text=""
-                quiet="true"
-                on:click={(e) => stbState.deleteRow(rowID)}
-              />
             {/if}
             {#if rowMenu && menuItems?.length}
               <SuperButton
@@ -171,65 +106,58 @@
                 fillOnHover="true"
                 text=""
                 quiet="true"
-                on:click={(e) => handleMenu(e, rowID)}
+                on:click={(e) => handleMenu(e, row[idColumn])}
               />
             {/if}
           </div>
         </div>
       {/each}
-      {#if inInsert || canInsert}
-        <div
-          class="super-row spectrum-Table-row"
-          style:height={"2rem"}
-          style:align-items={"center"}
-        ></div>
-      {/if}
       <div class="spacer" style="min-height: 4rem" />
+    </div>
+
+    {#if $stbSettings.showFooter}
+      <div class="spectrum-Table-footer"></div>
     {/if}
   </div>
 
-  {#if $stbSettings.showFooter}
-    <div class="spectrum-Table-footer" style:height={headerHeight}></div>
+  {#if openMenu}
+    <SuperPopover
+      open
+      anchor={menuAnchor}
+      minWidth={150}
+      align={right ? "right" : "left"}
+      on:close={() => {
+        openMenu = false;
+        $stbMenuID = undefined;
+      }}
+    >
+      {#if menuItems?.length}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+          class="action-menu"
+          on:mouseup={() => {
+            $stbMenuID = undefined;
+            openMenu = false;
+          }}
+        >
+          {#each menuItems as { text, icon, disabled, onClick, size }}
+            <SuperButton
+              {size}
+              {icon}
+              fillOnHover="true"
+              {text}
+              {disabled}
+              quiet={true}
+              menuItem
+              menuAlign={right ? "right" : "left"}
+              context={{ menuRow }}
+              onClick={enrichButtonActions(onClick, {})}
+            />
+          {/each}
+        </div>
+      {/if}
+    </SuperPopover>
   {/if}
-</div>
-
-{#if openMenu}
-  <SuperPopover
-    open
-    anchor={menuAnchor}
-    minWidth={150}
-    align={right ? "right" : "left"}
-    on:close={() => {
-      openMenu = false;
-      $stbMenuID = undefined;
-    }}
-  >
-    {#if menuItems?.length}
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div
-        class="action-menu"
-        on:mouseup={() => {
-          $stbMenuID = undefined;
-          openMenu = false;
-        }}
-      >
-        {#each menuItems as { text, icon, disabled, onClick, size }}
-          <SuperButton
-            {size}
-            {icon}
-            fillOnHover="true"
-            {text}
-            {disabled}
-            quiet={true}
-            menuItem
-            menuAlign={right ? "right" : "left"}
-            context={{ menuRow }}
-            onClick={enrichButtonActions(onClick, {})}
-          />
-        {/each}
-      </div>
-    {/if}
-  </SuperPopover>
 {/if}
 
 <style>
@@ -241,11 +169,13 @@
     border-left: 1px solid var(--spectrum-global-color-gray-200);
   }
 
-  .row-menu {
+  .row-buttons {
     display: flex;
     flex-direction: row;
     align-items: center;
     min-width: fit-content;
+    gap: 0.25rem;
+    padding-left: 0.25rem;
   }
 
   .action-menu {
@@ -253,37 +183,5 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-  }
-  .spectrum-Table-headCell {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    padding: unset;
-    background-color: var(--spectrum-global-color-gray-100);
-    border-bottom: 1px solid var(--spectrum-alias-border-color-mid);
-  }
-
-  .spectrum-Table-body {
-    height: var(--super-table-body-height);
-    border-radius: 0px;
-    overflow-y: scroll !important;
-    overflow-x: hidden;
-    padding: 0px;
-    margin: 0px;
-    border: none;
-    scrollbar-width: none;
-    background-color: var(--spectrum-global-color-gray-50);
-  }
-  .spectrum-Table-body::-webkit-scrollbar {
-    display: none;
-  }
-  .spectrum-Table-footer {
-    width: 100%;
-    max-height: 2rem;
-    border-right: var(--super-table-vertical-dividers);
-    background-color: var(--spectrum-global-color-gray-75);
-    border-top: 1px solid var(--spectrum-alias-border-color-mid);
-    overflow: hidden;
   }
 </style>

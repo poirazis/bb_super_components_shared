@@ -74,9 +74,9 @@
   on:mouseenter={() => dispatch("hovered")}
   on:mouseleave={() => dispatch("unHovered")}
   on:click={() => {
-    dispatch("rowClicked", row.rowID);
+    dispatch("rowClicked", row[idField]);
   }}
-  on:dblclick={() => dispatch("rowDblClicked", row.rowID)}
+  on:dblclick={() => dispatch("rowDblClicked", row[idField])}
   on:contextmenu|preventDefault={() =>
     dispatch("contextmenu", { rowID: row[idField], anchor: rowElement })}
 >

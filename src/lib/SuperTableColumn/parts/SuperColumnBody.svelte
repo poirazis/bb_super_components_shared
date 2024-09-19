@@ -32,6 +32,7 @@
   let columnBodyAnchor;
 
   $: synchScrollPosition($stbScrollPos);
+  $: quiet = $columnSettings.quiet;
 
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
@@ -47,8 +48,9 @@
 <div
   bind:this={columnBodyAnchor}
   class="spectrum-Table-body"
+  class:quiet
   tabindex="-1"
-  style:background-color={$columnSettings.background}
+  style:background-color={!quiet ? $columnSettings.background : "transparent"}
   class:filtered={$columnState == "Filtered"}
   class:is-editing={$columnState == "EditingCell" &&
     ($columnSettings.highlighters == "vertical" ||
@@ -102,17 +104,6 @@
 <style>
   :global(.spectrum-Table-body > .spectrum-Table-row:last-of-type) {
     border-bottom-style: none;
-  }
-  .spectrum-Table-body {
-    height: var(--super-table-body-height);
-    color: var(--super-table-color);
-    border-radius: 0px;
-    overflow-y: scroll !important;
-    overflow-x: hidden;
-    padding: 0px;
-    margin: 0px;
-    border: none;
-    scrollbar-width: none;
   }
   .spectrum-Table-body.filtered {
     background-color: var(--spectrum-global-color-gray-75);

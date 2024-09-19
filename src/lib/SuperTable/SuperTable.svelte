@@ -36,6 +36,17 @@
   const context = getContext("context");
 
   const tableAPI = {
+    executeRowButtonAction: async (id, action) => {
+      let activeRow = $stbData.rows.find((r) => r["_id"] == id);
+      let richContext = {
+        ...$context,
+        [comp_id]: {
+          activeRow,
+        },
+      };
+      let cmd = enrichButtonActions(action, richContext);
+      await cmd?.();
+    },
     deleteRow: async (id) => {},
     patchRow: async (patch) => {
       if (tableId) {
@@ -49,7 +60,7 @@
   };
 
   // Create Stores
-  const stbScrollPos = new writable(0);
+  const stbScrollPos = new writable(-1);
   const stbScrollPercent = new writable(0);
   const stbHorizontalScrollPos = new writable(0);
   const stbHorizontalScrollPercent = new writable(0);
@@ -64,6 +75,7 @@
   const stbRowHeights = new writable([]);
 
   // Internally used to appropriately enrich context
+  // this is component.id of the wrapper component seen by budibase
   export let comp_id;
 
   // Properties
@@ -134,18 +146,20 @@
 
   let timer;
   let columns = [];
+
+  let stickyColumns = [];
+
   let schema = {};
   let query = {};
   let queryExtensions = {};
   let stbColumnFilters = [];
   let highlighted;
   let columnsBodyAnchor;
-  let visible = false;
-  let horizontalVisible = false;
   let scrollHeight;
   let clientHeight;
   let columnStates = [];
   let clientWidth;
+  let canScroll;
 
   // Deep compare datasource as its of type Object
   const dataSourceStore = memo({});
@@ -197,6 +211,9 @@
     },
     appearance: {
       size,
+      headerHeight: showHeader ? sizingMap[size].headerHeight : 0,
+      numberingColumn,
+      quiet,
       useOptionColors,
       optionsViewMode,
       relViewMode,
@@ -280,7 +297,8 @@
     jsoncolumns,
     canFilter,
     canEdit,
-    columnSizing
+    columnSizing,
+    quiet
   );
   $: stbState.synch($stbData);
   $: stbState.enrichRows($stbSettings);
@@ -351,16 +369,9 @@
     rowMenu == "columnRight" &&
     (canDelete || canEdit == "advanced" || rowMenuItems.length);
 
-  $: showActionColumnLeft =
-    (canDelete && (!rowMenu || rowMenu == "columnLeft")) ||
-    (rowMenuItems?.length && rowMenu == "columnLeft");
+  $: showActionColumnLeft = rowMenuItems?.length && rowMenu == "columnLeft";
 
   $: showContextMenu = rowMenu == "contextMenu" && $stbMenuID;
-
-  $: showSelectionColumn =
-    (rowSelectMode && selectionColumn) ||
-    numberingColumn ||
-    (canEdit && !selectionColumn);
 
   // Super Table State Machine
   const stbState = fsm("Loading", {
@@ -371,7 +382,7 @@
           return;
         }
 
-        if (e.deltaY) {
+        if (e.deltaY && canScroll) {
           if ($stbScrollPos + e.deltaY <= 0) {
             $stbScrollPos = 0;
             $stbScrollPercent = 0;
@@ -745,6 +756,7 @@
   };
 
   setContext("stbScrollPos", stbScrollPos);
+  setContext("stbHorizontalScrollPos", stbHorizontalScrollPos);
   setContext("stbHovered", stbHovered);
   setContext("stbSelected", stbSelected);
   setContext("stbEditing", stbEditing);
@@ -773,6 +785,8 @@
   style:--spectrum-table-border-color={$stbSettings.dividersColor ??
     "var(--spectrum-alias-border-color-mid)"}
   style:--super-table-body-height={maxBodyHeight + "px"}
+  style:--super-table-header-height={$stbSettings.appearance.headerHeight +
+    "px"}
   style:--super-table-horizontal-dividers={$stbSettings.dividers == "both" ||
   $stbSettings.dividers == "horizontal"
     ? "1px solid var(--spectrum-table-border-color)"
@@ -782,22 +796,15 @@
     ? "1px solid var(--spectrum-table-border-color)"
     : "none"}
   on:mouseenter={() => (highlighted = true)}
-  on:mouseleave={() => (highlighted = false)}
+  on:mouseleave={() => {
+    highlighted = false;
+    $stbHovered = null;
+  }}
   on:keydown={stbState.handleKeyboard}
   on:wheel={stbState.handleWheel}
 >
   {#if $stbData?.loaded}
-    <!-- Context Provider -->
     <Provider {actions} data={dataContext}>
-      {#if showSelectionColumn && !isEmpty}
-        <SelectionColumn
-          {quiet}
-          sticky={$stbHorizontalScrollPos}
-          headerHeight={sizingMap[size].headerHeight}
-          loading={$stbData?.loading}
-        />
-      {/if}
-
       {#if isEmpty}
         <div
           class="empty"
@@ -807,42 +814,16 @@
         </div>
       {/if}
 
-      {#if showContextMenu && $stbMenuID}
-        <ActionContextMenu
-          anchor={$stbMenuAnchor}
-          {rowMenuItems}
-          on:close={() => {
-            $stbMenuID = 0;
-            $stbMenuAnchor = undefined;
-          }}
-        />
-      {/if}
+      <SelectionColumn bind:clientHeight bind:scrollHeight bind:canScroll />
 
       {#if showActionColumnLeft}
-        <ActionColumn
-          sticky={$stbHorizontalScrollPos}
-          {quiet}
-          {rowMenuItems}
-          {onInsert}
-          {onDelete}
-          {onEdit}
-          {stbMenuID}
-          {menuItemsVisible}
-          {rowMenu}
-          {visible}
-          {horizontalVisible}
-          {stbHorizontalScrollPos}
-          headerHeight={sizingMap[size].headerHeight}
-          loading={$stbData?.loading}
-        />
+        <ActionColumn {rowMenuItems} {menuItemsVisible} {rowMenu} />
       {/if}
 
       {#if $stbData?.loaded && stickFirstColumn && columns.length}
         {@const column = columns[0]}
         {@const idx = 0}
         <SuperTableColumn
-          bind:clientHeight
-          bind:scrollHeight
           bind:clientWidth
           bind:columnState={columnStates[idx]}
           sticky={true}
@@ -851,7 +832,7 @@
             ...column,
             ...$commonColumnOptions,
             isFirst: idx == 0,
-            isLast: idx == columns.length - 1 && !showActionColumn && visible,
+            isLast: idx == columns.length - 1 && !showActionColumn && canScroll,
           }}
         />
       {/if}
@@ -864,15 +845,13 @@
           {#each columns as column, idx}
             {#if !stickFirstColumn && idx === 0}
               <SuperTableColumn
-                bind:clientHeight
-                bind:scrollHeight
                 bind:columnState={columnStates[idx]}
                 columnOptions={{
                   ...column,
                   ...$commonColumnOptions,
                   isFirst: idx == 0,
                   isLast:
-                    idx == columns.length - 1 && !showActionColumn && visible,
+                    idx == columns.length - 1 && !showActionColumn && canScroll,
                 }}
               />
             {:else if stickFirstColumn && idx == 0}
@@ -885,7 +864,7 @@
                   ...$commonColumnOptions,
                   isFirst: idx == 0,
                   isLast:
-                    idx == columns.length - 1 && !showActionColumn && visible,
+                    idx == columns.length - 1 && !showActionColumn && canScroll,
                 }}
               />
             {/if}
@@ -899,41 +878,30 @@
 
       {#if showActionColumn}
         <ActionColumn
-          {stbHorizontalScrollPercent}
-          {quiet}
           {rowMenuItems}
-          {onInsert}
-          {onDelete}
-          {onEdit}
-          {stbMenuID}
           {menuItemsVisible}
           {rowMenu}
-          {visible}
-          {horizontalVisible}
+          {canScroll}
           right={true}
-          headerHeight={sizingMap[size].headerHeight}
-          loading={$stbData?.loading}
         />
       {/if}
+
+      {#if showContextMenu && $stbMenuID}
+        <ActionContextMenu
+          anchor={$stbMenuAnchor}
+          {rowMenuItems}
+          on:close={() => {
+            $stbMenuID = 0;
+            $stbMenuAnchor = undefined;
+          }}
+        />
+      {/if}
+
       <ScrollbarsOverlay
-        bind:visible
-        bind:horizontalVisible
         anchor={columnsBodyAnchor}
         {clientHeight}
         {scrollHeight}
-        {stbScrollPos}
-        {stbHorizontalScrollPos}
         {highlighted}
-        verticalTopOffset={showHeader ? "40px" : "8px"}
-        verticalBottomOffset={showFooter ? "40px" : "8px"}
-        horizontalOffset={showSelectionColumn && stickFirstColumn
-          ? clientWidth + 40 + "px"
-          : stickFirstColumn
-            ? clientWidth + "px"
-            : showSelectionColumn
-              ? "2.4rem"
-              : "0.5rem"}
-        bottomOffset={showFooter ? "40px" : "8px"}
       />
     </Provider>
   {:else}
@@ -1022,10 +990,26 @@
     border: 1px solid transparent;
     border-bottom: 1px solid var(--spectrum-global-color-gray-200);
     background-color: var(--spectrum-global-color-gray-100);
+    height: var(--super-table-header-height);
+  }
+  :global(.super-column > .spectrum-Table-body) {
+    height: var(--super-table-body-height);
+    border-radius: 0px;
+    overflow-y: scroll !important;
+    overflow-x: hidden;
+    padding: 0px;
+    margin: 0px;
+    border: none;
+    scrollbar-width: none;
+    background-color: var(--spectrum-global-color-gray-50);
+    color: var(--spectrum-global-color-gray-700);
+  }
+  :global(.super-column > .spectrum-Table-body.quiet) {
+    background-color: transparent;
   }
   :global(.super-row) {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: stretch;
     color: var(--spectrum-global-color-gray-400);
     border-bottom: var(--super-table-horizontal-dividers);
@@ -1038,9 +1022,11 @@
     background-color: var(--spectrum-global-color-gray-75);
   }
   :global(.super-row.is-hovered) {
+    color: var(--spectrum-global-color-gray-800) !important;
     background-color: var(--spectrum-global-color-gray-75) !important;
   }
   :global(.super-row.is-selected) {
+    color: var(--spectrum-global-color-gray-900) !important;
     background-color: var(
       --spectrum-table-m-regular-row-background-color-selected-hover,
       var(--spectrum-alias-highlight-selected-hover)
