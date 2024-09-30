@@ -2,7 +2,6 @@
   import { createEventDispatcher, getContext, onMount } from "svelte";
   import fsm from "svelte-fsm";
   import "./CellCommon.css";
-
   const dispatch = createEventDispatcher();
   const { processStringSync } = getContext("sdk");
 
@@ -34,9 +33,19 @@
       },
       focus() {
         if (!cellOptions.readonly && !cellOptions.disabled) return "Editing";
+        else return "Flashing";
+      },
+    },
+    Flashing: {
+      _enter() {
+        this.returnToView.debounce(230);
+      },
+      returnToView() {
+        return "View";
       },
     },
     Disabled: {},
+    Focused: {},
     Error: { check: "View" },
     Readonly: { check: "View" },
     Editing: {
@@ -110,6 +119,8 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   class="superCell"
+  tabindex="0"
+  class:flashing={$cellState == "Flashing"}
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={inEdit}
@@ -124,6 +135,7 @@
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
+  on:focusin={cellState.focus}
 >
   {#if cellOptions.icon}
     <i class={cellOptions.icon + " frontIcon"}></i>
@@ -158,7 +170,6 @@
     <div
       class="value"
       tabIndex={cellOptions.readonly ? "-1" : "0"}
-      on:focusin={cellState.focus}
       class:placeholder={!value}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
       style:padding-right={cellOptions.padding}
@@ -170,3 +181,9 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .flashing {
+    color: var(--spectrum-global-color-gray-400) !important;
+  }
+</style>

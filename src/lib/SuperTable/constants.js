@@ -1,13 +1,5 @@
 // Sizing temaplates for the Adobe Spectrum Table look
 export const sizingMap = {
-  XS: {
-    cellPadding: "0.4rem",
-    rowFontSize: 11,
-    rowHeight: 28,
-    headerFontSize: 10,
-    headerHeight: 32,
-    checkboxSize: 12,
-  },
   S: {
     cellPadding: "0.4rem",
     rowFontSize: 12,
@@ -27,7 +19,7 @@ export const sizingMap = {
   L: {
     cellPadding: "0.85rem",
     rowFontSize: 15,
-    rowHeight: 40,
+    rowHeight: 42,
     headerFontSize: 12,
     headerHeight: 40,
     checkboxSize: 14,
@@ -36,6 +28,7 @@ export const sizingMap = {
 
 export const defaultOperatorMap = {
   string: "fuzzy",
+  longform: "fuzzy",
   formula: "fuzzy",
   array: "contains",
   options: "equal",
@@ -50,6 +43,7 @@ export const defaultOperatorMap = {
 
 export const supportFilteringMap = {
   string: true,
+  longform: true,
   array: true,
   options: true,
   datetime: true,
@@ -63,6 +57,7 @@ export const supportFilteringMap = {
 
 export const supportSortingMap = {
   string: true,
+  longform: true,
   formula: true,
   array: true,
   options: true,
@@ -74,6 +69,7 @@ export const supportSortingMap = {
 
 export const supportEditingMap = {
   string: true,
+  longform: true,
   array: true,
   link: true,
   bb_reference: true,

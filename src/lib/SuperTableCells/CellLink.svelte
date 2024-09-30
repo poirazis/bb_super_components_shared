@@ -11,7 +11,7 @@
 
   const dispatch = createEventDispatcher();
 
-  export let value = [];
+  export let value;
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
@@ -139,7 +139,7 @@
 
   const handleChange = (e) => {
     localValue = e.detail;
-    let val = returnSingle ? localValue[0] ?? {} : localValue;
+    let val = returnSingle ? (localValue[0] ?? {}) : localValue;
 
     if (expanded) {
       dispatch("change", val);

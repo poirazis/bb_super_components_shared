@@ -2,19 +2,21 @@
   import { getContext, createEventDispatcher } from "svelte";
   import { elementSizeStore } from "svelte-legos";
 
-  const { Provider, processStringSync, ContextScopes, API } = getContext("sdk");
+  const { Provider, processStringSync, ContextScopes } = getContext("sdk");
 
   const dispatch = createEventDispatcher();
   const columnSettings = getContext("stColumnOptions");
   const rowCellOptions = getContext("stRowCellOptions");
+  const rowMetadata = getContext("stbRowMetadata");
+  const stbHovered = getContext("stbHovered");
+  const stbSelected = getContext("stbSelected");
   const stbAPI = getContext("stbAPI");
+  const stbMenuID = getContext("stbMenuID");
 
   export let index;
   export let row;
   export let field;
   export let idField;
-  export let isSelected;
-  export let isHovered;
   export let isEditing;
   export let odd;
   export let isLast;
@@ -24,7 +26,9 @@
   export let minHeight;
 
   let contents, size, cellHeight, rowElement;
-  $: meta = row["_st_meta"] ?? {};
+  $: meta = $rowMetadata[index] ?? {};
+  $: isHovered = $stbHovered == index || $stbMenuID == row[idField];
+  $: isSelected = $stbSelected.includes(row[idField]);
 
   $: if ($columnSettings.hasChildren && contents)
     size = elementSizeStore(contents);
@@ -46,11 +50,6 @@
       : "";
   };
 
-  function omit(key, obj) {
-    const { [key]: omitted, ...rest } = obj;
-    return rest;
-  }
-
   const patchRow = async (change) => {
     let patch = { _id: row[idField], [field]: change };
     row = await stbAPI.patchRow(patch);
@@ -62,23 +61,23 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={rowElement}
-  class="super-row spectrum-Table-row"
+  class="super-row"
   class:is-selected={isSelected}
   class:is-hovered={isHovered}
   class:is-editing={isEditing}
-  class:odd
   class:isLast
-  style:min-height={height + "px"}
-  style:color={meta.color ? meta.color : "inherit"}
-  style:background-color={meta.bgcolor && !isHovered ? meta.bgcolor : null}
-  on:mouseenter={() => dispatch("hovered")}
-  on:mouseleave={() => dispatch("unHovered")}
+  style:min-height={meta.height + "px"}
+  style:color={meta.color}
+  style:background-color={meta.bgcolor}
+  on:mouseenter={() => ($stbHovered = index)}
+  on:mouseleave={() => ($stbHovered = undefined)}
   on:click={() => {
-    dispatch("rowClicked", row[idField]);
+    stbAPI.executeRowOnClickAction(row[idField]);
   }}
-  on:dblclick={() => dispatch("rowDblClicked", row[idField])}
-  on:contextmenu|preventDefault={() =>
-    dispatch("contextmenu", { rowID: row[idField], anchor: rowElement })}
+  on:dblclick={() => stbAPI.executeRowOnDblClickAction(row[idField])}
+  on:contextmenu|preventDefault={() => {
+    stbAPI.showContextMenu(row[idField], rowElement);
+  }}
 >
   {#if !$columnSettings.hasChildren}
     <svelte:component
@@ -96,7 +95,7 @@
       data={{
         id: row[idField],
         value: row[field],
-        row: omit("_st_meta", row),
+        row,
         index,
       }}
       scope={ContextScopes.Local}
@@ -111,10 +110,3 @@
     </Provider>
   {/if}
 </div>
-
-<style>
-  .contents-wrapper {
-    flex: 1 1 auto;
-    display: flex;
-  }
-</style>

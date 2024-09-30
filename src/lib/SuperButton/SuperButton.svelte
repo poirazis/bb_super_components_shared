@@ -20,6 +20,7 @@
   export let disabled;
   export let onClick;
   export let context;
+  export let type;
 
   export let actionsMode;
   export let condition;
@@ -37,6 +38,7 @@
 
   $: useIcon = icon;
   $: useColor = iconColor;
+  $: console.log(type);
 
   let working;
 
@@ -96,6 +98,8 @@
       }
     : () => {}}
   class:is-selected={selected}
+  class:cta={type == "cta"}
+  class:warning={type == "warning"}
   class:spectrum-ActionButton--emphasized={emphasized}
   class:spectrum-ActionButton--quiet={quiet}
   class:full-width={fullWidth}
@@ -112,15 +116,11 @@
       style:padding-right={text && text != "" ? "0.5rem" : "0rem"}
       class={disabled && disabledIcon ? disabledIcon : useIcon}
     />
-    <span class="spectrum-ActionButton-label" style:color={textColor}
-      >{text ?? ""}</span
-    >
+    <span class="spectrum-ActionButton-label">{text ?? ""}</span>
   {:else if iconOnly && icon}
     <i class={disabled && disabledIcon ? disabledIcon : useIcon} />
   {:else}
-    <span class="spectrum-ActionButton-label" style:color={textColor}
-      >{text ?? ""}</span
-    >
+    <span class="spectrum-ActionButton-label">{text ?? ""}</span>
   {/if}
 </button>
 
@@ -139,5 +139,14 @@
   i {
     color: var(--iconColor);
     transition: all 230ms ease-in-out;
+  }
+
+  .cta {
+    background-color: var(--spectrum-global-color-gray-800) !important;
+    color: var(--spectrum-global-color-gray-50) !important;
+  }
+
+  .warning {
+    color: var(--spectrum-global-color-red-400) !important;
   }
 </style>

@@ -1,6 +1,5 @@
 <script>
   import { createEventDispatcher, getContext } from "svelte";
-  import SuperTable from "../SuperTable/SuperTable.svelte";
 
   const dispatch = createEventDispatcher();
 
@@ -71,13 +70,13 @@
       dispatch("change", val);
     },
   };
+
+  //  <SuperTable on:change {...tableOptions}></SuperTable>
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div bind:this={picker} class="control">
-  <SuperTable on:change {...tableOptions}></SuperTable>
-</div>
+<div bind:this={picker} class="control"></div>
 
 <style>
   .control {

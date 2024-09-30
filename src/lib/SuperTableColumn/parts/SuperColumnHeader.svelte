@@ -67,7 +67,7 @@
     }
 
     return {
-      field: filterColumn,
+      field: "1:" + filterColumn,
       operator: operator,
       value: temp,
       type: isLink ? "string" : $columnOptions.schema.type,
@@ -97,96 +97,90 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-{#if $columnOptions.showHeader}
-  <div
-    bind:this={headerAnchor}
-    class="spectrum-Table-headCell"
-    class:isEntering
-    class:filtered={$columnState == "Filtered"}
-    class:idle={$columnState != "Entering" && $columnState != "Filtered"}
-    style:padding-left={$cellOptions.padding}
-    style:padding-right={$cellOptions.padding}
-    on:mouseenter={() => {
-      hovered = true;
-      columnState.lockWidth();
-    }}
-    on:mouseleave={() => {
-      hovered = false;
-      columnState.unlockWidth();
-    }}
-  >
-    {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell"}
-      {#if $columnOptions.canFilter && $columnOptions.defaultFilteringOperator && hovered}
-        <i class="ri-search-line icon" on:click={columnState.filter}> </i>
-      {/if}
+<div
+  bind:this={headerAnchor}
+  class="super-column-header"
+  class:isEntering
+  class:filtered={$columnState == "Filtered"}
+  class:idle={$columnState != "Entering" && $columnState != "Filtered"}
+  style:padding-left={$cellOptions.padding}
+  style:padding-right={$cellOptions.padding}
+  on:mouseenter={() => {
+    hovered = true;
+  }}
+  on:mouseleave={() => {
+    hovered = false;
+  }}
+>
+  {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell" || $columnState == "Inserting"}
+    {#if $columnOptions.canFilter && $columnOptions.defaultFilteringOperator && hovered}
+      <i class="ri-search-line icon" on:click={columnState.filter}> </i>
+    {/if}
 
+    <div
+      class="headerLabel"
+      style:justify-content={$columnOptions?.headerAlign}
+    >
       <div
-        class="headerLabel"
-        style:justify-content={$columnOptions?.headerAlign}
+        class="innerText"
+        class:sortable={$columnOptions.canSort}
+        on:click={columnState.sort}
       >
-        <div
-          class="innerText"
-          class:sortable={$columnOptions.canSort}
-          on:click={columnState.sort}
-        >
-          {$columnOptions.displayName ?? $columnOptions.name}
-        </div>
+        {$columnOptions.displayName ?? $columnOptions.name}
       </div>
+    </div>
 
-      {#if $columnState == "Sorted"}
-        <i class={sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc"}>
-        </i>
-      {/if}
-    {:else if $columnState == "Entering" || $columnState == "Filtered"}
-      {#if $columnOptions.canFilter == "advanced"}
-        <i
-          class="ri-settings-line"
-          style="align-self: center; font-size: 14px;"
-          on:click|preventDefault={() =>
-            (showFilteringOptions = !showFilteringOptions)}
-        />
-      {/if}
-      <svelte:component
-        this={$columnOptions.headerComponent}
-        cellOptions={$cellOptions}
-        value={filterValue}
-        fieldSchema={$columnOptions.schema}
-        multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
-        on:change={handleValueChange}
-        on:cancel={columnState.cancel}
-        on:exitedit={handleBlur}
+    {#if $columnState == "Sorted"}
+      <i class={sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc"} />
+    {/if}
+  {:else if $columnState == "Entering" || $columnState == "Filtered"}
+    {#if $columnOptions.canFilter == "advanced"}
+      <i
+        class="ri-settings-line"
+        style="align-self: center; font-size: 14px;"
+        on:click|preventDefault={() =>
+          (showFilteringOptions = !showFilteringOptions)}
       />
     {/if}
-  </div>
-
-  {#if $columnOptions.canFilter == "advanced"}
-    <SuperPopover
-      anchor={headerAnchor}
-      align="left"
-      dismissible="false"
-      open={showFilteringOptions}
-      on:close={() => (showFilteringOptions = false)}
-    >
-      <ul
-        bind:this={picker}
-        class="spectrum-Menu"
-        role="menu"
-        style="background-color: var(--spectrum-global-color-gray-75 );"
-      >
-        {#each $columnOptions.filteringOperators as option}
-          <li
-            class="spectrum-Menu-item"
-            class:selected={option.value == filterOperator}
-            role="menuitem"
-            on:mousedown|preventDefault={() =>
-              handleOperatorChange(option.value)}
-          >
-            <span class="spectrum-Menu-itemLabel">{option.label}</span>
-          </li>
-        {/each}
-      </ul>
-    </SuperPopover>
+    <svelte:component
+      this={$columnOptions.headerComponent}
+      cellOptions={$cellOptions}
+      value={filterValue}
+      fieldSchema={$columnOptions.schema}
+      multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
+      on:change={handleValueChange}
+      on:cancel={columnState.cancel}
+      on:exitedit={handleBlur}
+    />
   {/if}
+</div>
+
+{#if $columnOptions.canFilter == "advanced"}
+  <SuperPopover
+    anchor={headerAnchor}
+    align="left"
+    dismissible="false"
+    open={showFilteringOptions}
+    on:close={() => (showFilteringOptions = false)}
+  >
+    <ul
+      bind:this={picker}
+      class="spectrum-Menu"
+      role="menu"
+      style="background-color: var(--spectrum-global-color-gray-75 );"
+    >
+      {#each $columnOptions.filteringOperators as option}
+        <li
+          class="spectrum-Menu-item"
+          class:selected={option.value == filterOperator}
+          role="menuitem"
+          on:mousedown|preventDefault={() => handleOperatorChange(option.value)}
+        >
+          <span class="spectrum-Menu-itemLabel">{option.label}</span>
+        </li>
+      {/each}
+    </ul>
+  </SuperPopover>
 {/if}
 
 <style>

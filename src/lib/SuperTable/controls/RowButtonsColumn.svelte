@@ -5,16 +5,16 @@
 
   const { enrichButtonActions } = getContext("sdk");
 
-  const stbState = getContext("stbState");
   const stbSettings = getContext("stbSettings");
-  const stbRowHeights = getContext("stbRowHeights");
+  const stbState = getContext("stbState");
   const stbData = getContext("stbData");
   const stbScrollPos = getContext("stbScrollPos");
   const stbHorizontalScrollPos = getContext("stbHorizontalScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbEditing = getContext("stbEditing");
-  const stbMenuID = getContext("stMenuId");
+  const stbMenuID = getContext("stbMenuID");
+  const rowMetadata = getContext("stbRowMetadata");
 
   const stbAPI = getContext("stbAPI");
 
@@ -23,6 +23,7 @@
   export let rowMenuItems;
   export let menuItemsVisible = 0;
   export let canScroll;
+  export let overflow;
 
   let columnBodyAnchor;
   let menuAnchor;
@@ -33,6 +34,8 @@
   $: menuIcon = $stbSettings.rowMenuIcon;
   $: idColumn = $stbSettings.data.idColumn;
   $: sticky = $stbHorizontalScrollPos > 0 && !right;
+  $: canInsert = $stbSettings.features.canInsert;
+  $: inInsert = $stbState == "Inserting";
 
   $: inlineButtons =
     menuItemsVisible < rowMenuItems?.length
@@ -46,8 +49,6 @@
 
   $: synchScrollPosition($stbScrollPos);
 
-  $: menuRow = $stbData?.rows?.find((row) => row[idColumn] == $stbMenuID) || {};
-
   const synchScrollPosition = (position) => {
     if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
   };
@@ -55,7 +56,7 @@
   const handleMenu = (e, rowID) => {
     menuAnchor = e.detail;
     openMenu = !openMenu;
-    $stbMenuID = openMenu ? rowID : null;
+    $stbMenuID = openMenu ? rowID : -1;
   };
 </script>
 
@@ -64,12 +65,19 @@
 {#if inlineButtons.length || menuItems.length}
   <div class="super-column action-column" class:right class:sticky>
     {#if $stbSettings.showHeader}
-      <div class="spectrum-Table-headCell"></div>
+      <div class="super-column-header"></div>
     {/if}
 
-    <div bind:this={columnBodyAnchor} class="spectrum-Table-body" class:quiet>
+    <div
+      bind:this={columnBodyAnchor}
+      class="super-column-body"
+      class:quiet
+      style:background-color={sticky
+        ? "var(--spectrum-global-color-gray-75)"
+        : null}
+    >
       {#each $stbData.rows as row, index}
-        {@const hovered = $stbHovered == index}
+        {@const hovered = $stbHovered == index || $stbMenuID == row[idColumn]}
         {@const editing = $stbEditing == index}
         {@const odd = zebra && index % 2 == 1}
         {@const selected = $stbSelected?.includes(row[idColumn])}
@@ -80,8 +88,8 @@
           class:is-hovered={hovered}
           class:is-editing={editing}
           class:odd
-          style:min-height={$stbRowHeights[index]}
-          style:padding-right={canScroll && right ? "1.5rem" : "0rem"}
+          style:min-height={$rowMetadata[index].height}
+          style:padding-right={canScroll && right ? "1.5rem" : "0.25rem"}
         >
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <div class="row-buttons">
@@ -101,7 +109,7 @@
             {/if}
             {#if rowMenu && menuItems?.length}
               <SuperButton
-                size="S"
+                size={$stbSettings.appearance.size}
                 icon={menuIcon}
                 fillOnHover="true"
                 text=""
@@ -112,11 +120,21 @@
           </div>
         </div>
       {/each}
-      <div class="spacer" style="min-height: 4rem" />
+      {#if overflow || canInsert}
+        {#if inInsert}
+          <div class="add-row" style="padding: unset;"></div>
+        {/if}
+        <div
+          class="spacer"
+          style:background-color={sticky
+            ? "var(--spectrum-global-color-gray-75)"
+            : null}
+        />
+      {/if}
     </div>
 
     {#if $stbSettings.showFooter}
-      <div class="spectrum-Table-footer"></div>
+      <div class="super-column-footer"></div>
     {/if}
   </div>
 
@@ -150,7 +168,6 @@
               quiet={true}
               menuItem
               menuAlign={right ? "right" : "left"}
-              context={{ menuRow }}
               onClick={enrichButtonActions(onClick, {})}
             />
           {/each}
@@ -163,7 +180,7 @@
 <style>
   .action-column {
     flex: none;
-    border-right: unset !important;
+    padding: unset;
   }
   .action-column.right {
     border-left: 1px solid var(--spectrum-global-color-gray-200);
@@ -175,7 +192,6 @@
     align-items: center;
     min-width: fit-content;
     gap: 0.25rem;
-    padding-left: 0.25rem;
   }
 
   .action-menu {

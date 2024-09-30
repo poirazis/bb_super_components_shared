@@ -29,6 +29,7 @@
   // Cell Components Map
   const cellComponents = {
     string: CellString,
+    longform: CellString,
     number: CellNumber,
     bigint: CellNumber,
     options: CellOptions,
@@ -62,12 +63,6 @@
 
   // Props
   export let columnOptions;
-
-  // Export the column's body scrolling info
-  export let clientHeight;
-  export let scrollHeight;
-  export let clientWidth;
-
   export let sticky;
   export let scrollPos;
 
@@ -159,9 +154,9 @@
     }
   );
 
-  $: inInsert = $stbState == "Inserting";
-  $: canInsert = $stbSettings.features.canInsert;
-  $: isLast = columnOptions.isLast;
+  $: isLast = $columnOptionsStore.isLast;
+  $: isFirst = $columnOptionsStore.isFirst;
+
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
     "*": {
@@ -212,7 +207,7 @@
     },
     Idle: {
       _enter() {
-        $lockWidth = width;
+        $lockWidth = 0;
       },
       sort() {
         if (columnOptions.canSort) {
@@ -222,6 +217,9 @@
       },
       filter() {
         return columnOptions.canFilter ? "Entering" : "Idle";
+      },
+      addRow() {
+        return "Inserting";
       },
     },
     Loading: {
@@ -278,6 +276,14 @@
       },
       cancel() {},
     },
+    Inserting: {
+      _enter() {
+        $lockWidth = columnAnchor.clientWidth;
+      },
+      cancelAddRow() {
+        return "Idle";
+      },
+    },
   });
 
   $: if ($stbSortColumn == $columnOptionsStore.name && $columnState == "Idle") {
@@ -289,19 +295,20 @@
     columnState.unsort();
   }
 
-  const getMinWidth = (val) => {
+  const getMinWidth = (val, options) => {
     if (val > 0) return val;
     else
-      return columnOptions.sizing == "fixed"
-        ? columnOptions.fixedWidth
-        : columnOptions.minWidth || "unset";
+      return options.sizing == "fixed"
+        ? options.fixedWidth
+        : options.minWidth || "auto";
   };
-  const getMaxWidth = (val) => {
+
+  const getMaxWidth = (val, options) => {
     if (val > 0) return val;
     else
-      return columnOptions.sizing == "fixed"
-        ? columnOptions.fixedWidth
-        : columnOptions.maxWidth || "unset";
+      return options.sizing == "fixed"
+        ? options.fixedWidth
+        : options.maxWidth || "unset";
   };
 
   setContext("stColumnOptions", columnOptionsStore);
@@ -322,13 +329,13 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   bind:this={columnAnchor}
-  bind:clientWidth
   class="super-column"
   class:sticky={sticky && scrollPos}
   class:resizing
   class:considerResizing={considerResizing && !resizing}
-  style:min-width={getMinWidth($lockWidth)}
-  style:max-width={getMaxWidth($lockWidth)}
+  style:flex={$columnOptionsStore.sizing == "flexible" ? "auto" : "none"}
+  style:max-width={getMaxWidth($lockWidth, $columnOptionsStore)}
+  style:min-width={getMinWidth($lockWidth, $columnOptionsStore)}
   on:mouseleave={() => ($stbHovered = null)}
 >
   {#if $columnOptionsStore.showHeader && $columnOptionsStore.canResize}
@@ -347,30 +354,19 @@
   {/if}
 
   <SuperColumnBody
-    bind:clientHeight
-    bind:scrollHeight
-    on:rowResize={(e) => stbState.handleRowResize(e.detail.idx, e.detail.size)}
-    on:rowClicked={(e) => stbState.rowClicked(e.detail)}
-    on:rowDblClicked={(e) => stbState.rowDblClicked(e.detail)}
     rows={$stbData.rows}
     field={$columnOptionsStore.name}
     idField={$stbSettings.data.idColumn}
+    zebra={$stbSettings.appearance.zebraColors}
     {isLast}
-    {inInsert}
-    {canInsert}
+    {isFirst}
+    inserting={$columnState == "Inserting"}
+    canInsert={$stbSettings.features.canInsert}
   >
     <slot />
   </SuperColumnBody>
+
   {#if $columnOptionsStore.showFooter}
     <SuperColumnFooter />
   {/if}
 </div>
-
-<style>
-  .resizing {
-    border-right: 1px solid var(--primaryColor);
-  }
-  .considerResizing {
-    border-right: 1px solid var(--spectrum-global-color-gray-500);
-  }
-</style>

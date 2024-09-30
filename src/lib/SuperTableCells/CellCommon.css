@@ -4,6 +4,7 @@
   align-items: center;
   position: relative;
   overflow: hidden;
+  transition: all 130ms;
 }
 .superCell:focus {
   outline: none;
