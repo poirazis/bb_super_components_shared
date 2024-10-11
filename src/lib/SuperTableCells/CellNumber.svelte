@@ -113,7 +113,7 @@
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions?.background}
   style:font-weight={cellOptions?.fontWeight}
-  tabIndex="0"
+  tabIndex={cellOptions.disabled ? "-1" : 0}
   on:focusin={cellState.focus}
 >
   {#if cellOptions?.icon}

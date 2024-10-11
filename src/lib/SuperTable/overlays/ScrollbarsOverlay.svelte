@@ -28,13 +28,17 @@
   let left;
   let localWidth;
 
-  $: verticalTopOffset = $stbSettings.appearance.headerHeight + "px";
-  $: verticalBottomOffset = $stbSettings.showFooter ? "44px" : "8px";
+  // Positioning Offsets
+  $: verticalTopOffset = $stbSettings.appearance.headerHeight + 8 + "px";
+  $: verticalBottomOffset = $stbSettings.appearance.footerHeight + 16 + "px";
+  $: horizontalBotttomOffset = $stbSettings.appearance.footerHeight + 8 + "px";
+
+  // Scrollbar variables
   $: top = ($stbScrollPos / (scrollHeight - 32)) * 100 + "%";
   $: left = ($stbHorizontalScrollPos / scrollWidth) * 100 + "%";
   $: height = (clientHeight / scrollHeight) * 100 + "%";
-  $: verticalRange = scrollHeight - clientHeight;
-  $: calculate(localWidth);
+  $: verticalRange = Math.max(scrollHeight - clientHeight, 0);
+  $: calculate(localWidth, $stbScrollPos);
 
   beforeUpdate(() => {
     calculate();
@@ -110,7 +114,7 @@
     class="stb-scrollbar horizontal"
     class:highlighted
     style:--horizontalOffset={horizontalOffset}
-    style:--vertical-offset={verticalBottomOffset}
+    style:--horizontalBottomOffset={horizontalBotttomOffset}
   >
     <div
       class="stb-scrollbar-indicator horizontal"
@@ -130,18 +134,17 @@
   .stb-scrollbar {
     position: absolute;
     right: 8px;
-    top: calc(var(--offset) + 8px);
-    bottom: calc(var(--bottomOffset) + 8px);
+    top: var(--offset);
+    bottom: var(--bottomOffset);
     width: 8px;
     border-radius: 4px;
     opacity: 0.2;
-    transition: opacity 230ms;
     z-index: 1;
   }
 
   .stb-scrollbar.horizontal {
     top: unset;
-    bottom: var(--vertical-offset);
+    bottom: var(--horizontalBottomOffset);
     left: calc(var(--horizontalOffset) + 8px);
     width: calc(100% - 32px - var(--horizontalOffset));
     height: 8px;

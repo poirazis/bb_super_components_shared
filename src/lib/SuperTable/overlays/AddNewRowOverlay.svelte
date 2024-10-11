@@ -35,3 +35,14 @@
     {/if}
   </div>
 {/if}
+
+{#if $stbState == "Loading" || $stbState == "Saving"}
+  <div
+    class="save-row-overlay"
+    class:highlighted
+    class:footer
+    class:in-insert={inInsert}
+  >
+    <i class="ri-loader-2-line" style="color: lime; font-size: 20px;" />
+  </div>
+{/if}

@@ -6,6 +6,7 @@
 
   const dispatch = createEventDispatcher();
   const columnSettings = getContext("stColumnOptions");
+  const columnState = getContext("stColumnState");
   const rowCellOptions = getContext("stRowCellOptions");
   const rowMetadata = getContext("stbRowMetadata");
   const stbHovered = getContext("stbHovered");
@@ -18,14 +19,14 @@
   export let field;
   export let idField;
   export let isEditing;
-  export let odd;
   export let isLast;
+  export let disabled;
 
   // the proposed height
   export let height;
   export let minHeight;
 
-  let contents, size, cellHeight, rowElement;
+  let contents, size, cellHeight, rowElement, saving;
   $: meta = $rowMetadata[index] ?? {};
   $: isHovered = $stbHovered == index || $stbMenuID == row[idField];
   $: isSelected = $stbSelected.includes(row[idField]);
@@ -51,8 +52,19 @@
   };
 
   const patchRow = async (change) => {
-    let patch = { _id: row[idField], [field]: change };
-    row = await stbAPI.patchRow(patch);
+    saving = true;
+    let patch = {
+      _id: row[idField],
+      [field]: change,
+    };
+    try {
+      let patched_row = await stbAPI.patchRow(patch);
+      row = patched_row;
+    } catch (ex) {
+      console.log(ex);
+    } finally {
+      saving = false;
+    }
   };
 </script>
 
@@ -65,8 +77,9 @@
   class:is-selected={isSelected}
   class:is-hovered={isHovered}
   class:is-editing={isEditing}
+  class:saving
   class:isLast
-  style:min-height={meta.height + "px"}
+  style:height={meta.height + "px"}
   style:color={meta.color}
   style:background-color={meta.bgcolor}
   on:mouseenter={() => ($stbHovered = index)}
@@ -82,12 +95,12 @@
   {#if !$columnSettings.hasChildren}
     <svelte:component
       this={$columnSettings.cellComponent}
-      cellOptions={$rowCellOptions}
+      cellOptions={{ ...$rowCellOptions, disabled }}
       fieldSchema={$columnSettings.schema}
       value={row[field]}
       formattedValue={getCellValue(row[field])}
-      on:enteredit
-      on:exitedit
+      on:enteredit={() => columnState.enteredit(row[idField])}
+      on:exitedit={columnState.exitedit}
       on:change={(e) => patchRow(e.detail)}
     />
   {:else}

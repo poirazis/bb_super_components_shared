@@ -1,9 +1,10 @@
 <script>
   export let active = true;
+  export let minHeight = "2rem";
 </script>
 
 {#if active}
-  <div class="skeleton">
+  <div class="skeleton" style:min-height={minHeight}>
     <div class="children"></div>
   </div>
 {:else}
@@ -23,7 +24,6 @@
     overflow: hidden;
     position: relative;
     animation: fadeIn 130ms ease 0s 1 normal forwards;
-    min-height: 2rem;
   }
   .children {
     flex: auto;

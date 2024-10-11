@@ -1,5 +1,5 @@
 <script>
-  import { getContext, setContext } from "svelte";
+  import { getContext, setContext, onMount, onDestroy } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
 
@@ -25,6 +25,7 @@
   const stbHovered = getContext("stbHovered");
   const stbEditing = getContext("stbEditing");
   const stbState = getContext("stbState");
+  const stbAPI = getContext("stbAPI");
 
   // Cell Components Map
   const cellComponents = {
@@ -154,21 +155,17 @@
     }
   );
 
-  $: isLast = $columnOptionsStore.isLast;
-  $: isFirst = $columnOptionsStore.isFirst;
-
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
     "*": {
-      tableState(state) {
-        return state;
-      },
       enteredit(index) {
         $stbEditing = index;
+        stbState.edit();
         return "EditingCell";
       },
       exitedit(index) {
         $stbEditing = -1;
+        stbState.endEdit();
         return "Idle";
       },
       cancel() {
@@ -238,6 +235,7 @@
     Entering: {
       _enter() {
         $lockWidth = columnAnchor.clientWidth;
+        stbState.edit();
       },
       filter(filterObj) {
         stbState.addFilter({ ...filterObj, id: id });
@@ -264,6 +262,9 @@
       _enter() {
         $lockWidth = columnAnchor.clientWidth;
       },
+      patchRow(index, id, rev, field, change) {
+        stbState.patchRow(index, id, rev, field, change);
+      },
     },
     Filtered: {
       filter(filterObj) {
@@ -279,6 +280,9 @@
     Inserting: {
       _enter() {
         $lockWidth = columnAnchor.clientWidth;
+      },
+      _exit() {
+        $lockWidth = 0;
       },
       cancelAddRow() {
         return "Idle";
@@ -315,6 +319,14 @@
   setContext("stRowCellOptions", rowCellOptions);
   setContext("stHeaderCellOptions", headerCellOptions);
   setContext("stColumnState", columnState);
+
+  onMount(() => {
+    stbAPI?.registerSuperColumn(id, columnState);
+  });
+
+  onDestroy(() => {
+    stbAPI?.unregisterSuperColumn(id);
+  });
 </script>
 
 <svelte:window
@@ -333,6 +345,7 @@
   class:sticky={sticky && scrollPos}
   class:resizing
   class:considerResizing={considerResizing && !resizing}
+  class:isLast={$columnOptionsStore.isLast}
   style:flex={$columnOptionsStore.sizing == "flexible" ? "auto" : "none"}
   style:max-width={getMaxWidth($lockWidth, $columnOptionsStore)}
   style:min-width={getMinWidth($lockWidth, $columnOptionsStore)}
@@ -358,9 +371,8 @@
     field={$columnOptionsStore.name}
     idField={$stbSettings.data.idColumn}
     zebra={$stbSettings.appearance.zebraColors}
-    {isLast}
-    {isFirst}
-    inserting={$columnState == "Inserting"}
+    isLast={$columnOptionsStore.isLast}
+    isFirst={$columnOptionsStore.isFirst}
     canInsert={$stbSettings.features.canInsert}
   >
     <slot />

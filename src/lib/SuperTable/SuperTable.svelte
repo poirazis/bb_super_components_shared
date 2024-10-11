@@ -1,5 +1,5 @@
 <script>
-  import { getContext, setContext, onDestroy } from "svelte";
+  import { getContext, setContext, onDestroy, tick, onMount } from "svelte";
   import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
 
@@ -19,7 +19,10 @@
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import RowButtonsColumn from "./controls/RowButtonsColumn.svelte";
   import SelectionColumn from "./controls/SelectionColumn.svelte";
-  import RowContextMenu from "./controls/RowContextMenu.svelte";
+  import RowContextMenu from "./overlays/RowContextMenu.svelte";
+
+  import ControlSection from "./controls/ControlSection.svelte";
+  import ColumnsSection from "./controls/ColumnsSection.svelte";
 
   const {
     API,
@@ -39,10 +42,13 @@
   const context = getContext("context");
 
   // Create Stores
-  const stbScrollPos = new writable(-1);
+  const stbScrollPos = writable(0);
+  const stbScrollOffset = writable(0);
   const stbScrollPercent = new writable(0);
   const stbHorizontalScrollPos = new writable(0);
   const stbHorizontalScrollPercent = new writable(0);
+
+  const stbVisibleRows = new writable([]);
 
   const stbMenuID = new writable(-1);
   const stbMenuAnchor = new writable(-1);
@@ -75,7 +81,6 @@
   export let autocolumns;
   export let jsoncolumns;
 
-  export let visibleRowCount;
   export let showFooter;
   export let showHeader;
   export let size;
@@ -143,6 +148,15 @@
   let columnStates = [];
   let canScroll;
   let horizontalVisible;
+  let maxBodyHeight;
+  let viewport;
+  let columnsViewport;
+  let start = 0;
+  let end = 0;
+  let height_map = [];
+  let average_height;
+  let itemHeight = 36;
+  let overflow;
 
   // Inserting New Record
   let temp_scroll_pos;
@@ -215,6 +229,16 @@
             }
           : (schema[bbcolumn.name] ?? {}),
       };
+    },
+    registerSuperColumn: (id, state) => {
+      columnStates = [...columnStates, { id, state }];
+    },
+    unregisterSuperColumn: (id) => {
+      let pos = columnStates.findIndex((col) => col.id == id);
+      if (pos > -1) {
+        columnStates.splice(pos, 1);
+        columnStates = columnStates;
+      }
     },
     executeRowButtonAction: async (id, action) => {
       let row = $stbData.rows.find((r) => r["_id"] == id);
@@ -298,7 +322,7 @@
       } else {
         stbState.startSave();
         try {
-          saved_row = await API.saveRow({ ...new_row, tableId }, true);
+          saved_row = await API.saveRow({ ...new_row, tableId });
         } catch (e) {
           console.log(e);
         } finally {
@@ -366,64 +390,141 @@
     },
     patchRow: async (patch) => {
       if (tableId) {
-        let row = await API.patchRow({
-          tableId,
-          ...patch,
-        });
-        let richContext = {
-          ...$context,
-          [comp_id]: { row },
-        };
-        let cmd_after = enrichButtonActions(afterEdit, richContext);
-        await cmd_after?.({ row });
-        return row;
+        try {
+          let row = await API.patchRow({
+            tableId,
+            ...patch,
+          });
+          stbState.endSave();
+          let richContext = {
+            ...$context,
+            [comp_id]: { row },
+          };
+          let cmd_after = enrichButtonActions(afterEdit, richContext);
+          await cmd_after?.({ row });
+          return row;
+        } catch (ex) {
+          console.log(ex);
+        }
       }
     },
   };
 
   // Super Table State Machine
-  const stbState = fsm("Loading", {
+  const stbState = fsm("Init", {
     "*": {
+      init() {
+        return "Init";
+      },
+      scrollTo(position) {
+        $stbScrollPos = position;
+        this.calculateRowBoundaries();
+      },
+      scrollToEnd() {
+        $stbScrollPos = scrollHeight - maxBodyHeight;
+        this.calculateRowBoundaries();
+      },
+      async calculateBoundaries() {
+        console.log("Calculating");
+
+        let rows = $stbData.rows;
+        itemHeight = $stbSettings.appearance.rowHeight;
+        maxBodyHeight =
+          viewport.clientHeight -
+          $stbSettings.appearance.headerHeight -
+          $stbSettings.appearance.footerHeight;
+
+        scrollHeight = $stbData.rows.length * itemHeight + 96;
+        canScroll = scrollHeight > maxBodyHeight;
+        overflow = canScroll;
+
+        await tick();
+
+        for (let v = 0; v < rows.length; v += 1) {
+          height_map[start + v] = itemHeight || rows[v].offsetHeight;
+        }
+
+        let content_height = 0;
+        let i = start;
+
+        while (content_height < maxBodyHeight && i < rows.length) {
+          let row = rows[i - start];
+
+          if (!row) {
+            end = i;
+            await tick(); // render the newly visible row
+            row = rows[i - start];
+          }
+
+          const row_height = (height_map[i] = itemHeight || row.offsetHeight);
+          content_height += row_height;
+          i += 1;
+        }
+
+        end = i;
+        height_map.length = rows.length;
+      },
+      calculateRowBoundaries() {
+        let i = 0;
+        let y = 0;
+
+        while (i < $stbData.rows.length) {
+          const row_height = height_map[i] || average_height;
+          if (y + row_height >= $stbScrollPos) {
+            start = i;
+            break;
+          }
+
+          y += row_height;
+          i += 1;
+        }
+
+        while (i < $stbData.rows.length) {
+          y += height_map[i] || average_height;
+          i += 1;
+
+          if (y > $stbScrollPos + maxBodyHeight) break;
+        }
+        end = i;
+      },
+      handleVerticalScroll(delta) {
+        $stbScrollPos = Math.max(
+          Math.min($stbScrollPos + delta, scrollHeight - maxBodyHeight),
+          0
+        );
+        $stbScrollPercent = $stbScrollPos / (scrollHeight - maxBodyHeight);
+        $stbScrollOffset = $stbScrollPos % itemHeight;
+        this.calculateRowBoundaries();
+      },
       handleWheel(e) {
-        if ($stbData.loading) {
+        if ($stbData.loading || $stbState == "Inserting") {
           e.preventDefault();
           return;
         }
 
         if (e.deltaY && canScroll) {
-          if ($stbScrollPos + e.deltaY <= 0) {
-            $stbScrollPos = 0;
-            $stbScrollPercent = 0;
-            return;
-          }
-
-          if ($stbScrollPos + e.deltaY >= scrollHeight - maxBodyHeight) {
-            $stbScrollPos = scrollHeight - maxBodyHeight;
-            $stbScrollPercent = 1;
-            return;
-          }
-          $stbScrollPos += e.deltaY;
-          $stbScrollPercent = $stbScrollPos / scrollHeight;
+          e.preventDefault();
+          this.handleVerticalScroll(e.deltaY);
         } else if (e.deltaX) {
           if ($stbHorizontalScrollPos + e.deltaX < 0) {
             $stbHorizontalScrollPos = 0;
             $stbHorizontalScrollPercent = 0;
             return;
           }
-
           if (
             $stbHorizontalScrollPos + e.deltaX >
-            columnsBodyAnchor?.scrollWidth - columnsBodyAnchor.clientWidth
+            columnsViewport?.scrollWidth - columnsViewport.clientWidth
           ) {
             $stbHorizontalScrollPos =
-              columnsBodyAnchor?.scrollWidth - columnsBodyAnchor.clientWidth;
+              columnsViewport?.scrollWidth - columnsViewport.clientWidth;
             $stbHorizontalScrollPercent = 1;
             return;
           }
 
           $stbHorizontalScrollPos += e.deltaX;
           $stbHorizontalScrollPercent =
-            $stbHorizontalScrollPos / columnsBodyAnchor.scrollWidth;
+            $stbHorizontalScrollPos / columnsViewport.scrollWidth;
+          columnsBodyAnchor.scrollLeft = $stbHorizontalScrollPos;
         }
       },
       handleRowResize(idx, size) {},
@@ -459,6 +560,25 @@
           tableAPI.insertRow();
         }
       },
+      edit() {
+        return "Editing";
+      },
+    },
+    Init: {
+      _enter() {
+        start = 0;
+        end = 0;
+        $stbScrollPos = 0;
+        $stbScrollOffset = 0;
+        $stbHorizontalScrollPos = 0;
+        $stbVisibleRows = [];
+        this.calculateBoundaries();
+      },
+      synch(fetchState) {
+        if (fetchState.loaded) {
+          return "Idle";
+        }
+      },
     },
     Idle: {
       _enter() {},
@@ -469,7 +589,9 @@
     },
     Loading: {
       _enter() {},
-      _exit() {},
+      _exit() {
+        this.calculateRowBoundaries();
+      },
       synch(fetchState) {
         if (fetchState?.loaded && stbColumnFilters?.length > 0)
           return "Filtered";
@@ -483,20 +605,28 @@
         } else if (stbColumnFilters?.length == 0) return "Idle";
       },
     },
-    Editing: {},
+    Editing: {
+      endEdit() {
+        return "Idle";
+      },
+      startSave() {
+        return "Saving";
+      },
+      patchRow(index, id, rev, field, change) {
+        let patch = { _id: id, _rev: rev, [field]: change };
+        tableAPI.patchRow(index, patch);
+      },
+    },
     Inserting: {
       _enter() {
+        columnStates.forEach(({ state }) => state.addRow());
         new_row = {};
         temp_scroll_pos = $stbScrollPos;
-        $stbScrollPos = scrollHeight
-          ? scrollHeight - maxBodyHeight
-          : $stbScrollPos;
-        $stbHorizontalScrollPos = 0;
-        columnStates.forEach((state) => state.addRow());
+        this.scrollToEnd();
       },
       _exit() {
-        $stbScrollPos = temp_scroll_pos;
-        columnStates.forEach((state) => state.cancelAddRow());
+        columnStates.forEach(({ state }) => state.cancelAddRow());
+        this.scrollTo(temp_scroll_pos);
       },
       cancelAddRow() {
         return "Idle";
@@ -511,7 +641,7 @@
     Saving: {
       endSave(e) {
         stbData.refresh();
-        return "Idle";
+        return "Loading";
       },
     },
     Empty: {},
@@ -541,14 +671,12 @@
     columnMinWidth,
     columnFixedWidth,
     debounce,
-    visibleRowCount,
     selectionColumn,
     dividers,
     dividersColor,
     showFooter,
     showHeader,
     rowMenuIcon,
-    headerHeight: sizingMap[size].headerHeight,
     features: {
       canSelect,
       maxSelected,
@@ -576,7 +704,9 @@
     },
     appearance: {
       size,
-      headerHeight: sizingMap[size].headerHeight,
+      headerHeight: showHeader ? sizingMap[size].headerHeight : 0,
+      footerHeight: showFooter ? sizingMap[size].headerHeight : 0,
+      rowHeight: sizingMap[size].rowHeight,
       numberingColumn,
       quiet,
       useOptionColors,
@@ -690,11 +820,6 @@
   $: isEmpty =
     ($stbData.loaded && !$stbData?.rows.length) || $superColumns?.length < 1;
 
-  // Generate Layout required variables first so we can render early on
-  $: defaultRowHeight = sizingMap[size].rowHeight;
-  $: maxBodyHeight = visibleRowCount * defaultRowHeight;
-  $: overflow = $stbData?.rows?.length > visibleRowCount || horizontalVisible;
-
   $: dividersStyles = {
     color:
       $stbSettings.dividersColor ?? "var(--spectrum-global-color-gray-200)",
@@ -717,7 +842,8 @@
   ) {
     let old_limit = limit;
     limit = old_limit + fetchPageSize < 1000 ? old_limit + fetchPageSize : 1000;
-    $stbScrollPercent -= 0.1;
+    $stbScrollPos = $stbScrollPos - $stbScrollPos * 0.2;
+    $stbScrollPercent = 0.6;
   }
 
   // Autorefresh Timer
@@ -760,13 +886,24 @@
     schema: $stbSchema,
     rowsLength: $stbData?.rows.length,
     pageNumber: $stbData?.pageNumber + 1,
+    entitySingular,
+    entityPlural,
   };
 
   // Show Action Buttons Column
-  $: showActionColumn = rowMenu == "columnRight" && rowMenuItems.length;
-  $: showActionColumnLeft = rowMenu == "columnLeft" && rowMenuItems?.length;
+  $: showButtonColumnRight = rowMenu == "columnRight" && rowMenuItems.length;
+  $: showButtonColumnLeft = rowMenu == "columnLeft" && rowMenuItems?.length;
+
+  // Virtual List Capabilities
+  $: if ($stbData?.loaded)
+    stbState.calculateBoundaries(clientHeight, $stbSettings, stbData);
+
+  $: $stbVisibleRows = $stbData.rows.slice(start, end).map((data, i) => {
+    return { index: i + start, data };
+  });
 
   const createFetch = (datasource) => {
+    stbState.init();
     return fetchData({
       API,
       datasource,
@@ -812,6 +949,7 @@
 
   // Expose Context
   setContext("stbScrollPos", stbScrollPos);
+  setContext("stbScrollOffset", stbScrollOffset);
   setContext("stbHorizontalScrollPos", stbHorizontalScrollPos);
   setContext("stbHovered", stbHovered);
   setContext("stbSelected", stbSelected);
@@ -823,6 +961,7 @@
   setContext("stbMenuID", stbMenuID);
   setContext("stbMenuAnchor", stbMenuAnchor);
   setContext("stbAPI", tableAPI);
+  setContext("stbVisibleRows", stbVisibleRows);
 
   $: setContext("stbData", stbData);
   $: setContext("stbRowMetadata", rowMetadata);
@@ -830,21 +969,20 @@
   onDestroy(() => {
     if (timer) clearInterval(timer);
   });
-
-  $: console.log(onDelete);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
-  class="super-table st-master-wrapper"
-  class:saving={$stbState == "Saving"}
-  tabindex="0"
+  class="super-table"
+  bind:this={viewport}
+  bind:clientHeight
   style:font-size={sizingMap[size].rowFontSize}
   style:--spectrum-table-border-color={dividersStyles.color}
-  style:--super-table-body-height={maxBodyHeight + "px"}
+  style:--super-table-body-height={maxBodyHeight}
   style:--super-table-header-height={$stbSettings.appearance.headerHeight}
+  style:--super-table-footer-height={$stbSettings.appearance.footerHeight}
   style:--super-table-horizontal-dividers={dividersStyles.horizontal}
   style:--super-table-vertical-dividers={dividersStyles.vertical}
   style:--super-table-cell-padding={sizingMap[size].cellPadding}
@@ -856,85 +994,58 @@
   on:keydown={stbState.handleKeyboard}
   on:wheel={stbState.handleWheel}
 >
-  {#if $stbData.loaded}
+  {#if $stbState != "Init" || isEmpty}
     <Provider {actions} data={dataContext}>
-      <SelectionColumn
-        bind:clientHeight
-        bind:scrollHeight
-        bind:canScroll
-        {overflow}
-      />
+      <ControlSection>
+        <SelectionColumn />
 
-      {#if showActionColumnLeft}
-        <RowButtonsColumn
-          {rowMenuItems}
-          {menuItemsVisible}
-          {rowMenu}
-          {overflow}
-        />
-      {/if}
-
-      {#if stickFirstColumn && $superColumns.length}
-        <SuperTableColumn
-          bind:columnState={columnStates[0]}
-          sticky={true}
-          scrollPos={$stbHorizontalScrollPos}
-          columnOptions={{
-            ...$superColumns[0],
-            ...$commonColumnOptions,
-            overflow,
-            isFirst: true,
-            isLast:
-              $superColumns?.length == 1 && !showActionColumn && canScroll,
-          }}
-        />
-      {/if}
-
-      <div bind:this={columnsBodyAnchor} class="st-master-columns">
-        {#if $stbSettings.superColumnsPos == "first"}
-          <slot />
+        {#if showButtonColumnLeft}
+          <RowButtonsColumn {rowMenuItems} {menuItemsVisible} {rowMenu} />
         {/if}
 
-        {#each $superColumns as column, idx}
-          {#if stickFirstColumn && idx === 0}
-            <span style="display: none;"></span>
-          {:else}
-            <SuperTableColumn
-              bind:columnState={columnStates[idx]}
-              columnOptions={{
-                ...column,
-                ...$commonColumnOptions,
-                overflow,
-                inInsert: canInsert,
-                isFirst: idx == 0,
-                isLast:
-                  idx == $superColumns.length - 1 &&
-                  !showActionColumn &&
-                  canScroll,
-              }}
-            />
-          {/if}
-        {/each}
-
-        {#if $stbSettings.superColumnsPos == "last"}
-          <slot />
+        {#if stickFirstColumn && $superColumns.length}
+          <SuperTableColumn
+            sticky={true}
+            scrollPos={$stbHorizontalScrollPos}
+            columnOptions={{
+              ...$superColumns[0],
+              ...$commonColumnOptions,
+              overflow,
+              isFirst: true,
+              isLast:
+                $superColumns?.length == 1 &&
+                !showButtonColumnRight &&
+                canScroll,
+            }}
+          />
         {/if}
-      </div>
+      </ControlSection>
 
-      {#if showActionColumn}
-        <RowButtonsColumn
-          {rowMenuItems}
-          {menuItemsVisible}
-          {rowMenu}
-          {canScroll}
-          {overflow}
-          right={true}
-        />
+      <ColumnsSection
+        {stbSettings}
+        {superColumns}
+        {commonColumnOptions}
+        {canScroll}
+        bind:columnsViewport
+      >
+        <slot />
+      </ColumnsSection>
+
+      {#if showButtonColumnRight}
+        <ControlSection>
+          <RowButtonsColumn
+            {rowMenuItems}
+            {menuItemsVisible}
+            {rowMenu}
+            {canScroll}
+            right={true}
+          />
+        </ControlSection>
       {/if}
 
       <ScrollbarsOverlay
-        anchor={columnsBodyAnchor}
-        {clientHeight}
+        anchor={columnsViewport}
+        clientHeight={maxBodyHeight}
         {scrollHeight}
         {highlighted}
         {isEmpty}
@@ -944,7 +1055,9 @@
       <EmptyResultSetOverlay
         {isEmpty}
         message={$stbSettings.data.emptyMessage}
-        top={$superColumns?.length ? $stbSettings.headerHeight + 16 : 16}
+        top={$superColumns?.length
+          ? $stbSettings.appearance.headerHeight + 16
+          : 16}
         bottom={horizontalVisible ? 24 : 16}
       />
 
@@ -959,8 +1072,9 @@
         />
       {/if}
 
-      {#if $stbSettings.features.canSelect}
+      {#if $stbSettings.features.canSelect && selectedActions?.length}
         <SelectedActionsOverlay
+          {stbSettings}
           {selectedActions}
           {stbSelected}
           {tableAPI}

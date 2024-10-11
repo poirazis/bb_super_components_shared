@@ -4,6 +4,7 @@
   import SuperButton from "../../SuperButton/SuperButton.svelte";
 
   export let stbState;
+  export let stbSettings;
   export let tableAPI;
   export let highlighted;
   export let footer;
@@ -11,24 +12,33 @@
   export let stbSelected;
   export let entityPlural = "Rows";
   export let entitySingular = "Row";
+
+  let hidden;
+  $: if ($stbSelected.length == 0) hidden = false;
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-{#if $stbSelected.length && $stbState != "Inserting"}
+{#if $stbSelected.length && $stbState != "Inserting" && !hidden}
   <div
     class="selected-row-actions-overlay"
+    style:bottom={$stbSettings.appearance.footerHeight + 28}
     class:highlighted
     class:footer
     transition:slide={{ delay: 50, duration: 300, easing: quintOut, axis: "y" }}
   >
-    <span
-      >{$stbSelected.length == 1
+    <SuperButton
+      icon="ri-close-line"
+      quiet={true}
+      on:click={() => (hidden = true)}
+    />
+    <span class="text">
+      {$stbSelected.length == 1
         ? $stbSelected.length + " " + entitySingular + " "
-        : $stbSelected.length + " " + entityPlural + " "}Selected</span
-    >
-    {#each selectedActions as { text, icon, quiet, disabled, type, size }}
-      <SuperButton {text} {icon} {quiet} {type} {disabled} {size} />
+        : $stbSelected.length + " " + entityPlural + " "} Selected
+    </span>
+    {#each selectedActions as { text, icon, disabled, type, size }}
+      <SuperButton {text} {icon} quiet={true} {type} {disabled} {size} />
     {/each}
   </div>
 {/if}

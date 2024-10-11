@@ -184,10 +184,6 @@
 {/if}
 
 <style>
-  .spectrum-Table-headCell.idle {
-    gap: 0.5rem;
-  }
-
   .isEntering {
     gap: 0.5rem;
   }

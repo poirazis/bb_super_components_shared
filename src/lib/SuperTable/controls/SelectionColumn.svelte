@@ -1,10 +1,10 @@
 <script>
-  import { getContext, beforeUpdate } from "svelte";
+  import { getContext } from "svelte";
 
   const stbState = getContext("stbState");
   const stbSettings = getContext("stbSettings");
   const stbData = getContext("stbData");
-  const stbScrollPos = getContext("stbScrollPos");
+  const stbScrollOffset = getContext("stbScrollOffset");
   const stbHorizontalScrollPos = getContext("stbHorizontalScrollPos");
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
@@ -12,20 +12,13 @@
   const stbMenuID = getContext("stbMenuID");
   const stbAPI = getContext("stbAPI");
   const rowMetadata = getContext("stbRowMetadata");
-
-  export let clientHeight;
-  export let scrollHeight;
-  export let canScroll;
-  export let overflow;
+  const stbVisibleRows = getContext("stbVisibleRows");
 
   export let sticky;
-
-  let columnBodyAnchor;
   let mouseover;
+  let viewport;
 
-  $: synchScrollPosition($stbScrollPos);
   $: canSelect = $stbSettings.features.canSelect;
-  $: canInsert = $stbSettings.features.canInsert;
   $: inInsert = $stbState == "Inserting";
   $: idColumn = $stbSettings.data.idColumn;
   $: partialSelection = $stbSelected.length;
@@ -36,144 +29,130 @@
   $: sticky = $stbHorizontalScrollPos > 0;
   $: visible = numbering || canSelect || canDelete;
 
+  $: synchScrollPosition($stbScrollOffset);
   const synchScrollPosition = (position) => {
-    if (columnBodyAnchor) columnBodyAnchor.scrollTop = position;
+    if (viewport) viewport.scrollTop = position;
   };
-
-  beforeUpdate(() => {
-    scrollHeight = columnBodyAnchor?.scrollHeight;
-    clientHeight = columnBodyAnchor?.clientHeight;
-    canScroll = scrollHeight > clientHeight;
-  });
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="super-column control-column" class:sticky class:visible>
-  {#if $stbSettings?.showHeader}
-    <div
-      class="super-column-header"
-      class:selection={visible}
-      on:mouseenter={() => (mouseover = true)}
-      on:mouseleave={() => (mouseover = false)}
-    >
-      {#if loading && visible}
-        <div class="loader" />
-      {:else if $stbState == "Filtered" && mouseover}
-        <i
-          class="ri-filter-off-fill"
-          style:color={"var(--spectrum-global-color-red-500)"}
-          style:cursor={"pointer"}
-          on:click={stbState.clearFilter}
-        ></i>
-      {:else if $stbState == "Filtered"}
-        <i
-          class="ri-filter-fill"
-          style:color={"var(--spectrum-global-color-blue-500)"}
-        ></i>
-      {:else if canSelect && $stbSettings.features.maxSelected != 1}
-        {#if fullSelection}
-          <i class="ri-check-line" on:click={stbAPI.selectAllRows} />
-        {:else if partialSelection}
-          <i
-            class="ri-checkbox-indeterminate-line"
-            on:click={stbAPI.selectAllRows}
-          ></i>
-        {:else}
-          <i
-            class="ri-checkbox-blank-line"
-            style:color={"var(--spectrum-global-color-gray-500)"}
-            on:click={stbAPI.selectAllRows}
-          />
-        {/if}
-      {/if}
-
-      {#if canDelete && $stbSelected.length > 1}
-        <i
-          class="ri-delete-bin-line delete"
-          style:color={"var(--spectrum-global-color-red-500)"}
-          on:click={(e) => stbAPI.deleteSelectedRows()}
-        />
-      {/if}
-    </div>
-  {/if}
-
-  <div
-    bind:this={columnBodyAnchor}
-    class="super-column-body"
-    class:zebra={$stbSettings.appearance.zebraColors}
-    class:quiet={$stbSettings?.appearance?.quiet}
-    class:sticky
-    on:mouseleave={() => ($stbHovered = undefined)}
-  >
-    {#each $stbData.rows as row, index}
-      {@const hovered = $stbHovered == index || $stbMenuID == row[idColumn]}
-      {@const editing = $stbEditing == index}
-      {@const selected = $stbSelected?.includes(row[idColumn])}
+{#if visible}
+  <div class="super-column control-column" class:sticky class:visible>
+    {#if $stbSettings?.showHeader}
       <div
-        class="super-row"
-        class:selection={visible}
-        class:is-selected={selected}
-        class:is-hovered={hovered}
-        class:is-editing={editing}
-        style:min-height={$rowMetadata[index]?.height}
-        style:background-color={sticky
-          ? "var(--spectrum-global-color-gray-75)"
-          : null}
-        on:mouseenter={() => ($stbHovered = index)}
+        class="control-column-header"
+        tabindex="-1"
+        on:mouseenter={() => (mouseover = true)}
+        on:mouseleave={() => (mouseover = false)}
       >
-        {#if editing && numbering && visible}
-          <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
-        {:else if canSelect}
-          {#if selected}
+        {#if loading && visible}
+          <div class="loader" />
+        {:else if $stbState == "Filtered" && mouseover}
+          <i
+            class="ri-filter-off-fill"
+            style:color={"var(--spectrum-global-color-red-500)"}
+            style:cursor={"pointer"}
+            on:click={stbState.clearFilter}
+          ></i>
+        {:else if $stbState == "Filtered"}
+          <i
+            class="ri-filter-fill"
+            style:color={"var(--spectrum-global-color-blue-500)"}
+          ></i>
+        {:else if canSelect && $stbSettings.features.maxSelected != 1}
+          {#if fullSelection}
+            <i class="ri-check-line" on:click={stbAPI.selectAllRows} />
+          {:else if partialSelection}
             <i
-              class="ri-check-line"
-              style:color={"var(--spectrum-global-color-gray-800)"}
-              on:click={() => stbAPI.selectRow(row[idColumn])}
-            />
+              class="ri-checkbox-indeterminate-line"
+              on:click={stbAPI.selectAllRows}
+            ></i>
           {:else}
             <i
               class="ri-checkbox-blank-line"
-              on:click={() => stbAPI.selectRow(row[idColumn])}
+              style:color={"var(--spectrum-global-color-gray-500)"}
+              on:click={stbAPI.selectAllRows}
             />
           {/if}
-        {:else if numbering}
-          <span class="row-number">
-            {index + 1}
-          </span>
         {/if}
 
-        {#if canDelete}
+        {#if canDelete && $stbSelected.length > 1}
           <i
             class="ri-delete-bin-line delete"
-            class:hovered={hovered || selected}
-            on:click={(e) => stbAPI.deleteRow(row[idColumn])}
+            style:color={"var(--spectrum-global-color-red-500)"}
+            on:click={(e) => stbAPI.deleteSelectedRows()}
           />
         {/if}
       </div>
-    {/each}
-    {#if overflow || canInsert}
+    {/if}
+
+    <div
+      class="super-column-body"
+      bind:this={viewport}
+      class:zebra={$stbSettings.appearance.zebraColors}
+      class:quiet={$stbSettings?.appearance?.quiet}
+      class:sticky
+      style:background-color={sticky
+        ? "var(--spectrum-global-color-gray-75)"
+        : null}
+    >
+      {#each $stbVisibleRows as row (row.index)}
+        {@const hovered = $stbHovered == row.index}
+        {@const editing = $stbEditing == row.data[idColumn]}
+        {@const selected = $stbSelected?.includes(row.data[idColumn])}
+        <div
+          class="super-row"
+          class:selection={visible}
+          class:is-selected={selected}
+          class:is-hovered={hovered}
+          class:is-editing={editing}
+          style:min-height={$rowMetadata[row.index]?.height}
+          on:mouseenter={() => ($stbHovered = row.index)}
+          on:mouseleave={() => ($stbHovered = null)}
+        >
+          {#if editing && numbering && visible}
+            <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
+          {:else if canSelect}
+            {#if selected}
+              <i
+                class="ri-check-line"
+                style:color={"var(--spectrum-global-color-gray-800)"}
+                on:click={() => stbAPI.selectRow(row.data[idColumn])}
+              />
+            {:else}
+              <i
+                class="ri-checkbox-blank-line"
+                on:click={() => stbAPI.selectRow(row.data[idColumn])}
+              />
+            {/if}
+          {:else if numbering}
+            <span class="row-number">
+              {row.index + 1}
+            </span>
+          {/if}
+
+          {#if canDelete}
+            <i
+              class="ri-delete-bin-line delete"
+              class:hovered={hovered || selected}
+              on:click={(e) => stbAPI.deleteRow(row.data[idColumn])}
+            />
+          {/if}
+        </div>
+      {/each}
       {#if inInsert}
         <div class="add-row" style="padding: unset;"></div>
       {/if}
-      <div
-        class="spacer"
-        style:background-color={sticky
-          ? "var(--spectrum-global-color-gray-75)"
-          : null}
-      />
+    </div>
+
+    {#if $stbSettings.showFooter}
+      <div class="super-column-footer" style:padding={"unset"}></div>
     {/if}
   </div>
-
-  {#if $stbSettings.showFooter}
-    <div class="super-column-footer" style:padding={"unset"}></div>
-  {/if}
-</div>
+{/if}
 
 <style>
-  .visible {
-    min-width: 2.4rem;
-  }
   .selection {
     flex: auto;
     padding-left: 0.75rem;

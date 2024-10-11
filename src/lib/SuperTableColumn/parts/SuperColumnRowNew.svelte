@@ -6,10 +6,16 @@
 
   export let row = {};
   export let isFirst;
+  export let isLast;
   export let color;
 </script>
 
-<div class="super-row new-row" style:min-height={"2rem"} style:color>
+<div
+  class="super-row new-row"
+  style:min-height={"2rem"}
+  style:color
+  class:isLast
+>
   <svelte:component
     this={$columnSettings.cellComponent}
     cellOptions={{

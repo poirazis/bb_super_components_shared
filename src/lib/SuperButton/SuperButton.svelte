@@ -38,7 +38,6 @@
 
   $: useIcon = icon;
   $: useColor = iconColor;
-  $: console.log(type);
 
   let working;
 
@@ -100,6 +99,7 @@
   class:is-selected={selected}
   class:cta={type == "cta"}
   class:warning={type == "warning"}
+  class:secondary={type == "secondary"}
   class:spectrum-ActionButton--emphasized={emphasized}
   class:spectrum-ActionButton--quiet={quiet}
   class:full-width={fullWidth}
@@ -142,11 +142,18 @@
   }
 
   .cta {
-    background-color: var(--spectrum-global-color-gray-800) !important;
-    color: var(--spectrum-global-color-gray-50) !important;
+    background-color: var(--spectrum-global-color-gray-800);
+    border-color: var(--spectrum-global-color-gray-800);
+    color: var(--spectrum-global-color-gray-50);
+    font-weight: 600;
   }
 
   .warning {
-    color: var(--spectrum-global-color-red-400) !important;
+    color: var(--spectrum-global-color-red-500);
+  }
+
+  .secondary {
+    background-color: var(--spectrum-global-color-gray-300);
+    border-color: var(--spectrum-global-color-gray-300);
   }
 </style>

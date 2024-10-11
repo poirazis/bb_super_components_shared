@@ -109,8 +109,7 @@
     if (autofocus)
       setTimeout(() => {
         cellState.focus();
-        editor?.focus();
-      }, 30);
+      }, 300);
   });
 </script>
 
@@ -119,7 +118,7 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   class="superCell"
-  tabindex="0"
+  tabindex={cellOptions.readonly || cellOptions.disabled ? "-1" : "0"}
   class:flashing={$cellState == "Flashing"}
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
@@ -169,7 +168,6 @@
   {:else}
     <div
       class="value"
-      tabIndex={cellOptions.readonly ? "-1" : "0"}
       class:placeholder={!value}
       style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
       style:padding-right={cellOptions.padding}
