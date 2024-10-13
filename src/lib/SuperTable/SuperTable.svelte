@@ -1,6 +1,5 @@
 <script>
-  import { getContext, setContext, onDestroy, tick, onMount } from "svelte";
-  import { writable } from "svelte/store";
+  import { getContext, setContext, onDestroy, tick } from "svelte";
   import fsm from "svelte-fsm";
 
   import {
@@ -11,16 +10,20 @@
     supportEditingMap,
   } from "./constants.js";
 
+  // Overlays
   import ScrollbarsOverlay from "./overlays/ScrollbarsOverlay.svelte";
   import EmptyResultSetOverlay from "./overlays/EmptyResultSetOverlay.svelte";
   import AddNewRowOverlay from "./overlays/AddNewRowOverlay.svelte";
   import SelectedActionsOverlay from "./overlays/SelectedActionsOverlay.svelte";
+
+  // Components
   import SuperTableColumn from "../SuperTableColumn/SuperTableColumn.svelte";
   import CellSkeleton from "../SuperTableCells/CellSkeleton.svelte";
   import RowButtonsColumn from "./controls/RowButtonsColumn.svelte";
   import SelectionColumn from "./controls/SelectionColumn.svelte";
   import RowContextMenu from "./overlays/RowContextMenu.svelte";
 
+  // Sections
   import ControlSection from "./controls/ControlSection.svelte";
   import ColumnsSection from "./controls/ColumnsSection.svelte";
 
@@ -42,21 +45,22 @@
   const context = getContext("context");
 
   // Create Stores
-  const stbScrollPos = writable(0);
-  const stbScrollOffset = writable(0);
-  const stbScrollPercent = new writable(0);
-  const stbHorizontalScrollPos = new writable(0);
-  const stbHorizontalScrollPercent = new writable(0);
+  const stbScrollPos = memo(0);
+  const stbScrollOffset = memo(0);
+  const stbScrollPercent = memo(0);
+  const stbHorizontalScrollPos = memo(0);
+  const stbHorizontalScrollPercent = memo(0);
 
-  const stbVisibleRows = new writable([]);
+  const stbVisibleRows = memo([]);
 
-  const stbMenuID = new writable(-1);
-  const stbMenuAnchor = new writable(-1);
-  const stbSelected = new writable([]);
-  const stbHovered = new writable(-1);
-  const stbEditing = new writable(-1);
-  const stbSortColumn = new writable({});
-  const stbSortOrder = new writable({});
+  const stbMenuID = memo(-1);
+  const stbMenuAnchor = memo(-1);
+  const stbSelected = memo([]);
+  const stbHovered = memo(-1);
+  const stbEditing = memo(-1);
+  const stbSortColumn = memo({});
+  const stbSortOrder = memo({});
+  const stbRowMetadata = memo([{}]);
 
   // Internally used to appropriately enrich context
   // this is component.id of the wrapper component seen by budibase
@@ -70,7 +74,6 @@
   export let sortOrder;
   export let limit;
   export let fetchOnScroll;
-  export let fetchPageSize;
   export let autoRefresh;
   export let autoRefreshRate;
   export let paginate;
@@ -153,10 +156,9 @@
   let columnsViewport;
   let start = 0;
   let end = 0;
-  let height_map = [];
-  let average_height;
   let itemHeight = 36;
   let overflow;
+  let refresh;
 
   // Inserting New Record
   let temp_scroll_pos;
@@ -241,11 +243,17 @@
       }
     },
     executeRowButtonAction: async (id, action) => {
-      let row = $stbData.rows.find((r) => r["_id"] == id);
-      let richContext = {
-        ...$context,
-        [comp_id]: { row },
-      };
+      let richContext;
+      if (id) {
+        let row = $stbData.rows.find((r) => r["_id"] == id);
+        richContext = {
+          ...$context,
+          [comp_id]: { row },
+        };
+      } else {
+        richContext = $context;
+      }
+
       let cmd = enrichButtonActions(action, richContext);
       await cmd?.();
     },
@@ -272,6 +280,9 @@
     },
     executeRowContextMenuAction: async (id, action) => {
       await tableAPI.executeRowButtonAction(id, action);
+    },
+    executeSelectedRowsAction: async (action) => {
+      tableAPI.executeRowButtonAction(null, action);
     },
     initializeRefreshTimer: (rate) => {},
     clearRefeshTimer: (timer) => {},
@@ -416,6 +427,28 @@
       init() {
         return "Init";
       },
+      refresh() {
+        this.enrichRows();
+      },
+      enrichRows() {
+        $stbRowMetadata = $stbData.rows.map((row, index) => {
+          return {
+            height: $stbRowMetadata[index]?.height
+              ? $stbRowMetadata[index].height
+              : sizingMap[$stbSettings.appearance.size].rowHeight,
+            bgcolor: rowBGColorTemplate
+              ? processStringSync(rowBGColorTemplate, {
+                  [comp_id]: { row },
+                })
+              : undefined,
+            color: rowColorTemplate
+              ? processStringSync(rowColorTemplate, {
+                  [comp_id]: { row },
+                })
+              : undefined,
+          };
+        });
+      },
       scrollTo(position) {
         $stbScrollPos = position;
         this.calculateRowBoundaries();
@@ -425,8 +458,6 @@
         this.calculateRowBoundaries();
       },
       async calculateBoundaries() {
-        console.log("Calculating");
-
         let rows = $stbData.rows;
         itemHeight = $stbSettings.appearance.rowHeight;
         maxBodyHeight =
@@ -434,16 +465,15 @@
           $stbSettings.appearance.headerHeight -
           $stbSettings.appearance.footerHeight;
 
-        scrollHeight = $stbData.rows.length * itemHeight + 96;
+        scrollHeight =
+          $stbRowMetadata.reduce((accumulator, currentValue) => {
+            return accumulator + currentValue.height;
+          }, 0) + 96;
+
         canScroll = scrollHeight > maxBodyHeight;
         overflow = canScroll;
 
         await tick();
-
-        for (let v = 0; v < rows.length; v += 1) {
-          height_map[start + v] = itemHeight || rows[v].offsetHeight;
-        }
-
         let content_height = 0;
         let i = start;
 
@@ -456,20 +486,19 @@
             row = rows[i - start];
           }
 
-          const row_height = (height_map[i] = itemHeight || row.offsetHeight);
+          const row_height = $stbRowMetadata[i].height;
           content_height += row_height;
           i += 1;
         }
 
         end = i;
-        height_map.length = rows.length;
       },
       calculateRowBoundaries() {
         let i = 0;
         let y = 0;
 
         while (i < $stbData.rows.length) {
-          const row_height = height_map[i] || average_height;
+          const row_height = $stbRowMetadata[i].height;
           if (y + row_height >= $stbScrollPos) {
             start = i;
             break;
@@ -480,7 +509,7 @@
         }
 
         while (i < $stbData.rows.length) {
-          y += height_map[i] || average_height;
+          y += $stbRowMetadata[i].height;
           i += 1;
 
           if (y > $stbScrollPos + maxBodyHeight) break;
@@ -527,7 +556,6 @@
           columnsBodyAnchor.scrollLeft = $stbHorizontalScrollPos;
         }
       },
-      handleRowResize(idx, size) {},
       handleKeyboard(e) {
         // TODO : Table Keyboard Handler
       },
@@ -553,6 +581,12 @@
         $stbSortColumn = column;
         $stbSortOrder = order;
       },
+      resizeRow(index, size) {
+        console.log("Resize Asked", index, size);
+        $stbRowMetadata[index].height =
+          size || $stbSettings.appearance.rowHeight;
+        this.calculateBoundaries();
+      },
       addRow() {
         if (!onInsert || onInsert?.length == 0) {
           return "Inserting";
@@ -566,6 +600,7 @@
     },
     Init: {
       _enter() {
+        if (timer) clearInterval(timer);
         start = 0;
         end = 0;
         $stbScrollPos = 0;
@@ -576,6 +611,12 @@
       },
       synch(fetchState) {
         if (fetchState.loaded) {
+          this.enrichRows();
+          if (autoRefresh && !inBuilder) {
+            timer = setInterval(() => {
+              stbData.refresh();
+            }, autoRefreshRate * 1000);
+          }
           return "Idle";
         }
       },
@@ -586,10 +627,19 @@
       synch(fetchState) {
         if (fetchState?.loading) return "Loading";
       },
+      fetchMoreRows(size) {
+        if ($stbData.hasNextPage) {
+          limit = limit + size;
+          stbData.update({ limit });
+        }
+      },
     },
     Loading: {
-      _enter() {},
+      _enter() {
+        console.log("Loading");
+      },
       _exit() {
+        this.enrichRows();
         this.calculateRowBoundaries();
       },
       synch(fetchState) {
@@ -644,9 +694,6 @@
         return "Loading";
       },
     },
-    Empty: {},
-    Sorted: {},
-    Empty: {},
   });
 
   // Turm non primitive props into reactive stores to limit refreshes
@@ -660,6 +707,7 @@
   $: filterStore.set(filter);
   $: columnsStore.set(columnList);
   $: stbSchema.set($stbData?.schema);
+  $: stbSelected.set(preselectedIds ?? []);
 
   // Reactively set the Table Settings store
   $: stbSettings.set({
@@ -699,7 +747,6 @@
       autoRefresh,
       autoRefreshRate,
       fetchOnScroll,
-      fetchPageSize,
       schema: $stbSchema,
     },
     appearance: {
@@ -755,28 +802,6 @@
     sortOrder,
     limit,
   });
-
-  // Derived Store with Row Meta Data
-  $: rowMetadata = derivedMemo(
-    [stbData, stbSettings],
-    ([$stbData, $stbSettings]) => {
-      return $stbData.rows.map((row) => {
-        return (row["_st_meta"] = {
-          height: sizingMap[$stbSettings.appearance.size].rowHeight,
-          bgcolor: rowBGColorTemplate
-            ? processStringSync(rowBGColorTemplate, {
-                [comp_id]: { row },
-              })
-            : undefined,
-          color: rowColorTemplate
-            ? processStringSync(rowColorTemplate, {
-                [comp_id]: { row },
-              })
-            : undefined,
-        });
-      });
-    }
-  );
 
   // Derived Store with the columns to be rendered
   $: superColumns = derivedMemo(
@@ -834,32 +859,8 @@
   };
 
   // Reactive Fetch on Scroll
-  $: if (
-    fetchOnScroll &&
-    $stbScrollPercent > 0.8 &&
-    !$stbData.loading &&
-    limit == $stbData?.rows.length
-  ) {
-    let old_limit = limit;
-    limit = old_limit + fetchPageSize < 1000 ? old_limit + fetchPageSize : 1000;
-    $stbScrollPos = $stbScrollPos - $stbScrollPos * 0.2;
-    $stbScrollPercent = 0.6;
-  }
-
-  // Autorefresh Timer
-  $: if (autoRefresh && stbData && !inBuilder) {
-    if (!timer) {
-      timer = setInterval(() => {
-        stbData.refresh();
-      }, autoRefreshRate * 1000);
-    } else {
-      clearInterval(timer);
-      timer = setInterval(() => {
-        stbData.refresh();
-      }, autoRefreshRate * 1000);
-    }
-  } else {
-    clearInterval(timer);
+  $: if (fetchOnScroll && $stbScrollPercent > 0.8) {
+    stbState.fetchMoreRows(100);
   }
 
   // Build our data and actions ontext
@@ -962,9 +963,8 @@
   setContext("stbMenuAnchor", stbMenuAnchor);
   setContext("stbAPI", tableAPI);
   setContext("stbVisibleRows", stbVisibleRows);
-
+  setContext("stbRowMetadata", stbRowMetadata);
   $: setContext("stbData", stbData);
-  $: setContext("stbRowMetadata", rowMetadata);
 
   onDestroy(() => {
     if (timer) clearInterval(timer);
@@ -1021,15 +1021,17 @@
         {/if}
       </ControlSection>
 
-      <ColumnsSection
-        {stbSettings}
-        {superColumns}
-        {commonColumnOptions}
-        {canScroll}
-        bind:columnsViewport
-      >
-        <slot />
-      </ColumnsSection>
+      {#key refresh}
+        <ColumnsSection
+          {stbSettings}
+          {superColumns}
+          {commonColumnOptions}
+          {canScroll}
+          bind:columnsViewport
+        >
+          <slot />
+        </ColumnsSection>
+      {/key}
 
       {#if showButtonColumnRight}
         <ControlSection>

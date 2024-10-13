@@ -6,14 +6,14 @@
   const columnState = getContext("stColumnState");
   const stbVisibleRows = getContext("stbVisibleRows");
   const stbScrollOffset = getContext("stbScrollOffset");
+  const stbState = getContext("stbState");
 
   export let field;
   export let idField;
   export let isLast;
   export let isFirst;
   export let zebra;
-  export let canInsert;
-
+  export let rowHeight;
   let viewport;
 
   $: inserting = $columnState == "Inserting";
@@ -46,6 +46,8 @@
       {field}
       {idField}
       disabled={inserting}
+      {rowHeight}
+      on:resize={(e) => stbState.resizeRow(row.index, e.detail)}
     >
       <slot />
     </SuperColumnRow>

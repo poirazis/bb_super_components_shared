@@ -327,6 +327,8 @@
   onDestroy(() => {
     stbAPI?.unregisterSuperColumn(id);
   });
+
+  //  $: console.log($columnOptionsStore);
 </script>
 
 <svelte:window
@@ -368,6 +370,7 @@
 
   <SuperColumnBody
     rows={$stbData.rows}
+    rowHeight={$stbSettings.appearance.rowHeight}
     field={$columnOptionsStore.name}
     idField={$stbSettings.data.idColumn}
     zebra={$stbSettings.appearance.zebraColors}

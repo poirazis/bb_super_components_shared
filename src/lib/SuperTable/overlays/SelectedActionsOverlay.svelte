@@ -25,7 +25,7 @@
     style:bottom={$stbSettings.appearance.footerHeight + 28}
     class:highlighted
     class:footer
-    transition:slide={{ delay: 50, duration: 300, easing: quintOut, axis: "y" }}
+    transition:slide={{ delay: 25, duration: 230, easing: quintOut, axis: "y" }}
   >
     <SuperButton
       icon="ri-close-line"
@@ -37,8 +37,16 @@
         ? $stbSelected.length + " " + entitySingular + " "
         : $stbSelected.length + " " + entityPlural + " "} Selected
     </span>
-    {#each selectedActions as { text, icon, disabled, type, size }}
-      <SuperButton {text} {icon} quiet={true} {type} {disabled} {size} />
+    {#each selectedActions as { text, icon, disabled, type, size, onClick }}
+      <SuperButton
+        {text}
+        {icon}
+        quiet={true}
+        {type}
+        {disabled}
+        {size}
+        on:click={tableAPI.executeSelectedRowsAction(onClick)}
+      />
     {/each}
   </div>
 {/if}

@@ -1,6 +1,5 @@
 <script>
   import { getContext, createEventDispatcher } from "svelte";
-  import { elementSizeStore } from "svelte-legos";
 
   const { Provider, processStringSync, ContextScopes } = getContext("sdk");
 
@@ -22,27 +21,16 @@
   export let isLast;
   export let disabled;
 
-  // the proposed height
-  export let height;
-  export let minHeight;
+  // the default height
+  export let rowHeight;
 
-  let contents, size, cellHeight, rowElement, saving;
+  let viewport, saving, rowElement;
   $: meta = $rowMetadata[index] ?? {};
   $: isHovered = $stbHovered == index || $stbMenuID == row[idField];
   $: isSelected = $stbSelected.includes(row[idField]);
-
-  $: if ($columnSettings.hasChildren && contents)
-    size = elementSizeStore(contents);
-  else size = undefined;
-
-  // Ractive request for additional height if needed
-  $: if ($size) {
-    cellHeight = Math.ceil(parseFloat(contents?.scrollHeight));
-    if (cellHeight > height) {
-      dispatch("resize", cellHeight);
-    } else if (cellHeight < minHeight) {
-      dispatch("resize", minHeight);
-    }
+  $: hasChildren = $columnSettings.hasChildren > 0;
+  $: if (hasChildren && viewport && viewport.scrollHeight > rowHeight) {
+    dispatch("resize", viewport.scrollHeight);
   }
 
   const getCellValue = (value) => {
@@ -71,8 +59,9 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+
 <div
-  bind:this={rowElement}
+  bind:this={viewport}
   class="super-row"
   class:is-selected={isSelected}
   class:is-hovered={isHovered}
@@ -82,6 +71,7 @@
   style:height={meta.height + "px"}
   style:color={meta.color}
   style:background-color={meta.bgcolor}
+  style:justify-content={$columnSettings.align}
   on:mouseenter={() => ($stbHovered = index)}
   on:mouseleave={() => ($stbHovered = undefined)}
   on:click={() => {
@@ -92,7 +82,7 @@
     stbAPI.showContextMenu(row[idField], rowElement);
   }}
 >
-  {#if !$columnSettings.hasChildren}
+  {#if !hasChildren}
     <svelte:component
       this={$columnSettings.cellComponent}
       cellOptions={{ ...$rowCellOptions, disabled }}
@@ -113,13 +103,7 @@
       }}
       scope={ContextScopes.Local}
     >
-      <div
-        bind:this={contents}
-        class="contents-wrapper"
-        style:justify-content={$columnSettings.align}
-      >
-        <slot />
-      </div>
+      <slot />
     </Provider>
   {/if}
 </div>
