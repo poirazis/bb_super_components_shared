@@ -327,8 +327,6 @@
   onDestroy(() => {
     stbAPI?.unregisterSuperColumn(id);
   });
-
-  //  $: console.log($columnOptionsStore);
 </script>
 
 <svelte:window

@@ -1,5 +1,11 @@
 <script>
-  import { getContext, createEventDispatcher } from "svelte";
+  import {
+    getContext,
+    createEventDispatcher,
+    beforeUpdate,
+    onMount,
+    tick,
+  } from "svelte";
 
   const { Provider, processStringSync, ContextScopes } = getContext("sdk");
 
@@ -23,15 +29,13 @@
 
   // the default height
   export let rowHeight;
+  let mounted;
 
-  let viewport, saving, rowElement;
+  let viewport, saving;
   $: meta = $rowMetadata[index] ?? {};
   $: isHovered = $stbHovered == index || $stbMenuID == row[idField];
   $: isSelected = $stbSelected.includes(row[idField]);
   $: hasChildren = $columnSettings.hasChildren > 0;
-  $: if (hasChildren && viewport && viewport.scrollHeight > rowHeight) {
-    dispatch("resize", viewport.scrollHeight);
-  }
 
   const getCellValue = (value) => {
     return $columnSettings.template
@@ -54,6 +58,28 @@
       saving = false;
     }
   };
+
+  const handleSize = async () => {
+    if (mounted) {
+      await tick();
+      if (
+        $columnSettings.superColumn &&
+        viewport &&
+        viewport.scrollHeight > meta.height
+      ) {
+        dispatch("resize", viewport.scrollHeight);
+      } else if (
+        $columnSettings.superColumn &&
+        viewport &&
+        !hasChildren &&
+        viewport.scrollHeight > rowHeight
+      )
+        dispatch("resize", rowHeight);
+    }
+  };
+
+  beforeUpdate(() => handleSize());
+  onMount(() => (mounted = $columnSettings.superColumn));
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -79,7 +105,7 @@
   }}
   on:dblclick={() => stbAPI.executeRowOnDblClickAction(row[idField])}
   on:contextmenu|preventDefault={() => {
-    stbAPI.showContextMenu(row[idField], rowElement);
+    stbAPI.showContextMenu(row[idField], viewport);
   }}
 >
   {#if !hasChildren}

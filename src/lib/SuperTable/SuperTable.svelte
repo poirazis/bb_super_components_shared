@@ -158,7 +158,7 @@
   let end = 0;
   let itemHeight = 36;
   let overflow;
-  let refresh;
+  let isEmpty;
 
   // Inserting New Record
   let temp_scroll_pos;
@@ -273,9 +273,12 @@
       await cmd?.();
     },
     showContextMenu: (id, anchor) => {
-      if (rowContextMenuItems.length) {
+      if (rowContextMenuItems.length && $stbMenuID != id) {
         $stbMenuID = id;
         $stbMenuAnchor = anchor;
+      } else {
+        $stbMenuID = -1;
+        $stbMenuAnchor = -1;
       }
     },
     executeRowContextMenuAction: async (id, action) => {
@@ -284,8 +287,6 @@
     executeSelectedRowsAction: async (action) => {
       tableAPI.executeRowButtonAction(null, action);
     },
-    initializeRefreshTimer: (rate) => {},
-    clearRefeshTimer: (timer) => {},
     selectRow: (id) => {
       if (
         $stbSettings.features.canSelect &&
@@ -582,10 +583,9 @@
         $stbSortOrder = order;
       },
       resizeRow(index, size) {
-        console.log("Resize Asked", index, size);
         $stbRowMetadata[index].height =
           size || $stbSettings.appearance.rowHeight;
-        this.calculateBoundaries();
+        this.calculateBoundaries.debounce(20);
       },
       addRow() {
         if (!onInsert || onInsert?.length == 0) {
@@ -622,7 +622,11 @@
       },
     },
     Idle: {
-      _enter() {},
+      _enter() {
+        isEmpty =
+          ($stbData.loaded && !$stbData?.rows.length) ||
+          $superColumns?.length < 1;
+      },
       _exit() {},
       synch(fetchState) {
         if (fetchState?.loading) return "Loading";
@@ -649,7 +653,11 @@
       },
     },
     Filtered: {
-      _enter() {},
+      _enter() {
+        isEmpty =
+          ($stbData.loaded && !$stbData?.rows.length) ||
+          $superColumns?.length < 1;
+      },
       synch(fetchState) {
         if (!fetchState.loading && stbColumnFilters?.length > 0) {
         } else if (stbColumnFilters?.length == 0) return "Idle";
@@ -842,19 +850,17 @@
 
   $: stbState.synch($stbData);
   $: tableId = $stbData?.definition?.tableId || $stbData?.definition?._id;
-  $: isEmpty =
-    ($stbData.loaded && !$stbData?.rows.length) || $superColumns?.length < 1;
 
   $: dividersStyles = {
     color:
       $stbSettings.dividersColor ?? "var(--spectrum-global-color-gray-200)",
     horizontal:
       $stbSettings.dividers == "both" || $stbSettings.dividers == "horizontal"
-        ? "1px solid var(--spectrum-table-border-color)"
+        ? "1px solid var(--spectrum-global-color-gray-200)"
         : "1px solid transparent",
     vertical:
       $stbSettings.dividers == "both" || $stbSettings.dividers == "vertical"
-        ? "1px solid var(--spectrum-table-border-color)"
+        ? "1px solid var(--spectrum-global-color-gray-200)"
         : "none",
   };
 
@@ -875,8 +881,10 @@
     },
   ];
 
+  // The "row" is dynamically enriched, but show the first one in the builder for preview
   $: dataContext = {
     row: inBuilder ? $stbData?.rows[0] : {},
+    hoveredRow: $stbData?.rows[$stbHovered],
     rows: $stbData?.rows,
     selectedRows: $stbData?.rows.filter((x) =>
       $stbSelected.includes(x[idColumn])
@@ -1021,17 +1029,15 @@
         {/if}
       </ControlSection>
 
-      {#key refresh}
-        <ColumnsSection
-          {stbSettings}
-          {superColumns}
-          {commonColumnOptions}
-          {canScroll}
-          bind:columnsViewport
-        >
-          <slot />
-        </ColumnsSection>
-      {/key}
+      <ColumnsSection
+        {stbSettings}
+        {superColumns}
+        {commonColumnOptions}
+        {canScroll}
+        bind:columnsViewport
+      >
+        <slot />
+      </ColumnsSection>
 
       {#if showButtonColumnRight}
         <ControlSection>
