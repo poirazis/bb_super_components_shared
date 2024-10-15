@@ -30,6 +30,8 @@
     <SuperButton
       icon="ri-close-line"
       quiet={true}
+      size="S"
+      type="secondary"
       on:click={() => (hidden = true)}
     />
     <span class="text">

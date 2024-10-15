@@ -17,6 +17,7 @@
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbAPI = getContext("stbAPI");
+  const stbState = getContext("stbState");
   const stbMenuID = getContext("stbMenuID");
 
   export let index;
@@ -100,9 +101,7 @@
   style:justify-content={$columnSettings.align}
   on:mouseenter={() => ($stbHovered = index)}
   on:mouseleave={() => ($stbHovered = undefined)}
-  on:click={() => {
-    stbAPI.executeRowOnClickAction(row[idField]);
-  }}
+  on:click={() => stbState.handleRowClick(index)}
   on:dblclick={() => stbAPI.executeRowOnDblClickAction(row[idField])}
   on:contextmenu|preventDefault={() => {
     stbAPI.showContextMenu(row[idField], viewport);

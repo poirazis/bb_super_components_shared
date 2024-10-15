@@ -20,7 +20,7 @@
   export let disabled;
   export let onClick;
   export let context;
-  export let type;
+  export let type = "primary";
 
   export let actionsMode;
   export let condition;
@@ -99,9 +99,9 @@
   class:is-selected={selected}
   class:cta={type == "cta"}
   class:warning={type == "warning"}
+  class:primary={type == "primary"}
   class:secondary={type == "secondary"}
-  class:spectrum-ActionButton--emphasized={emphasized}
-  class:spectrum-ActionButton--quiet={quiet}
+  class:quiet
   class:full-width={fullWidth}
   class:menu-item={menuItem}
   class:menu-item-right={menuItem && menuAlign == "right"}
@@ -142,18 +142,72 @@
   }
 
   .cta {
+    background-color: var(--spectrum-global-color-blue-100);
+    border: 1px solid var(--spectrum-global-color-blue-100);
+    color: var(--spectrum-global-color-gray-800);
+    font-weight: 600;
+
+    &.quiet {
+      border-color: transparent !important;
+      background-color: transparent;
+      color: var(--spectrum-global-color-blue-400);
+    }
+    &:hover {
+      background-color: var(--spectrum-global-color-blue-100);
+      border: 1px solid var(--spectrum-global-color-blue-400);
+    }
+  }
+  .primary {
     background-color: var(--spectrum-global-color-gray-800);
-    border-color: var(--spectrum-global-color-gray-800);
+    border: 1px solid var(--spectrum-global-color-gray-800);
     color: var(--spectrum-global-color-gray-50);
     font-weight: 600;
-  }
 
-  .warning {
-    color: var(--spectrum-global-color-red-500);
+    &.quiet {
+      border-color: transparent;
+      background-color: transparent;
+      color: var(--spectrum-global-color-gray-800);
+      &:hover {
+        color: var(--spectrum-global-color-gray-50);
+        background-color: var(--spectrum-global-color-gray-800);
+      }
+    }
   }
 
   .secondary {
     background-color: var(--spectrum-global-color-gray-300);
     border-color: var(--spectrum-global-color-gray-300);
+
+    &.quiet {
+      border-color: transparent;
+      background-color: transparent;
+
+      &:hover {
+        background-color: var(--spectrum-global-color-gray-200);
+        border-color: transparent;
+      }
+    }
+
+    &:hover {
+      border-color: var(--spectrum-global-color-gray-600);
+    }
+  }
+
+  .warning {
+    border: 1px solid var(--spectrum-global-color-red-100);
+    color: var(--spectrum-global-color-red-700);
+    font-weight: 600;
+    &.quiet {
+      border-color: transparent !important;
+      background-color: transparent;
+      color: var(--spectrum-global-color-red-400);
+
+      &:hover {
+        background-color: var(--spectrum-global-color-red-100);
+      }
+    }
+    &:hover {
+      border-color: var(--spectrum-global-color-red-600);
+    }
   }
 </style>

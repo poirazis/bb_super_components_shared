@@ -84,7 +84,10 @@
         style:padding-right={canScroll && right ? "1.5rem" : "0.5rem"}
       >
         <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <div class="row-buttons">
+        <div
+          class="row-buttons"
+          style:gap={inlineButtons.length > 1 ? "0.5rem" : "0rem"}
+        >
           {#if rowMenu && inlineButtons?.length}
             {#each inlineButtons as { text, icon, disabled, onClick, quiet, type }}
               <SuperButton
@@ -96,17 +99,18 @@
                 {quiet}
                 {type}
                 on:click={() =>
-                  stbAPI.executeRowButtonAction(row.data[idColumn], onClick)}
+                  stbAPI.executeRowButtonAction(row.index, onClick)}
               />
             {/each}
           {/if}
           {#if rowMenu && menuItems?.length}
             <SuperButton
-              size={$stbSettings.appearance.size}
+              size="S"
               icon={menuIcon}
               fillOnHover="true"
               text=""
               quiet="true"
+              type="secondary"
               on:click={(e) => handleMenu(e, row.data[idColumn])}
             />
           {/if}
@@ -151,6 +155,7 @@
             {text}
             {disabled}
             quiet={true}
+            type="secondary"
             menuItem
             menuAlign={right ? "right" : "left"}
             onClick={enrichButtonActions(onClick, {})}
@@ -166,7 +171,6 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 0.5rem;
     padding-left: 0.5rem;
   }
 

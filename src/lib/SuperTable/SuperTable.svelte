@@ -104,7 +104,7 @@
   export let rowContextMenuItems;
 
   export let preselectedIds;
-  export let selectionColumn;
+  export let hideSelectionColumn;
   export let numberingColumn;
   export let stickFirstColumn = false;
   export let maxSelected = 0;
@@ -232,6 +232,15 @@
           : (schema[bbcolumn.name] ?? {}),
       };
     },
+    enrichContext: (row) => {
+      return {
+        ...$context,
+        [comp_id]: {
+          ...$context[comp_id],
+          row,
+        },
+      };
+    },
     registerSuperColumn: (id, state) => {
       columnStates = [...columnStates, { id, state }];
     },
@@ -242,34 +251,25 @@
         columnStates = columnStates;
       }
     },
-    executeRowButtonAction: async (id, action) => {
-      let richContext;
-      if (id) {
-        let row = $stbData.rows.find((r) => r["_id"] == id);
-        richContext = {
-          ...$context,
-          [comp_id]: { row },
-        };
-      } else {
-        richContext = $context;
-      }
-
-      let cmd = enrichButtonActions(action, richContext);
+    executeRowButtonAction: async (index, action) => {
+      let cmd = enrichButtonActions(
+        action,
+        tableAPI.enrichContext($stbData.rows[index])
+      );
       await cmd?.();
     },
-    executeRowOnClickAction: async (id) => {
-      await tableAPI.executeRowButtonAction(id, onRowClick);
+    executeRowOnClickAction: async (index) => {
+      await tableAPI.executeRowButtonAction(index, onRowClick);
     },
     executeRowOnDblClickAction: async (id) => {
       await tableAPI.executeRowButtonAction(id, onRowDblClick);
     },
-    executeRowOnSelectAction: async (id) => {
-      let row = $stbData.rows.find((r) => r["_id"] == id);
-      let richContext = {
-        ...$context,
-        [comp_id]: { row },
-      };
-      let cmd = enrichButtonActions(onRowSelect, richContext);
+    executeRowOnSelectAction: async (index) => {
+      await tick();
+      let cmd = enrichButtonActions(
+        onRowSelect,
+        tableAPI.enrichContext($stbData.rows[index])
+      );
       await cmd?.();
     },
     showContextMenu: (id, anchor) => {
@@ -287,35 +287,34 @@
     executeSelectedRowsAction: async (action) => {
       tableAPI.executeRowButtonAction(null, action);
     },
-    selectRow: (id) => {
-      if (
-        $stbSettings.features.canSelect &&
-        $stbSettings.features.maxSelected != 1
-      ) {
+    selectRow: (index) => {
+      let id = $stbData.rows[index][idColumn];
+
+      if (maxSelected != 1) {
         if ($stbSelected.includes(id)) {
           $stbSelected.splice($stbSelected.indexOf(id), 1);
           $stbSelected = $stbSelected;
         } else {
-          if (
-            $stbSettings.features.maxSelected == 0 ||
-            $stbSelected.length < $stbSettings.features.maxSelected
-          )
+          if (maxSelected == 0 || $stbSelected.length < maxSelected)
             $stbSelected = [...$stbSelected, id];
           else
             notificationStore.actions.warning(
               "Cannot select more than " +
-                $stbSettings.features.maxSelected +
-                " rows"
+                maxSelected +
+                " " +
+                (entityPlural || "Rows")
             );
         }
-      } else if ($stbSettings.features.canSelect) {
+      } else {
         if ($stbSelected.includes(id)) {
           $stbSelected = [];
         } else {
           $stbSelected = [id];
         }
       }
-      tableAPI.executeRowOnSelectAction(id);
+
+      // Fire Assigned Events
+      tableAPI.executeRowOnSelectAction(index);
     },
     selectAllRows: () => {
       if ($stbSelected.length != $stbData.rows.length)
@@ -343,7 +342,10 @@
         }
       }
     },
-    deleteRow: async (id) => {
+    deleteRow: async (index) => {
+      let id = $stbData.rows[index][idColumn];
+      let row = $stbData.rows[index];
+
       let autoDelete = [
         {
           parameters: {
@@ -359,17 +361,17 @@
         },
       ];
 
-      let row = $stbData.rows.find((r) => r[idColumn] == id);
-      let richContext = {
-        ...$context,
-        [comp_id]: { row },
-      };
-
       let cmd;
-      let cmd_after = enrichButtonActions(afterDelete, richContext);
+      let cmd_after = enrichButtonActions(
+        afterDelete,
+        tableAPI.enrichContext($stbData.rows[index])
+      );
 
-      if (onDelete && onDelete.length) {
-        cmd = enrichButtonActions(onDelete, richContext);
+      if (onDelete?.length) {
+        cmd = enrichButtonActions(
+          onDelete,
+          tableAPI.enrichContext($stbData.rows[index])
+        );
       } else {
         cmd = enrichButtonActions(autoDelete, {});
       }
@@ -587,6 +589,10 @@
           size || $stbSettings.appearance.rowHeight;
         this.calculateBoundaries.debounce(20);
       },
+      handleRowClick(index) {
+        if (canSelect && !canEdit) tableAPI.selectRow(index);
+        tableAPI.executeRowOnClickAction(index);
+      },
       addRow() {
         if (!onInsert || onInsert?.length == 0) {
           return "Inserting";
@@ -639,9 +645,7 @@
       },
     },
     Loading: {
-      _enter() {
-        console.log("Loading");
-      },
+      _enter() {},
       _exit() {
         this.enrichRows();
         this.calculateRowBoundaries();
@@ -727,7 +731,7 @@
     columnMinWidth,
     columnFixedWidth,
     debounce,
-    selectionColumn,
+    hideSelectionColumn,
     dividers,
     dividersColor,
     showFooter,
@@ -1005,13 +1009,13 @@
   {#if $stbState != "Init" || isEmpty}
     <Provider {actions} data={dataContext}>
       <ControlSection>
-        <SelectionColumn />
+        <SelectionColumn {hideSelectionColumn} />
 
         {#if showButtonColumnLeft}
           <RowButtonsColumn {rowMenuItems} {menuItemsVisible} {rowMenu} />
         {/if}
 
-        {#if stickFirstColumn && $superColumns.length}
+        {#if stickFirstColumn && $superColumns.length > 1}
           <SuperTableColumn
             sticky={true}
             scrollPos={$stbHorizontalScrollPos}
