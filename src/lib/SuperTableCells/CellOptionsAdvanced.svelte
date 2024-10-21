@@ -1,7 +1,6 @@
 <script>
   import fsm from "svelte-fsm";
   import { getContext, createEventDispatcher, onMount } from "svelte";
-  import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import SuperList from "../SuperList/SuperList.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
@@ -86,7 +85,6 @@
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
   $: isDirty = inEdit && originalValue !== JSON.stringify(localValue);
   $: inEdit = $cellState == "Editing";
-  $: pills = optionsViewMode == "pills";
   $: multi = fieldSchema.type == "array" && multi;
   $: radios = controlType == "radio";
 
@@ -133,6 +131,7 @@
       },
       _exit() {
         if (cellOptions.optionsSource == "custom") this.loadCustomOptions();
+        else if (optionsSource == "data") () => {};
         else this.loadSchemaOptions();
 
         filteredOptions = $options;
@@ -352,6 +351,8 @@
         editor?.focus();
       }, 30);
   });
+
+  $: console.log(options, $options);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
