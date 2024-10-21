@@ -1,7 +1,6 @@
 <script>
   import { createEventDispatcher, getContext, onMount } from "svelte";
   import fsm from "svelte-fsm";
-  import "./CellCommon.css";
   const dispatch = createEventDispatcher();
   const { processStringSync } = getContext("sdk");
 
@@ -109,7 +108,7 @@
     if (autofocus)
       setTimeout(() => {
         cellState.focus();
-      }, 300);
+      }, 50);
   });
 </script>
 

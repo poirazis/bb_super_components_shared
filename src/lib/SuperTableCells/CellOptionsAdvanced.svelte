@@ -3,6 +3,7 @@
   import { getContext, createEventDispatcher, onMount } from "svelte";
   import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
+  import SuperList from "../SuperList/SuperList.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
   const dispatch = createEventDispatcher();
   const { API, QueryUtils, fetchData, memo, derivedMemo } = getContext("sdk");
@@ -22,6 +23,7 @@
   let focusedOptionIdx = -1;
   let timer;
   let picker;
+  let inactive;
 
   const colors = derivedMemo(options, ($options) => {
     let obj = {};
@@ -55,7 +57,7 @@
   );
 
   $: ({
-    autocomplete,
+    controlType,
     optionsSource,
     labelColumn,
     valueColumn,
@@ -86,6 +88,7 @@
   $: inEdit = $cellState == "Editing";
   $: pills = optionsViewMode == "pills";
   $: multi = fieldSchema.type == "array" && multi;
+  $: radios = controlType == "radio";
 
   export let cellState = fsm("Loading", {
     "*": {
@@ -372,109 +375,90 @@
   on:focusin={cellState.focus}
   on:focusout={cellState.focusout}
   on:keydown={editorState.handleKeyboard}
-  on:mousedown={editorState.toggle}
 >
   {#if $cellState == "Loading"}
     <CellSkeleton>Initializing ..</CellSkeleton>
-  {:else}
-    {#if icon}
-      <i class={icon + " icon"} />
-    {/if}
-    {#if inEdit && autocomplete}
-      {#if multi}
-        {#if localValue.length > 0}
-          <div
-            class="editor"
-            style:width={"auto"}
-            style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-          >
-            <div
-              class="items"
-              class:pills
-              style:justify-content={cellOptions.align ?? "flex-start"}
+  {:else if controlType == "list"}
+    <SuperList
+      items={localValue}
+      itemsColors={optionColors}
+      showColors={cellOptions.useOptionColors}
+      createNew={cellOptions.createNew}
+      itemButtons={cellOptions.itemButtons}
+      numbering={cellOptions.numbering}
+      reorderOnly={cellOptions.reorderOnly}
+      placeholder={cellOptions.placeholder}
+      {editorState}
+      {cellState}
+      bind:inactive
+      on:togglePicker={editorState.toggle}
+      on:clear={() => (localValue = [])}
+      on:change={(e) => {
+        localValue = [...e.detail];
+        anchor?.focus();
+      }}
+    />
+  {:else if controlType == "checkbox" || controlType == "radio"}
+    <div
+      class="radios"
+      class:column={cellOptions.direction == "column"}
+      on:mouseleave={() => (focusedOptionIdx = -1)}
+    >
+      {#each $options as option, idx (idx)}
+        <div
+          class="radio"
+          class:selected={localValue?.includes(option)}
+          class:focused={focusedOptionIdx === idx}
+          style:--option-color={$colors[option]}
+          on:mousedown={(e) => editorState.toggleOption(idx)}
+          on:mouseenter={() => (focusedOptionIdx = idx)}
+        >
+          <i
+            class={radios && localValue.includes(option)
+              ? "ri-checkbox-circle-fill"
+              : radios
+                ? "ri-checkbox-blank-circle-fill"
+                : localValue.includes(option)
+                  ? "ri-checkbox-fill"
+                  : "ri-checkbox-blank-fill"}
+          />
+          {labels[option] || option}
+        </div>
+      {/each}
+    </div>
+  {:else if controlType == "switch"}
+    <div
+      class="radios"
+      class:column={cellOptions.direction == "column"}
+      on:mouseleave={() => (focusedOptionIdx = -1)}
+    >
+      {#each $options as option, idx (idx)}
+        <div
+          class="radio"
+          class:selected={localValue.includes(option)}
+          class:focused={focusedOptionIdx === idx}
+          style:--option-color={$colors[option]}
+          style:max-height={"1.75rem"}
+          on:click={(e) => editorState.toggleOption(idx, e.stopPropagation())}
+          on:mouseenter={() => (focusedOptionIdx = idx)}
+        >
+          <div class="spectrum-Switch spectrum-Switch--emphasized">
+            <input
+              checked={localValue.includes(option)}
+              type="checkbox"
+              class="spectrum-Switch-input"
+              id={idx}
+            />
+            <span class="spectrum-Switch-switch" />
+            <label
+              class="spectrum-Switch-label"
+              class:selected={localValue.includes(option)}
+              for={idx}>{labels[option] || option}</label
             >
-              {#each localValue as val (val)}
-                <div
-                  class="item"
-                  style:--option-color={$colors[val]}
-                  animate:flip={{ duration: 130 }}
-                >
-                  {#if pills}
-                    <div class="loope" />
-                  {/if}
-                  <span> {labels[val] || val} </span>
-                </div>
-              {/each}
-            </div>
           </div>
-        {/if}
-      {/if}
-
-      <input
-        tabindex="0"
-        bind:this={editor}
-        class="editor"
-        class:placeholder={localValue == []}
-        style:padding-left={cellOptions.icon && !localValue?.length
-          ? "32px"
-          : cellOptions.padding}
-        style:padding-right={cellOptions.padding}
-        style:padding-top={0}
-        style:padding-bottom={0}
-        style:border={"none"}
-        use:focus
-        on:focusout={cellState.focusout}
-        value={multi ? "" : (localValue[0] ?? "")}
-        on:input={editorState.filterOptions}
-        on:keydown={editorState.handleKeyboard}
-        placeholder={cellOptions.placeholder ?? "Enter..."}
-      />
-      <div
-        id="btn_toggle"
-        class="actionIcon"
-        on:click|stopPropagation={editorState.toggle}
-      >
-        <i class="ri-arrow-down-s-line"></i>
-      </div>
-    {:else}
-      <div
-        class="value"
-        class:with-icon={icon}
-        class:placeholder={localValue?.length < 1}
-        style:padding-right={padding}
-      >
-        {#if optionsViewMode != "text"}
-          <div
-            class="items"
-            class:pills
-            class:colorText={optionsViewMode == "colorText"}
-            style:justify-content={cellOptions.align ?? "flex-start"}
-          >
-            {#if localValue.length < 1}
-              {cellOptions.placeholder ?? ""}
-            {:else}
-              {#each localValue as val (val)}
-                <div
-                  class="item"
-                  style:--option-color={$colors[val]}
-                  animate:flip={{ duration: 130 }}
-                >
-                  {#if optionsViewMode == "colorText"}
-                    <div class="loope" />
-                  {/if}
-                  <span> {labels[val] || val} </span>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        {:else}
-          <span> {localValue.toString() || cellOptions.placeholder} </span>
-        {/if}
-        {#if (role == "tableCell" && inEdit) || role != "tableCell"}
-          <i class="ri-arrow-down-s-line" style="margin-left: 8px;"></i>
-        {/if}
-      </div>
-    {/if}
+        </div>
+      {/each}
+    </div>
   {/if}
 </div>
 
@@ -571,49 +555,48 @@
     background-color: var(--option-color);
     min-height: 14px;
     min-width: 14px;
-  }
-  .search {
-    display: flex;
-    justify-content: stretch;
-    align-items: center;
-    position: relative;
-    margin-bottom: 8px;
-  }
+    font-size: 12px;
 
-  .actionIcon {
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-left: 1px solid var(--spectrum-global-color-blue-500);
-    min-width: 2rem;
-    font-size: 16px;
-    transition: all 130ms;
+    &.round {
+      border-radius: 50%;
+    }
   }
-  .actionIcon:hover {
+  .radios {
+    flex: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-items: flex-start;
+    gap: 0.25rem;
+    color: var(--spectrum-global-color-gray-700);
+  }
+  .radios.column {
+    padding: 0.25rem;
+    gap: 0rem;
+    flex-direction: column;
+  }
+  .radio {
+    min-height: 1.75rem;
+    display: flex;
+    gap: 0.25rem;
+    flex-direction: row;
+    align-items: center;
     cursor: pointer;
-    background-color: var(--spectrum-global-color-gray-75);
-    font-weight: 800;
-  }
-  .icon {
-    position: absolute;
-    left: 0.5rem;
-  }
-  input {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    outline: none;
-    background: none;
-    color: inherit;
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    cursor: text;
-    overflow: hidden;
-    min-width: unset;
-    padding: 0.3rem 0.5rem 0.3rem 2rem;
+    padding: 0 0.5rem;
+
+    &.focused {
+      background-color: var(--spectrum-global-color-gray-200);
+      color: var(--spectrum-global-color-gray-800);
+      border-radius: 4px;
+    }
+
+    &.selected {
+      color: var(--spectrum-global-color-gray-800);
+      background-color: var(--spectrum-global-color-gray-100);
+    }
   }
 
-  input:focus {
-    border: 1px solid var(--spectrum-global-color-blue-500);
+  .radio > i {
+    font-size: 16px;
+    color: var(--option-color);
   }
 </style>

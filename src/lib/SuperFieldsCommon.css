@@ -8,21 +8,47 @@
 .superField.multirow {
   align-self: flex-start !important;
 }
-
-.superField:focus {
-  outline: none;
-}
 .superlabel {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  overflow: hidden;
-  text-overflow: ellipsis;
   width: var(--label-width);
   font-size: 13px;
   line-height: 1.65rem;
-  font-weight: 600;
   color: var(--spectrum-global-color-gray-600);
   padding-left: 2px;
+  min-width: 0;
+  overflow: hidden;
+
+  span {
+    flex: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: 230ms;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  i {
+    margin-right: 4px;
+    &:hover {
+      color: var(--spectrum-global-color-blue-400);
+      cursor: help;
+    }
+  }
+
+  .error {
+    font-size: 12px;
+    line-height: 1.25rem;
+    color: var(--spectrum-global-color-red-500);
+
+    &.left {
+      line-height: 0.75rem;
+    }
+  }
 }
 
 .superlabel.left {
@@ -40,14 +66,12 @@
   min-height: 2rem;
 }
 
-.error {
-  font-weight: 500;
-  font-size: 12px;
-  line-height: 1.25rem;
-  color: var(--spectrum-global-color-red-700);
-}
-.error.left {
-  font-size: 12px;
-  line-height: 0.75rem;
-  color: var(--spectrum-global-color-red-700);
+.inline-buttons {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+
+  &.vertical {
+    flex-direction: column;
+  }
 }

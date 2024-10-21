@@ -9,27 +9,24 @@
   const stbHovered = getContext("stbHovered");
   const stbSelected = getContext("stbSelected");
   const stbEditing = getContext("stbEditing");
-  const stbMenuID = getContext("stbMenuID");
   const stbAPI = getContext("stbAPI");
   const rowMetadata = getContext("stbRowMetadata");
   const stbVisibleRows = getContext("stbVisibleRows");
 
   export let sticky;
   export let hideSelectionColumn;
-  let mouseover;
-  let viewport;
 
-  $: canSelect = $stbSettings.features.canSelect;
-  $: inInsert = $stbState == "Inserting";
+  let viewport;
   $: idColumn = $stbSettings.data.idColumn;
   $: partialSelection = $stbSelected.length;
   $: fullSelection =
     $stbSelected.length == $stbData.rows.length && $stbData.rows.length > 0;
-  $: loading = $stbData.loading;
-  $: canDelete = $stbSettings.features.canDelete;
   $: numbering = $stbSettings.appearance.numberingColumn;
   $: sticky = $stbHorizontalScrollPos > 0;
-  $: visible = numbering || (canSelect && !hideSelectionColumn) || canDelete;
+  $: visible =
+    numbering ||
+    ($stbSettings.features.canSelect && !hideSelectionColumn) ||
+    $stbSettings.features.canDelete;
 
   $: synchScrollPosition($stbScrollOffset);
   const synchScrollPosition = (position) => {
@@ -40,32 +37,25 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 {#if visible}
-  <div class="super-column control-column" class:sticky class:visible>
+  <div class="super-column control-column" class:sticky>
     {#if $stbSettings?.showHeader}
       <div class="control-column-header">
         {#if numbering}
-          <div style="min-width: 1rem;"></div>
+          <div class="row-number"></div>
         {/if}
 
-        {#if canDelete && $stbSelected.length > 1}
-          <i class="ri-delete-bin-line" on:click={stbAPI.deleteSelectedRows} />
+        {#if $stbSettings.features.canDelete}
+          {#if $stbSelected.length > 1}
+            <i
+              class="ri-delete-bin-line"
+              on:click={stbAPI.deleteSelectedRows}
+            />
+          {:else}
+            <div class="row-number"></div>
+          {/if}
         {/if}
 
-        {#if loading}
-          <div class="loader" />
-        {:else if $stbState == "Filtered" && mouseover}
-          <i
-            class="ri-filter-off-fill"
-            style:color={"var(--spectrum-global-color-red-500)"}
-            style:cursor={"pointer"}
-            on:click={stbState.clearFilter}
-          ></i>
-        {:else if $stbState == "Filtered"}
-          <i
-            class="ri-filter-fill"
-            style:color={"var(--spectrum-global-color-blue-500)"}
-          ></i>
-        {:else if canSelect && $stbSettings.features.maxSelected != 1 && !hideSelectionColumn}
+        {#if $stbSettings.features.canSelect && $stbSettings.features.maxSelected != 1 && !hideSelectionColumn}
           {#if fullSelection}
             <i class="ri-check-line" on:click={stbAPI.selectAllRows} />
           {:else if partialSelection}
@@ -91,7 +81,7 @@
       class:quiet={$stbSettings?.appearance?.quiet}
       class:sticky
       style:background-color={sticky
-        ? "var(--spectrum-global-color-gray-75)"
+        ? "var(--spectrum-global-color-gray-50)"
         : null}
     >
       {#each $stbVisibleRows as row (row.index)}
@@ -104,25 +94,32 @@
           on:mouseenter={() => ($stbHovered = row.index)}
           on:mouseleave={() => ($stbHovered = null)}
         >
-          {#if numbering && $stbEditing == row.data[idColumn]}
-            <i class="ri-edit-line" style:color={"var(--primaryColor)"}></i>
-          {:else if numbering}
+          {#if numbering}
             <span class="row-number">
-              {row.index + 1}
+              {#if $stbEditing == row.data[idColumn]}
+                <i
+                  class="ri-edit-line"
+                  style:font-size={"12px"}
+                  style:color={"lime"}
+                />
+              {:else}
+                {row.index + 1}
+              {/if}
             </span>
           {/if}
-          {#if canDelete}
+
+          {#if $stbSettings.features.canDelete}
             <i
               class="ri-delete-bin-line delete"
               on:click={(e) => stbAPI.deleteRow(row.index)}
             />
           {/if}
 
-          {#if canSelect && !hideSelectionColumn}
+          {#if $stbSettings.features.canSelect && !hideSelectionColumn}
             {#if $stbSelected?.includes(row.data[idColumn])}
               <i
                 class="ri-check-line"
-                style:color={"var(--spectrum-global-color-green-500)"}
+                style:color={"var(--spectrum-global-color-gray-800)"}
                 on:click={() => stbAPI.selectRow(row.index)}
               />
             {:else}
@@ -135,7 +132,7 @@
         </div>
       {/each}
 
-      {#if inInsert}
+      {#if $stbState == "Inserting"}
         <div class="add-row" style="padding: unset;"></div>
       {/if}
     </div>
@@ -156,7 +153,10 @@
     font-weight: 500;
     align-items: center;
     &.is-hovered > .delete {
-      color: var(--spectrum-global-color-red-700);
+      color: var(--spectrum-global-color-red-500);
+    }
+    &.is-selected > .delete {
+      color: var(--spectrum-global-color-red-500);
     }
     &.is-hovered > i {
       color: var(--spectrum-global-color-gray-700);
@@ -166,31 +166,5 @@
   i {
     font-size: 16px;
     color: var(--spectrum-global-color-gray-500);
-  }
-
-  .loader {
-    width: 18px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background:
-      radial-gradient(
-          farthest-side,
-          var(--spectrum-global-color-gray-500) 94%,
-          #0000
-        )
-        top/4px 4px no-repeat,
-      conic-gradient(#0000 30%, var(--spectrum-global-color-gray-500));
-    -webkit-mask: radial-gradient(
-      farthest-side,
-      #0000 calc(100% - 4px),
-      #000 0
-    );
-    mask: radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 0);
-    animation: l13 1s infinite linear;
-  }
-  @keyframes l13 {
-    100% {
-      transform: rotate(1turn);
-    }
   }
 </style>

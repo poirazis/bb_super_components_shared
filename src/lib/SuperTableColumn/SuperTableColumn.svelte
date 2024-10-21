@@ -1,6 +1,5 @@
 <script>
   import { getContext, setContext, onMount, onDestroy } from "svelte";
-  import { writable } from "svelte/store";
   import fsm from "svelte-fsm";
 
   const { memo, derivedMemo } = getContext("sdk");
@@ -74,9 +73,11 @@
   let startPoint;
   let startWidth = 0;
   let width;
-  let columnAnchor;
-  let lockWidth = new writable(0);
-  let sortOrder = "ascending";
+
+  let lockWidth = memo(0);
+  let sorted;
+  let viewport;
+  let renderWidth;
 
   const columnOptionsStore = memo({
     ...columnOptions,
@@ -113,10 +114,6 @@
         template: $columnOptionsStore.template,
         useOptionColors: $columnOptionsStore.useOptionColors,
         optionsViewMode: $columnOptionsStore.optionsViewMode,
-        optionsSource: $columnOptionsStore.optionsSource,
-        customOptions: $columnOptionsStore.customOptions,
-        useOptionColors: $columnOptionsStore.useOptionColors,
-        useOptionIcons: $columnOptionsStore.useOptionIcons,
         relViewMode: $columnOptionsStore.relViewMode,
         controlType: "select",
         placeholder: " ",
@@ -133,20 +130,16 @@
   const headerCellOptions = derivedMemo(
     columnOptionsStore,
     ($columnOptionsStore) => {
-      let filterOperator;
       return {
         align: $columnOptionsStore?.align,
         color: $columnOptionsStore?.color,
         background: "var(--spectrum-global-color-gray-50)",
         fontWeight: $columnOptionsStore?.fontWeight,
         padding: $columnOptionsStore?.cellPadding,
-        placeholder: $columnOptionsStore?.filteringOperators?.find(
-          (x) => x.value == filterOperator
-        )?.label,
+        placeholder: $columnOptionsStore.defaultFilteringOperator,
         clearValueIcon: true,
-        disabled: filterOperator == "empty" || filterOperator == "notEmpty",
-        readonly: filterOperator == "empty" || filterOperator == "notEmpty",
-        useOptionColors: true,
+        optionsViewMode: "text",
+        optionsSource: "schema",
         debounce: 250,
         controlType: "select",
         initialState: "Editing",
@@ -158,6 +151,19 @@
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
     "*": {
+      headerClicked() {
+        if ($columnOptionsStore.canFilter) this.filter();
+        else this.sort();
+      },
+      sort() {
+        if (columnOptions.canSort) {
+          stbState.sortBy(
+            columnOptions.name,
+            sorted == "ascending" ? "descending" : "ascending"
+          );
+          sorted = "ascending" ? "descending" : "ascending";
+        }
+      },
       enteredit(index) {
         $stbEditing = index;
         stbState.edit();
@@ -168,13 +174,11 @@
         stbState.endEdit();
         return "Idle";
       },
-      cancel() {
-        return "Idle";
-      },
       lockWidth() {
-        $lockWidth = clientWidth;
+        if (!resizing) $lockWidth = viewport.clientWidth;
       },
       unlockWidth() {
+        if (resizing) return;
         $lockWidth = 0;
       },
       startResizing(e) {
@@ -182,7 +186,7 @@
         e.preventDefault();
         resizing = true;
         startPoint = e.clientX;
-        startWidth = columnAnchor.clientWidth;
+        startWidth = viewport.clientWidth;
         $lockWidth = startWidth;
       },
       resize(e) {
@@ -202,15 +206,10 @@
         width = 0;
       },
     },
+    Init: {},
     Idle: {
       _enter() {
         $lockWidth = 0;
-      },
-      sort() {
-        if (columnOptions.canSort) {
-          stbState.sortBy(columnOptions.name, "ascending");
-          return "Sorted";
-        }
       },
       filter() {
         return columnOptions.canFilter ? "Entering" : "Idle";
@@ -219,23 +218,9 @@
         return "Inserting";
       },
     },
-    Loading: {
-      loaded() {
-        return "Idle";
-      },
-    },
-    Sorted: {
-      sort() {
-        sortOrder = sortOrder == "ascending" ? "descending" : "ascending";
-        stbState.sortBy(columnOptions.name, sortOrder);
-      },
-      unsort: "Idle",
-      filter: "Entering",
-    },
     Entering: {
       _enter() {
-        $lockWidth = columnAnchor.clientWidth;
-        stbState.edit();
+        $lockWidth = viewport.clientWidth;
       },
       filter(filterObj) {
         stbState.addFilter({ ...filterObj, id: id });
@@ -260,7 +245,8 @@
     },
     EditingCell: {
       _enter() {
-        $lockWidth = columnAnchor.clientWidth;
+        $lockWidth = viewport.clientWidth;
+        stbState.edit();
       },
       patchRow(index, id, rev, field, change) {
         stbState.patchRow(index, id, rev, field, change);
@@ -272,14 +258,13 @@
         stbState.addFilter({ ...filterObj, id: id });
       },
       clear() {
-        stbState.removeFilter(id);
+        stbState.clearFilter(id);
         return "Entering";
       },
-      cancel() {},
     },
     Inserting: {
       _enter() {
-        $lockWidth = columnAnchor.clientWidth;
+        $lockWidth = viewport.clientWidth;
       },
       _exit() {
         $lockWidth = 0;
@@ -290,13 +275,10 @@
     },
   });
 
-  $: if ($stbSortColumn == $columnOptionsStore.name && $columnState == "Idle") {
-    columnState.sort($stbSortOrder);
-  } else if (
-    $stbSortColumn != $columnOptionsStore.name &&
-    $columnState == "Sorted"
-  ) {
-    columnState.unsort();
+  $: if ($stbSortColumn == $columnOptionsStore.name) {
+    sorted = $stbSortOrder;
+  } else if ($stbSortColumn != $columnOptionsStore.name && sorted) {
+    sorted = undefined;
   }
 
   const getMinWidth = (val, options) => {
@@ -322,6 +304,7 @@
 
   onMount(() => {
     stbAPI?.registerSuperColumn(id, columnState);
+    renderWidth = viewport.offsetWidth;
   });
 
   onDestroy(() => {
@@ -340,7 +323,7 @@
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
-  bind:this={columnAnchor}
+  bind:this={viewport}
   class="super-column"
   class:sticky={sticky && scrollPos}
   class:resizing
@@ -363,7 +346,7 @@
   {/if}
 
   {#if $columnOptionsStore.showHeader}
-    <SuperColumnHeader />
+    <SuperColumnHeader {sorted} />
   {/if}
 
   <SuperColumnBody

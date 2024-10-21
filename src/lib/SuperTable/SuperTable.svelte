@@ -87,13 +87,7 @@
   export let showFooter;
   export let showHeader;
   export let size;
-  export let canInsert,
-    canDelete,
-    canEdit,
-    canSort,
-    canResize,
-    canFilter,
-    canSelect;
+  export let canInsert, canDelete, canEdit, canResize, canFilter, canSelect;
   export let superColumnsPos;
 
   export let debounce = 750;
@@ -145,7 +139,6 @@
 
   let stbColumnFilters = [];
   let highlighted;
-  let columnsBodyAnchor;
   let scrollHeight;
   let clientHeight;
   let columnStates = [];
@@ -213,7 +206,7 @@
           !inBuilder &&
           !schema[bbcolumn.name]?.readonly,
         canFilter: supportFilteringMap[type] ? canFilter : false,
-        canSort: supportSortingMap[type] && canSort,
+        canSort: supportSortingMap[type],
         filteringOperators: QueryUtils.getValidOperatorsForType({ type }),
         defaultFilteringOperator: defaultOperatorMap[type],
         headerAlign: bbcolumn.align ? bbcolumn.align : "flex-start",
@@ -434,11 +427,10 @@
         this.enrichRows();
       },
       enrichRows() {
+        console.log("Manual enrich");
         $stbRowMetadata = $stbData.rows.map((row, index) => {
           return {
-            height: $stbRowMetadata[index]?.height
-              ? $stbRowMetadata[index].height
-              : sizingMap[$stbSettings.appearance.size].rowHeight,
+            height: sizingMap[$stbSettings.appearance.size].rowHeight,
             bgcolor: rowBGColorTemplate
               ? processStringSync(rowBGColorTemplate, {
                   [comp_id]: { row },
@@ -519,14 +511,14 @@
         }
         end = i;
       },
-      handleVerticalScroll(delta) {
+      async handleVerticalScroll(delta) {
         $stbScrollPos = Math.max(
           Math.min($stbScrollPos + delta, scrollHeight - maxBodyHeight),
           0
         );
+        await this.calculateRowBoundaries.debounce(10);
         $stbScrollPercent = $stbScrollPos / (scrollHeight - maxBodyHeight);
-        $stbScrollOffset = $stbScrollPos % itemHeight;
-        this.calculateRowBoundaries();
+        $stbScrollOffset = Math.floor($stbScrollPos % itemHeight);
       },
       handleWheel(e) {
         if ($stbData.loading || $stbState == "Inserting") {
@@ -556,27 +548,10 @@
           $stbHorizontalScrollPos += e.deltaX;
           $stbHorizontalScrollPercent =
             $stbHorizontalScrollPos / columnsViewport.scrollWidth;
-          columnsBodyAnchor.scrollLeft = $stbHorizontalScrollPos;
         }
       },
       handleKeyboard(e) {
         // TODO : Table Keyboard Handler
-      },
-      addFilter(filterObj) {
-        this.removeFilter(filterObj.id);
-        stbColumnFilters = [...stbColumnFilters, filterObj];
-      },
-      removeFilter(id) {
-        let pos = stbColumnFilters.find((x) => x.id == id);
-        if (pos) {
-          stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
-        }
-        if (stbColumnFilters.length == 0) return "Idle";
-      },
-      clearFilter() {
-        stbColumnFilters = [];
-        removeQueryExtension("123");
-        return "Idle";
       },
       sortBy(column, order) {
         sortColumn = column;
@@ -617,25 +592,29 @@
       },
       synch(fetchState) {
         if (fetchState.loaded) {
-          this.enrichRows();
           if (autoRefresh && !inBuilder) {
             timer = setInterval(() => {
               stbData.refresh();
             }, autoRefreshRate * 1000);
+            a;
           }
+          this.enrichRows();
           return "Idle";
         }
       },
     },
     Idle: {
       _enter() {
+        this.calculateBoundaries();
+        this.calculateRowBoundaries();
         isEmpty =
           ($stbData.loaded && !$stbData?.rows.length) ||
           $superColumns?.length < 1;
       },
       _exit() {},
-      synch(fetchState) {
-        if (fetchState?.loading) return "Loading";
+      addFilter(filterObj) {
+        stbColumnFilters = [...stbColumnFilters, filterObj];
+        return "Filtered";
       },
       fetchMoreRows(size) {
         if ($stbData.hasNextPage) {
@@ -644,27 +623,30 @@
         }
       },
     },
-    Loading: {
-      _enter() {},
-      _exit() {
-        this.enrichRows();
-        this.calculateRowBoundaries();
-      },
-      synch(fetchState) {
-        if (fetchState?.loaded && stbColumnFilters?.length > 0)
-          return "Filtered";
-        else if (fetchState?.loaded) return "Idle";
-      },
-    },
     Filtered: {
       _enter() {
+        this.calculateRowBoundaries();
         isEmpty =
           ($stbData.loaded && !$stbData?.rows.length) ||
           $superColumns?.length < 1;
       },
-      synch(fetchState) {
-        if (!fetchState.loading && stbColumnFilters?.length > 0) {
-        } else if (stbColumnFilters?.length == 0) return "Idle";
+      _exit() {},
+      addFilter(filterObj) {
+        this.removeFilter(filterObj.id);
+        stbColumnFilters = [...stbColumnFilters, filterObj];
+      },
+      removeFilter(id) {
+        let pos = stbColumnFilters.find((x) => x.id == id);
+        if (pos) {
+          stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
+        }
+      },
+      clearFilter(id) {
+        let pos = stbColumnFilters.find((x) => x.id == id);
+        if (pos) {
+          stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
+        }
+        if (!stbColumnFilters.lenght) return "Idle";
       },
     },
     Editing: {
@@ -703,7 +685,6 @@
     Saving: {
       endSave(e) {
         stbData.refresh();
-        return "Loading";
       },
     },
   });
@@ -741,7 +722,6 @@
       canSelect,
       maxSelected,
       canFilter,
-      canSort,
       canEdit,
       canDelete,
       canInsert,
@@ -767,6 +747,7 @@
       footerHeight: showFooter ? sizingMap[size].headerHeight : 0,
       rowHeight: sizingMap[size].rowHeight,
       numberingColumn,
+      hideSelectionColumn,
       quiet,
       useOptionColors,
       optionsViewMode,
@@ -911,6 +892,24 @@
   $: if ($stbData?.loaded)
     stbState.calculateBoundaries(clientHeight, $stbSettings, stbData);
 
+  $: $stbRowMetadata = $stbData.rows.map((row, index) => {
+    return {
+      height: $stbRowMetadata[index]?.height
+        ? $stbRowMetadata[index].height
+        : sizingMap[$stbSettings.appearance.size].rowHeight,
+      bgcolor: rowBGColorTemplate
+        ? processStringSync(rowBGColorTemplate, {
+            [comp_id]: { row },
+          })
+        : undefined,
+      color: rowColorTemplate
+        ? processStringSync(rowColorTemplate, {
+            [comp_id]: { row },
+          })
+        : undefined,
+    };
+  });
+
   $: $stbVisibleRows = $stbData.rows.slice(start, end).map((data, i) => {
     return { index: i + start, data };
   });
@@ -981,6 +980,9 @@
   onDestroy(() => {
     if (timer) clearInterval(timer);
   });
+
+  $: console.log("Table State : " + $stbState);
+  $: console.log("Table Filters : ", stbColumnFilters);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->

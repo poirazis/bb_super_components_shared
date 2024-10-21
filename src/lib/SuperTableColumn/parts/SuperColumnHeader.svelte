@@ -7,10 +7,9 @@
   const columnState = getContext("stColumnState");
   const { API } = getContext("sdk");
 
-  export let sortOrder;
+  export let sorted;
 
   let headerAnchor;
-  let picker;
   let showFilteringOptions = false;
   let filterValue;
   let filterOperator = $columnOptions.defaultFilteringOperator;
@@ -67,7 +66,7 @@
     }
 
     return {
-      field: "1:" + filterColumn,
+      field: filterColumn,
       operator: operator,
       value: temp,
       type: isLink ? "string" : $columnOptions.schema.type,
@@ -84,7 +83,8 @@
   };
 
   const handleBlur = (e) => {
-    if (!headerAnchor?.contains(e.explicitOriginalTarget)) columnState.cancel();
+    if (headerAnchor.matches(":focus-within")) return;
+    columnState.cancel();
   };
 
   const fetchDefinition = async (tableId) => {
@@ -105,38 +105,14 @@
   class:idle={$columnState != "Entering" && $columnState != "Filtered"}
   style:padding-left={$cellOptions.padding}
   style:padding-right={$cellOptions.padding}
-  on:mouseenter={() => {
-    hovered = true;
-  }}
-  on:mouseleave={() => {
-    hovered = false;
-  }}
+  on:mouseenter={() => (hovered = true)}
+  on:mouseleave={() => (hovered = false)}
 >
-  {#if $columnState == "Idle" || $columnState == "Sorted" || $columnState == "Loading" || $columnState == "EditingCell" || $columnState == "Inserting"}
-    {#if $columnOptions.canFilter && $columnOptions.defaultFilteringOperator && hovered}
-      <i class="ri-search-line icon" on:click={columnState.filter}> </i>
-    {/if}
-
-    <div
-      class="headerLabel"
-      style:justify-content={$columnOptions?.headerAlign}
-    >
-      <div
-        class="innerText"
-        class:sortable={$columnOptions.canSort}
-        on:click={columnState.sort}
-      >
-        {$columnOptions.displayName ?? $columnOptions.name}
-      </div>
-    </div>
-
-    {#if $columnState == "Sorted"}
-      <i class={sortOrder == "ascending" ? "ri-sort-asc" : "ri-sort-desc"} />
-    {/if}
-  {:else if $columnState == "Entering" || $columnState == "Filtered"}
+  {#if $columnState == "Entering" || $columnState == "Filtered"}
     {#if $columnOptions.canFilter == "advanced"}
       <i
-        class="ri-settings-line"
+        class="ri-filter-3-line"
+        tabindex="0"
         style="align-self: center; font-size: 14px;"
         on:click|preventDefault={() =>
           (showFilteringOptions = !showFilteringOptions)}
@@ -144,7 +120,11 @@
     {/if}
     <svelte:component
       this={$columnOptions.headerComponent}
-      cellOptions={$cellOptions}
+      cellOptions={{
+        ...$cellOptions,
+        placeholder: filterOperator,
+        disabled: filterOperator == "empty" || filterOperator == "notEmpty",
+      }}
       value={filterValue}
       fieldSchema={$columnOptions.schema}
       multi={filterOperator == "containsAny" || filterOperator == "oneOf"}
@@ -152,19 +132,42 @@
       on:cancel={columnState.cancel}
       on:exitedit={handleBlur}
     />
+  {:else}
+    <div
+      class="headerLabel"
+      style:justify-content={$columnOptions?.headerAlign}
+      on:click={columnState.headerClicked}
+    >
+      <div class="innerText" class:sortable={$columnOptions.canSort}>
+        {$columnOptions.displayName ?? $columnOptions.name}
+      </div>
+    </div>
+  {/if}
+
+  {#if $columnOptions.canSort && $columnState == "Idle"}
+    <span class="placeholder" on:click={columnState.sort}>
+      {#if hovered || sorted}
+        <i
+          class={sorted == "ascending" ? "ri-sort-asc" : "ri-sort-desc"}
+          class:sorted
+        />
+      {/if}
+    </span>
   {/if}
 </div>
 
-{#if $columnOptions.canFilter == "advanced"}
+{#if $columnOptions.canFilter == "advanced" && $columnState != "Idle"}
   <SuperPopover
     anchor={headerAnchor}
-    align="left"
-    dismissible="false"
     open={showFilteringOptions}
-    on:close={() => (showFilteringOptions = false)}
+    align={"left"}
+    minWidth={160}
+    on:close={() => {
+      showFilteringOptions = false;
+      handleBlur();
+    }}
   >
     <ul
-      bind:this={picker}
       class="spectrum-Menu"
       role="menu"
       style="background-color: var(--spectrum-global-color-gray-75 );"
@@ -184,27 +187,36 @@
 {/if}
 
 <style>
+  i {
+    &:hover {
+      cursor: pointer;
+    }
+  }
   .isEntering {
     gap: 0.5rem;
+  }
+
+  .placeholder {
+    min-width: 1rem;
+    height: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--spectrum-global-color-gray-500);
+    &:hover {
+      color: var(--spectrum-global-color-gray-800);
+      cursor: pointer;
+    }
+  }
+
+  .sorted {
+    color: var(--spectrum-global-color-gray-800);
   }
   .filtered {
     gap: 0.5rem;
     color: var(--spectrum-global-color-gray-800);
     font-weight: 600;
     background-color: var(--spectrum-global-color-gray-100);
-  }
-
-  .headerLabel {
-    flex: 1 1 auto;
-    display: flex;
-    align-items: center;
-    min-width: 0;
-  }
-  .innerText {
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    color: var(--super-table-header-color);
   }
 
   .sortable {
@@ -216,15 +228,5 @@
   .selected {
     color: var(--primaryColor);
     background-color: var(--spectrum-global-color-gray-75);
-  }
-
-  .icon {
-    transition: all 230ms;
-    font-size: 14px;
-    color: var(--spectrum-global-color-gray-400);
-  }
-  .icon:hover {
-    cursor: pointer;
-    color: var(--primaryColor);
   }
 </style>

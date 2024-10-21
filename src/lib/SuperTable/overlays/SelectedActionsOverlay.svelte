@@ -15,6 +15,15 @@
 
   let hidden;
   $: if ($stbSelected.length == 0) hidden = false;
+  $: checkboxes = !$stbSettings.appearance.hideSelectionColumn;
+
+  $: left =
+    1 +
+    (checkboxes +
+      $stbSettings.features.canDelete +
+      $stbSettings.appearance.numberingColumn) *
+      2 +
+    "rem";
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -23,6 +32,7 @@
   <div
     class="selected-row-actions-overlay"
     style:bottom={$stbSettings.appearance.footerHeight + 28}
+    style:left
     class:highlighted
     class:footer
     transition:slide={{ delay: 25, duration: 230, easing: quintOut, axis: "y" }}

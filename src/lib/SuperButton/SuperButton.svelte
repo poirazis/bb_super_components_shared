@@ -13,8 +13,6 @@
   export let hoverIconColor;
   export let disabledIcon;
   export let text;
-  export let textColor = "var(--spectrum-global-color-gray-700)";
-  export let emphasized;
   export let quiet;
   export let selected;
   export let disabled;
@@ -97,7 +95,7 @@
       }
     : () => {}}
   class:is-selected={selected}
-  class:cta={type == "cta"}
+  class:cta={type == "cta" && !disabled}
   class:warning={type == "warning"}
   class:primary={type == "primary"}
   class:secondary={type == "secondary"}
@@ -109,7 +107,7 @@
   style:--iconColor={disabled
     ? "var(--spectrum-global-color-gray-400)"
     : useColor}
-  disabled={disabled || working}
+  class:disabled={disabled || working}
 >
   {#if !iconOnly && icon}
     <i
@@ -152,7 +150,8 @@
       background-color: transparent;
       color: var(--spectrum-global-color-blue-400);
     }
-    &:hover {
+    &:hover,
+    &:focus {
       background-color: var(--spectrum-global-color-blue-100);
       border: 1px solid var(--spectrum-global-color-blue-400);
     }
@@ -209,5 +208,10 @@
     &:hover {
       border-color: var(--spectrum-global-color-red-600);
     }
+  }
+
+  .disabled {
+    background-color: var(--spectrum-global-color-gray-200) !important;
+    color: var(--spectrum-global-color-gray-400) !important;
   }
 </style>

@@ -5,40 +5,135 @@
   position: relative;
   overflow: hidden;
   transition: all 130ms;
-}
-.superCell:focus {
-  outline: none;
-}
-.superCell.tableCell.inEdit:focus-within {
-  border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
-}
-.superCell.tableCell.focused {
-  border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
-}
-.superCell.isDirty {
-  border-left: 2px solid var(--spectrum-global-color-orange-400) !important;
+
+  &:focus {
+    outline: none;
+  }
+
+  &:hover {
+    .icon {
+      color: var(--spectrum-global-color-blue-400);
+    }
+  }
+
+  &.isDirty {
+    border-left: 2px solid var(--spectrum-global-color-orange-400) !important;
+  }
+
+  .icon {
+    position: absolute;
+    left: 0.5rem;
+    font-size: 16px;
+    color: var(--spectrum-global-color-gray-500);
+  }
+
+  .value {
+    flex: auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    padding-left: 0.5rem;
+
+    &.placeholder {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--spectrum-global-color-gray-500);
+    }
+
+    &.with-icon {
+      padding-left: 2rem;
+    }
+
+    span {
+      flex: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .items {
+      flex: auto;
+      display: flex;
+      overflow: hidden;
+      align-items: center;
+      gap: 0.5rem;
+
+      .item {
+        flex: 0 1 auto;
+        height: 1.45rem;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        padding: 0;
+
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .items.pills {
+      .item {
+        background-color: var(--option-color);
+        border-radius: 4px;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        margin-top: 4px;
+        margin-bottom: 4px;
+        color: var(--spectrum-global-color-gray-900);
+      }
+    }
+    .items.colorText {
+      .item {
+        gap: 0.5rem;
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+    }
+  }
 }
 
-.superCell > .value {
-  flex: 1 1 auto;
-  padding: 0.3rem 0.5rem;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  height: 100%;
+.superCell.formInput {
+  border-radius: 2px;
+  color: var(--spectrum-global-color-gray-700);
+  border: 1px solid var(--spectrum-global-color-gray-300);
+  background: var(--spectrum-global-color-gray-50);
+
+  &:hover:not(.disabled):not(.readonly) {
+    cursor: pointer;
+    border: 1px solid var(--spectrum-global-color-gray-400);
+  }
+
+  &.disabled {
+    background-color: var(--spectrum-global-color-gray-100);
+    color: var(--spectrum-global-color-gray-500);
+    cursor: not-allowed;
+  }
+
+  &.readonly {
+    background-color: transparent;
+    color: var(--spectrum-global-color-gray-700);
+  }
+
+  &.inEdit {
+    border: 1px solid var(--spectrum-global-color-blue-400) !important;
+  }
+
+  &.error {
+    border-color: var(--spectrum-global-color-red-400) !important;
+  }
 }
 
-.superCell > .value > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.superCell.tableCell {
+  min-height: unset;
+  border: 1px solid transparent;
 
-.superCell > .value.placeholder {
-  font-style: italic;
-  font-weight: 400;
-  color: var(--spectrum-global-color-gray-500);
+  &.inEdit {
+    border-color: var(--spectrum-global-color-blue-500);
+  }
 }
 
 .superCell > .editor {
@@ -65,47 +160,8 @@
   color: var(--spectrum-global-color-blue-500);
   opacity: 0.75;
 }
-
-.superCell > * > .items {
-  flex: 1 1;
-  display: flex;
-  gap: 0.5rem;
-  overflow: hidden;
-}
 .superCell > .editor > i {
   font-size: 18px;
-}
-
-.superCell > * > .items > .item {
-  flex: 0 1 auto;
-  height: 1.45rem;
-  display: flex;
-  align-items: center;
-  border-radius: 4px;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-.superCell > * > .items.simpleView > .item {
-  border: none;
-  gap: 0.5rem;
-  padding: 0;
-}
-
-.superCell > * > .items > .item > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.superCell > .frontIcon {
-  position: absolute;
-  left: 0.5rem;
-  font-size: 16px;
-  color: var(--spectrum-global-color-gray-500);
-}
-.superCell.inEdit > .frontIcon {
-  color: var(--spectrum-alias-border-color-mouse-focus);
 }
 
 .superCell > .endIcon {
@@ -137,78 +193,35 @@
   color: var(--spectrum-global-color-gray-500);
   opacity: 1;
 }
-.superCell.tableCell {
-  min-height: unset;
-  border: 1px solid transparent;
-}
-.superCell.tableCell.superCell.inEdit {
-  background-color: var(--spectrum-global-color-gray-50);
-}
-.superCell.formInput {
-  min-height: 2rem;
-  max-height: 2rem;
-  border-radius: 2px;
-  color: var(--spectrum-global-color-gray-700);
-  border: 1px solid var(--spectrum-global-color-gray-300);
-  background: var(--spectrum-global-color-gray-50);
-}
+
 .superCell.formInput.multirow {
   min-height: 2rem;
   max-height: unset;
 }
-.superCell.formInput:hover {
-  cursor: pointer;
-  border: 1px solid var(--spectrum-global-color-gray-500);
-}
-.superCell.formInput:hover > .value.placeholder {
-  color: var(--spectrum-global-color-gray-600);
-}
+
 .superCell.formInput.large {
   max-height: unset !important;
 }
 
-.superCell.formInput.disabled {
-  background-color: var(--spectrum-global-color-gray-100);
-  color: var(--spectrum-global-color-gray-500);
-  cursor: not-allowed;
-}
-
-.superCell.formInput.readonly {
-  background-color: transparent;
-  color: var(--spectrum-global-color-gray-700);
-  cursor: text;
-}
-.superCell.formInput.error {
-  border: 1px solid var(--spectrum-global-color-red-500);
-  background: var(--spectrum-global-color-gray-50);
-}
-.superCell.formInput.focused {
-  border: 1px solid var(--spectrum-alias-border-color-mouse-focus);
-  background: var(--spectrum-global-color-gray-50);
-}
-.superCell.formInput.inEdit:focus-within {
-  border-color: var(--spectrum-alias-border-color-mouse-focus);
-}
 .superCell.formInput.error.inEdit:focus-within {
   border: 1px solid var(--spectrum-global-color-red-500);
 }
-.superCell.formInput.inEdit:focus {
-  border-color: var(--spectrum-alias-border-color-mouse-focus);
-}
-.superCell.formInput > * > .items > .item {
-  height: 1.25rem;
-}
+
 .superCell.inline {
   border: unset;
   border-radius: 2px;
   min-height: 1.8rem;
   min-width: unset;
+
+  &:hover {
+    background-color: var(--spectrum-global-color-gray-200);
+  }
 }
 .superCell.inline > .value {
   background-color: unset;
 }
 .superCell.inline.disabled {
-  background-color: var(--spectrum-global-color-gray-100);
+  background-color: var(--spectrum-global-color-gray-100) !important;
   color: var(--spectrum-global-color-gray-600);
   cursor: not-allowed;
 }
@@ -216,8 +229,4 @@
   background-color: var(--spectrum-global-color-gray-100);
   color: var(--spectrum-global-color-gray-600);
   cursor: not-allowed;
-}
-.superCell.inline.multirow {
-  min-height: 2rem;
-  max-height: unset;
 }
