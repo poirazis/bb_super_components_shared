@@ -78,7 +78,12 @@
   $: cellState.syncFetch($fetch);
 
   // React to property changes
-  $: cellState.refresh(optionsSource, labelColumn, valueColumn);
+  $: cellState.refresh(
+    optionsSource,
+    labelColumn,
+    valueColumn,
+    $dataSourceStore
+  );
 
   // We always keep an internal value as an array
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
@@ -327,7 +332,6 @@
   });
 
   const createFetch = (datasource) => {
-    cellState.refresh();
     return fetchData({
       API,
       datasource,

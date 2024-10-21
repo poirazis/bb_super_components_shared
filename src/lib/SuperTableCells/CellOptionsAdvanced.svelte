@@ -79,7 +79,12 @@
   $: cellState.syncFetch($fetch);
 
   // React to property changes
-  $: cellState.refresh(optionsSource, labelColumn, valueColumn);
+  $: cellState.refresh(
+    optionsSource,
+    labelColumn,
+    valueColumn,
+    $dataSourceStore
+  );
 
   // We always keep an internal value as an array
   $: localValue = Array.isArray(value) ? value : value ? [value] : [];
@@ -351,8 +356,6 @@
         editor?.focus();
       }, 30);
   });
-
-  $: console.log(options, $options);
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
