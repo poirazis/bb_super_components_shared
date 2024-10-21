@@ -130,6 +130,7 @@
       },
       _exit() {
         if (cellOptions.optionsSource == "custom") this.loadCustomOptions();
+        else if (optionsSource == "data") () => {};
         else this.loadSchemaOptions();
 
         filteredOptions = $options;
@@ -326,6 +327,7 @@
   });
 
   const createFetch = (datasource) => {
+    cellState.refresh();
     return fetchData({
       API,
       datasource,
