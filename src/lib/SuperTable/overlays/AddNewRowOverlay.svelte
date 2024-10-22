@@ -10,7 +10,7 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
-    class="add-row-overlay"
+    class="overlay-button add-row-overlay"
     class:highlighted
     class:footer
     class:in-insert={inInsert}
@@ -22,7 +22,7 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
-    class="save-row-overlay"
+    class="overlay-button save-row-overlay"
     class:highlighted
     class:footer
     class:in-insert={inInsert}
@@ -36,13 +36,15 @@
   </div>
 {/if}
 
-{#if $stbState == "Loading" || $stbState == "Saving"}
+{#if $stbState == "Filtered"}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
-    class="save-row-overlay"
+    class="overlay-button filter-row-overlay"
     class:highlighted
     class:footer
-    class:in-insert={inInsert}
+    on:click={stbState.clear()}
   >
-    <i class="ri-loader-2-line" style="color: lime; font-size: 20px;" />
+    <i class="ri-filter-off-line" />
   </div>
 {/if}

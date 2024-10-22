@@ -77,7 +77,6 @@
   let lockWidth = memo(0);
   let sorted;
   let viewport;
-  let renderWidth;
 
   const columnOptionsStore = memo({
     ...columnOptions,
@@ -151,6 +150,9 @@
   // Allow the Super Table to bind to the Super Column State Machine to control it
   export const columnState = fsm("Idle", {
     "*": {
+      reset() {
+        return "Idle";
+      },
       headerClicked() {
         if ($columnOptionsStore.canFilter) this.filter();
         else this.sort();
@@ -206,7 +208,6 @@
         width = 0;
       },
     },
-    Init: {},
     Idle: {
       _enter() {
         $lockWidth = 0;
@@ -233,14 +234,14 @@
         return "Idle";
       },
     },
-    Resizing: {
-      stop: () => {
-        return "Idle";
+    Filtered: {
+      filter(filterObj) {
+        stbState.removeFilter(id);
+        stbState.addFilter({ ...filterObj, id: id });
       },
-    },
-    Dragging: {
-      stop: () => {
-        return "Idle";
+      clear() {
+        stbState.clearFilter(id);
+        return "Entering";
       },
     },
     EditingCell: {
@@ -250,16 +251,6 @@
       },
       patchRow(index, id, rev, field, change) {
         stbState.patchRow(index, id, rev, field, change);
-      },
-    },
-    Filtered: {
-      filter(filterObj) {
-        stbState.removeFilter(id);
-        stbState.addFilter({ ...filterObj, id: id });
-      },
-      clear() {
-        stbState.clearFilter(id);
-        return "Entering";
       },
     },
     Inserting: {
@@ -304,7 +295,6 @@
 
   onMount(() => {
     stbAPI?.registerSuperColumn(id, columnState);
-    renderWidth = viewport.offsetWidth;
   });
 
   onDestroy(() => {

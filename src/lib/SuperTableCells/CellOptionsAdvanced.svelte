@@ -235,26 +235,6 @@
           anchor?.focus();
         }
       },
-    },
-    Open: {
-      _enter() {
-        focusedOptionIdx = -1;
-        this.refocus.debounce(10);
-      },
-      _exit() {
-        editor?.focus();
-      },
-      filterOptions(e) {
-        if (e && e.target.value != "") {
-          filteredOptions = $options.filter((x) =>
-            x?.startsWith(e.target.value)
-          );
-        } else filteredOptions = $options;
-      },
-      toggle() {
-        editor?.focus();
-        return "Closed";
-      },
       handleKeyboard(e) {
         if (e.keyCode == 32) {
           if (focusedOptionIdx > -1) {
@@ -301,6 +281,26 @@
         if (focusedOptionIdx < 0) focusedOptionIdx = $options.length - 1;
       },
     },
+    Open: {
+      _enter() {
+        focusedOptionIdx = -1;
+        this.refocus.debounce(10);
+      },
+      _exit() {
+        editor?.focus();
+      },
+      filterOptions(e) {
+        if (e && e.target.value != "") {
+          filteredOptions = $options.filter((x) =>
+            x?.startsWith(e.target.value)
+          );
+        } else filteredOptions = $options;
+      },
+      toggle() {
+        editor?.focus();
+        return "Closed";
+      },
+    },
     Closed: {
       toggle() {
         return "Open";
@@ -313,7 +313,7 @@
         this.filterOptions(e);
       },
       handleKeyboard(e) {
-        if (!cellOptions.autocomplete) {
+        if (!cellOptions.autocomplete && controlType == "select") {
           if (e.keyCode == 32) {
             e.preventDefault();
             e.stopPropagation();
@@ -325,9 +325,15 @@
             localValue = [];
             dispatch("change", localValue);
           }
+        } else if (controlType != "select") {
+          if (e.keyCode == 32 || e.key == "Enter")
+            this.toggleOption(focusedOptionIdx, e.preventDefault());
+          if (e.key == "ArrowDown")
+            this.highlightNext(e.preventDefault(), e.stopPropagation());
+          if (e.key == "ArrowUp")
+            this.highlightPrevious(e.preventDefault(), e.stopPropagation());
+          if (e.key == "Escape") this.close(e.stopPropagation());
         }
-
-        if (e.key == "ArrowDown") editorState.open();
       },
     },
   });
@@ -363,7 +369,7 @@
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <div
   bind:this={anchor}
-  class="superCell"
+  class="superCell multirow"
   tabindex={cellOptions?.disabled ? "-1" : "0"}
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
@@ -438,14 +444,14 @@
     >
       {#each $options as option, idx (idx)}
         <div
-          class="radio"
+          class="switch"
           class:selected={localValue.includes(option)}
           class:focused={focusedOptionIdx === idx}
           style:--option-color={$colors[option]}
-          style:max-height={"1.75rem"}
           on:click={(e) => editorState.toggleOption(idx, e.stopPropagation())}
           on:mouseenter={() => (focusedOptionIdx = idx)}
         >
+          {labels[option] || option}
           <div class="spectrum-Switch spectrum-Switch--emphasized">
             <input
               checked={localValue.includes(option)}
@@ -454,11 +460,6 @@
               id={idx}
             />
             <span class="spectrum-Switch-switch" />
-            <label
-              class="spectrum-Switch-label"
-              class:selected={localValue.includes(option)}
-              for={idx}>{labels[option] || option}</label
-            >
           </div>
         </div>
       {/each}
@@ -555,34 +556,24 @@
     font-size: 14px;
     color: var(--spectrum-global-color-green-400);
   }
-  .loope {
-    background-color: var(--option-color);
-    min-height: 14px;
-    min-width: 14px;
-    font-size: 12px;
-
-    &.round {
-      border-radius: 50%;
-    }
-  }
   .radios {
     flex: auto;
     display: flex;
     flex-wrap: wrap;
     justify-items: flex-start;
     gap: 0.25rem;
+    overflow-y: auto;
     color: var(--spectrum-global-color-gray-700);
   }
   .radios.column {
-    padding: 0.25rem;
     gap: 0rem;
     flex-direction: column;
+    padding: 0.25rem 0rem;
   }
   .radio {
-    min-height: 1.75rem;
+    height: 1.75rem;
     display: flex;
     gap: 0.25rem;
-    flex-direction: row;
     align-items: center;
     cursor: pointer;
     padding: 0 0.5rem;
@@ -599,8 +590,32 @@
     }
   }
 
+  .switch {
+    flex: auto;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0 0.75rem;
+
+    &.focused {
+      background-color: var(--spectrum-global-color-gray-200) !important;
+      color: var(--spectrum-global-color-gray-800);
+      border-radius: 4px;
+    }
+
+    &.selected {
+      background-color: var(--spectrum-global-color-gray-75);
+    }
+  }
+
+  .switch > .spectrum-Switch {
+    margin-right: unset !important;
+  }
+
   .radio > i {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--option-color);
   }
 </style>

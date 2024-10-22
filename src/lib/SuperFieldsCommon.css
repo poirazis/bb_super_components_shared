@@ -1,5 +1,5 @@
 .superField {
-  flex: 1 1 auto;
+  flex: auto;
   width: 100%;
   display: flex;
   align-items: stretch;
@@ -60,10 +60,14 @@
 }
 
 .inline-cells {
-  flex: 1 1 auto;
+  flex: auto;
   display: flex;
   justify-content: stretch;
-  min-height: 2rem;
+  max-height: 2rem;
+
+  &.multirow {
+    max-height: unset;
+  }
 }
 
 .inline-buttons {

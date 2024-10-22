@@ -491,6 +491,7 @@
     useAnchorWidth
     maxHeight={400}
     open={$editorState == "Open"}
+    on:close={cellState.focusout}
   >
     <div
       bind:this={picker}
@@ -533,12 +534,11 @@
 
 <style>
   .options {
-    flex: auto;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     overflow-y: auto;
-    color: var(--spectrum-global-color-gray-700);
+    border: 1px solid var(--spectrum-global-color-blue-100);
   }
 
   .option {
@@ -575,8 +575,8 @@
   }
   .loope {
     background-color: var(--option-color);
-    min-height: 14px;
-    min-width: 14px;
+    min-height: 12px;
+    min-width: 12px;
   }
   .search {
     display: flex;

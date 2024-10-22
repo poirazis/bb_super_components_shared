@@ -6,6 +6,10 @@
   overflow: hidden;
   transition: all 130ms;
 
+  &.multirow {
+    align-items: stretch;
+  }
+
   &:focus {
     outline: none;
   }
@@ -60,8 +64,6 @@
       gap: 0.5rem;
 
       .item {
-        flex: 0 1 auto;
-        height: 1.45rem;
         display: flex;
         align-items: center;
         overflow: hidden;
@@ -77,13 +79,13 @@
 
     .items.pills {
       .item {
+        max-height: 1.4rem;
         background-color: var(--option-color);
         border-radius: 4px;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
         margin-top: 4px;
         margin-bottom: 4px;
-        color: var(--spectrum-global-color-gray-900);
       }
     }
     .items.colorText {

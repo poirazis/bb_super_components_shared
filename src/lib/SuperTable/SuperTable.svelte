@@ -427,7 +427,6 @@
         this.enrichRows();
       },
       enrichRows() {
-        console.log("Manual enrich");
         $stbRowMetadata = $stbData.rows.map((row, index) => {
           return {
             height: sizingMap[$stbSettings.appearance.size].rowHeight,
@@ -463,7 +462,7 @@
         scrollHeight =
           $stbRowMetadata.reduce((accumulator, currentValue) => {
             return accumulator + currentValue.height;
-          }, 0) + 96;
+          }, 0) + 128;
 
         canScroll = scrollHeight > maxBodyHeight;
         overflow = canScroll;
@@ -605,13 +604,21 @@
     },
     Idle: {
       _enter() {
+        if ($stbData.loading) return;
+        this.enrichRows();
+        isEmpty = $stbData.rows.length < 1;
         this.calculateBoundaries();
         this.calculateRowBoundaries();
-        isEmpty =
-          ($stbData.loaded && !$stbData?.rows.length) ||
-          $superColumns?.length < 1;
       },
       _exit() {},
+      synch(fetchState) {
+        if (fetchState.loaded) {
+          this.enrichRows();
+          this.calculateBoundaries();
+          this.calculateRowBoundaries();
+          isEmpty = !$stbData?.rows.length;
+        }
+      },
       addFilter(filterObj) {
         stbColumnFilters = [...stbColumnFilters, filterObj];
         return "Filtered";
@@ -624,12 +631,7 @@
       },
     },
     Filtered: {
-      _enter() {
-        this.calculateRowBoundaries();
-        isEmpty =
-          ($stbData.loaded && !$stbData?.rows.length) ||
-          $superColumns?.length < 1;
-      },
+      _enter() {},
       _exit() {},
       addFilter(filterObj) {
         this.removeFilter(filterObj.id);
@@ -646,7 +648,19 @@
         if (pos) {
           stbColumnFilters = stbColumnFilters.toSpliced(pos, 1);
         }
-        if (!stbColumnFilters.lenght) return "Idle";
+        if (!stbColumnFilters.length) return "Idle";
+      },
+      clear() {
+        stbColumnFilters = [];
+        columnStates.forEach(({ state }) => state.reset());
+        return "Idle";
+      },
+      synch(fetchState) {
+        if (fetchState.loaded) {
+          this.enrichRows();
+          this.calculateRowBoundaries();
+          isEmpty = fetchState.rows.length < 1;
+        }
       },
     },
     Editing: {
@@ -892,24 +906,6 @@
   $: if ($stbData?.loaded)
     stbState.calculateBoundaries(clientHeight, $stbSettings, stbData);
 
-  $: $stbRowMetadata = $stbData.rows.map((row, index) => {
-    return {
-      height: $stbRowMetadata[index]?.height
-        ? $stbRowMetadata[index].height
-        : sizingMap[$stbSettings.appearance.size].rowHeight,
-      bgcolor: rowBGColorTemplate
-        ? processStringSync(rowBGColorTemplate, {
-            [comp_id]: { row },
-          })
-        : undefined,
-      color: rowColorTemplate
-        ? processStringSync(rowColorTemplate, {
-            [comp_id]: { row },
-          })
-        : undefined,
-    };
-  });
-
   $: $stbVisibleRows = $stbData.rows.slice(start, end).map((data, i) => {
     return { index: i + start, data };
   });
@@ -1008,7 +1004,7 @@
   on:keydown={stbState.handleKeyboard}
   on:wheel={stbState.handleWheel}
 >
-  {#if $stbState != "Init" || isEmpty}
+  {#if $stbState != "Init"}
     <Provider {actions} data={dataContext}>
       <ControlSection>
         <SelectionColumn {hideSelectionColumn} />
@@ -1077,7 +1073,7 @@
 
       <RowContextMenu {rowContextMenuItems} />
 
-      {#if $stbSettings.features.canInsert}
+      {#if $stbSettings.features.canInsert || $stbState == "Filtered"}
         <AddNewRowOverlay
           {stbState}
           {tableAPI}
