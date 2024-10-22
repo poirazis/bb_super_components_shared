@@ -1,0 +1,234 @@
+.superCell {
+  flex: auto;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 130ms;
+
+  &.multirow {
+    align-items: stretch;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:hover {
+    .icon {
+      color: var(--spectrum-global-color-blue-400);
+    }
+  }
+
+  &.isDirty {
+    border-left: 2px solid var(--spectrum-global-color-orange-400) !important;
+  }
+
+  .icon {
+    position: absolute;
+    left: 0.5rem;
+    font-size: 16px;
+    color: var(--spectrum-global-color-gray-500);
+  }
+
+  .value {
+    flex: auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    padding-left: 0.5rem;
+
+    &.placeholder {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--spectrum-global-color-gray-500);
+    }
+
+    &.with-icon {
+      padding-left: 2rem;
+    }
+
+    span {
+      flex: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .items {
+      flex: auto;
+      display: flex;
+      overflow: hidden;
+      align-items: center;
+      gap: 0.5rem;
+
+      .item {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        padding: 0;
+
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .items.pills {
+      .item {
+        max-height: 1.4rem;
+        background-color: var(--option-color);
+        border-radius: 4px;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+    }
+    .items.colorText {
+      .item {
+        gap: 0.5rem;
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+    }
+  }
+}
+
+.superCell.formInput {
+  border-radius: 2px;
+  color: var(--spectrum-global-color-gray-700);
+  border: 1px solid var(--spectrum-global-color-gray-300);
+  background: var(--spectrum-global-color-gray-50);
+
+  &:hover:not(.disabled):not(.readonly) {
+    cursor: pointer;
+    border: 1px solid var(--spectrum-global-color-gray-400);
+  }
+
+  &.disabled {
+    background-color: var(--spectrum-global-color-gray-100);
+    color: var(--spectrum-global-color-gray-500);
+    cursor: not-allowed;
+  }
+
+  &.readonly {
+    background-color: transparent;
+    color: var(--spectrum-global-color-gray-700);
+  }
+
+  &.inEdit {
+    border: 1px solid var(--spectrum-global-color-blue-400) !important;
+  }
+
+  &.error {
+    border-color: var(--spectrum-global-color-red-400) !important;
+  }
+}
+
+.superCell.tableCell {
+  min-height: unset;
+  border: 1px solid transparent;
+
+  &.inEdit {
+    border-color: var(--spectrum-global-color-blue-500);
+  }
+}
+
+.superCell > .editor {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+  overflow: hidden;
+  gap: 0.25rem;
+}
+.superCell > .editor:focus {
+  outline: none;
+}
+
+.superCell > .editor:hover {
+  cursor: pointer;
+}
+
+.superCell > .editor.placeholder {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--spectrum-global-color-blue-500);
+  opacity: 0.75;
+}
+.superCell > .editor > i {
+  font-size: 18px;
+}
+
+.superCell > .endIcon {
+  position: absolute;
+  right: 0.5rem;
+  color: var(--spectrum-global-color-red-500);
+  cursor: pointer;
+}
+
+.superCell > input {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  outline: none;
+  background: none;
+  color: inherit;
+  border: none;
+  cursor: text;
+  overflow: hidden;
+  min-width: unset;
+  padding: 0.3rem 0.5rem;
+}
+
+.superCell > input:focus {
+  outline: none;
+}
+
+.superCell > input::placeholder {
+  color: var(--spectrum-global-color-gray-500);
+  opacity: 1;
+}
+
+.superCell.formInput.multirow {
+  min-height: 2rem;
+  max-height: unset;
+}
+
+.superCell.formInput.large {
+  max-height: unset !important;
+}
+
+.superCell.formInput.error.inEdit:focus-within {
+  border: 1px solid var(--spectrum-global-color-red-500);
+}
+
+.superCell.inline {
+  border: unset;
+  border-radius: 2px;
+  min-height: 1.8rem;
+  min-width: unset;
+
+  &:hover {
+    background-color: var(--spectrum-global-color-gray-200);
+  }
+}
+.superCell.inline > .value {
+  background-color: unset;
+}
+.superCell.inline.disabled {
+  background-color: var(--spectrum-global-color-gray-100) !important;
+  color: var(--spectrum-global-color-gray-600);
+  cursor: not-allowed;
+}
+.superCell.inline.readonly {
+  background-color: var(--spectrum-global-color-gray-100);
+  color: var(--spectrum-global-color-gray-600);
+  cursor: not-allowed;
+}
