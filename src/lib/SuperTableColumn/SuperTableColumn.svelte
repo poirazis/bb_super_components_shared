@@ -101,8 +101,6 @@
     ($columnOptionsStore) => {
       return {
         role: "tableCell",
-        search: true,
-        autocomplete: false,
         showDirty: true,
         readonly: !$columnOptionsStore.canEdit,
         align: $columnOptionsStore.align,
@@ -111,7 +109,6 @@
         fontWeight: $columnOptionsStore.fontWeight,
         padding: $columnOptionsStore.cellPadding,
         template: $columnOptionsStore.template,
-        useOptionColors: $columnOptionsStore.useOptionColors,
         optionsViewMode: $columnOptionsStore.optionsViewMode,
         relViewMode: $columnOptionsStore.relViewMode,
         controlType: "select",
@@ -120,8 +117,6 @@
         limit: $columnOptionsStore.data?.limit,
         valueColumn: $columnOptionsStore.data?.valueColumn,
         labelColumn: $columnOptionsStore.data?.labelColumn,
-        fullTable: $columnOptionsStore.data?.fullTable,
-        columnList: $columnOptionsStore.data?.columnList,
       };
     }
   );
@@ -274,18 +269,18 @@
 
   const getMinWidth = (val, options) => {
     if (val > 0) return val;
-    else
-      return options.sizing == "fixed"
-        ? options.fixedWidth
-        : options.minWidth || "auto";
+
+    return options.sizing == "fixed"
+      ? options.fixedWidth
+      : options.minWidth || "auto";
   };
 
   const getMaxWidth = (val, options) => {
     if (val > 0) return val;
-    else
-      return options.sizing == "fixed"
-        ? options.fixedWidth
-        : options.maxWidth || "unset";
+
+    return options.sizing == "fixed"
+      ? options.fixedWidth
+      : options.maxWidth || "unset";
   };
 
   setContext("stColumnOptions", columnOptionsStore);

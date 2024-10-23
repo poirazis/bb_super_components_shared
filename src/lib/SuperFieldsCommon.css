@@ -63,10 +63,10 @@
   flex: auto;
   display: flex;
   justify-content: stretch;
-  max-height: 2rem;
+  height: 2rem;
 
   &.multirow {
-    max-height: unset;
+    height: unset;
   }
 }
 

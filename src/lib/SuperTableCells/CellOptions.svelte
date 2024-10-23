@@ -4,6 +4,7 @@
   import { flip } from "svelte/animate";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
   import CellSkeleton from "./CellSkeleton.svelte";
+  import CellString from "./CellString.svelte";
   const dispatch = createEventDispatcher();
   const { API, QueryUtils, fetchData, memo, derivedMemo } = getContext("sdk");
 
@@ -22,6 +23,8 @@
   let focusedOptionIdx = -1;
   let timer;
   let picker;
+  let search;
+  let value_dom;
 
   const colors = derivedMemo(options, ($options) => {
     let obj = {};
@@ -55,7 +58,7 @@
   );
 
   $: ({
-    autocomplete,
+    controlType,
     optionsSource,
     labelColumn,
     valueColumn,
@@ -150,7 +153,9 @@
     },
     View: {
       _enter() {},
-      focus() {
+      focus(e) {
+        console.log(e.relatedTarget);
+
         if (!cellOptions.readonly && !cellOptions.disabled) {
           return "Editing";
         }
@@ -158,11 +163,10 @@
     },
     Editing: {
       _enter() {
-        if (!cellOptions.autocomplete) anchor?.focus();
         originalValue = JSON.stringify(
           Array.isArray(value) ? value : value ? [value] : []
         );
-        if (cellOptions.controlType == "select") editorState.open();
+        if (controlType != "inputSelect") editorState.open();
         dispatch("enteredit");
       },
       _exit() {
@@ -172,7 +176,11 @@
       },
       handleKeyboard(e) {},
       focusout(e) {
-        if (e.relatedTarget?.contains(picker)) return;
+        console.log(e);
+
+        if (e.relatedTarget == anchor) return;
+        if (picker?.contains(e.relatedTarget)) return;
+
         this.submit();
         dispatch("focusout");
         return "View";
@@ -183,8 +191,8 @@
           else dispatch("change", localValue[0]);
         }
       },
-      focus() {
-        editorState.toggle();
+      clear() {
+        localValue = [];
       },
       cancel() {
         return "View";
@@ -203,7 +211,7 @@
       },
       toggleOption(idx) {
         if (cellOptions.disabled || cellOptions.readonly) return;
-        let option = $options[idx];
+        let option = filteredOptions[idx];
         let pos = localValue.indexOf(option);
 
         if (multi && pos > -1) {
@@ -238,20 +246,18 @@
     Open: {
       _enter() {
         focusedOptionIdx = -1;
-        this.refocus.debounce(10);
       },
-      _exit() {
-        editor?.focus();
-      },
-      filterOptions(e) {
-        if (e && e.target.value != "") {
-          filteredOptions = $options.filter((x) =>
-            x?.startsWith(e.target.value)
-          );
-        } else filteredOptions = $options;
+      _exit() {},
+      filterOptions(term) {
+        if (term) {
+          filteredOptions = $options.filter((x) => x?.startsWith(term));
+        } else {
+          filteredOptions = $options;
+          search = false;
+          value_dom.focus();
+        }
       },
       toggle() {
-        editor?.focus();
         return "Closed";
       },
       handleKeyboard(e) {
@@ -290,6 +296,8 @@
         if (e.key == "ArrowUp")
           this.highlightPrevious(e.preventDefault(), e.stopPropagation());
         if (e.key == "Escape") this.close(e.stopPropagation());
+
+        search = true;
       },
       highlightNext() {
         focusedOptionIdx += 1;
@@ -363,7 +371,6 @@
 <div
   bind:this={anchor}
   class="superCell"
-  tabindex={cellOptions?.disabled ? "-1" : "0"}
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
   class:disabled
@@ -375,10 +382,6 @@
   class:inline={role == "inlineInput"}
   class:tableCell={role == "tableCell"}
   class:formInput={role == "formInput"}
-  on:focusin={cellState.focus}
-  on:focusout={cellState.focusout}
-  on:keydown={editorState.handleKeyboard}
-  on:mousedown={editorState.toggle}
 >
   {#if $cellState == "Loading"}
     <CellSkeleton>Initializing ..</CellSkeleton>
@@ -386,11 +389,11 @@
     {#if icon}
       <i class={icon + " icon"} />
     {/if}
-    {#if inEdit && autocomplete}
+    {#if inEdit && cellOptions.controlType == "inputSelect"}
       {#if multi}
         {#if localValue.length > 0}
           <div
-            class="editor"
+            class="value"
             style:width={"auto"}
             style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
           >
@@ -420,26 +423,16 @@
         tabindex="0"
         bind:this={editor}
         class="editor"
-        class:placeholder={localValue == []}
-        style:padding-left={cellOptions.icon && !localValue?.length
-          ? "32px"
-          : cellOptions.padding}
-        style:padding-right={cellOptions.padding}
-        style:padding-top={0}
-        style:padding-bottom={0}
-        style:border={"none"}
-        use:focus
-        on:focusout={cellState.focusout}
+        class:with-icon={cellOptions.icon}
+        class:placeholder={localValue.length < 1}
         value={multi ? "" : (localValue[0] ?? "")}
         on:input={editorState.filterOptions}
         on:keydown={editorState.handleKeyboard}
+        on:focusout={cellState.focusout}
+        use:focus
         placeholder={cellOptions.placeholder ?? "Enter..."}
       />
-      <div
-        id="btn_toggle"
-        class="actionIcon"
-        on:click|stopPropagation={editorState.toggle}
-      >
+      <div class="actionIcon" on:mousedown|preventDefault={editorState.toggle}>
         <i class="ri-arrow-down-s-line"></i>
       </div>
     {:else}
@@ -448,6 +441,14 @@
         class:with-icon={icon}
         class:placeholder={localValue?.length < 1}
         style:padding-right={padding}
+        tabindex={cellOptions?.disabled ? "-1" : "0"}
+        bind:this={value_dom}
+        on:focusin={cellState.focus}
+        on:focusout={controlType != "inputSelect" ? cellState.focusout : null}
+        on:keydown={editorState.handleKeyboard}
+        on:mousedown={cellOptions.controlType != "inputSelect"
+          ? editorState.toggle
+          : null}
       >
         {#if optionsViewMode != "text"}
           <div
@@ -476,6 +477,12 @@
         {:else}
           <span> {localValue.toString() || cellOptions.placeholder} </span>
         {/if}
+        {#if inEdit && localValue?.length}
+          <i
+            class="ri-close-line endIcon"
+            on:mousedown|self|preventDefault={cellState.clear}
+          ></i>
+        {/if}
         {#if (role == "tableCell" && inEdit) || role != "tableCell"}
           <i class="ri-arrow-down-s-line" style="margin-left: 8px;"></i>
         {/if}
@@ -491,7 +498,9 @@
     useAnchorWidth
     maxHeight={400}
     open={$editorState == "Open"}
-    on:close={cellState.focusout}
+    on:close={cellOptions.controlType != "inputSelect"
+      ? cellState.focusout
+      : null}
   >
     <div
       bind:this={picker}
@@ -499,6 +508,22 @@
       on:wheel={(e) => e.stopPropagation()}
       on:mouseleave={() => (focusedOptionIdx = -1)}
     >
+      {#if search}
+        <div class="searchControl" style="min-height: 2rem;">
+          <CellString
+            autofocus
+            on:change={(e) => editorState.filterOptions(e.detail)}
+            cellOptions={{
+              icon: "ri-search-line",
+              initialState: "Editing",
+              role: "inlineInput",
+              debounce: 250,
+              placeholder: "Search",
+            }}
+            value=""
+          />
+        </div>
+      {/if}
       {#if filteredOptions?.length < 1}
         <div class="option">
           <span>
@@ -514,8 +539,7 @@
             class:focused={focusedOptionIdx === idx}
             class:selected={localValue?.includes(option)}
             style:--option-color={$colors[option]}
-            on:click|preventDefault|stopPropagation={(e) =>
-              editorState.toggleOption(idx)}
+            on:mousedown|preventDefault={(e) => editorState.toggleOption(idx)}
             on:mouseenter={() => (focusedOptionIdx = idx)}
           >
             <span>
@@ -533,12 +557,16 @@
 {/if}
 
 <style>
+  .searchControl {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--spectrum-global-color-gray-300);
+  }
   .options {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     overflow-y: auto;
-    border: 1px solid var(--spectrum-global-color-blue-100);
   }
 
   .option {

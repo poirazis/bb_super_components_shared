@@ -16,7 +16,7 @@
 
   &:hover {
     .icon {
-      color: var(--spectrum-global-color-blue-400);
+      color: var(--spectrum-global-color-blue-500);
     }
   }
 
@@ -33,11 +33,17 @@
 
   .value {
     flex: auto;
+    align-self: stretch;
     display: flex;
     align-items: center;
     min-width: 0;
     overflow: hidden;
     padding-left: 0.5rem;
+    padding-right: 0.5rem;
+
+    &:focus {
+      outline: none;
+    }
 
     &.placeholder {
       font-style: italic;
@@ -54,6 +60,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .endIcon {
+      position: absolute;
+      right: 2rem;
+      color: var(--spectrum-global-color-red-500);
+      cursor: pointer;
     }
 
     .items {
@@ -95,6 +108,13 @@
         margin-bottom: 4px;
       }
     }
+  }
+
+  .endIcon {
+    position: absolute;
+    right: 0.5rem;
+    color: var(--spectrum-global-color-red-500);
+    cursor: pointer;
   }
 }
 
@@ -138,7 +158,7 @@
   }
 }
 
-.superCell > .editor {
+.superCell > input.editor {
   width: 100%;
   height: 100%;
   display: flex;
@@ -147,53 +167,34 @@
   white-space: nowrap;
   overflow: hidden;
   gap: 0.25rem;
-}
-.superCell > .editor:focus {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  background-color: transparent;
   outline: none;
-}
-
-.superCell > .editor:hover {
-  cursor: pointer;
-}
-
-.superCell > .editor.placeholder {
-  font-style: italic;
-  font-weight: 400;
-  color: var(--spectrum-global-color-blue-500);
-  opacity: 0.75;
-}
-.superCell > .editor > i {
-  font-size: 18px;
-}
-
-.superCell > .endIcon {
-  position: absolute;
-  right: 0.5rem;
-  color: var(--spectrum-global-color-red-500);
-  cursor: pointer;
-}
-
-.superCell > input {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  outline: none;
-  background: none;
-  color: inherit;
   border: none;
-  cursor: text;
-  overflow: hidden;
-  min-width: unset;
-  padding: 0.3rem 0.5rem;
-}
+  color: inherit;
 
-.superCell > input:focus {
-  outline: none;
-}
+  &:focus {
+    outline: none;
+    border: none;
+  }
+  &:hover {
+    cursor: pointer;
+  }
 
-.superCell > input::placeholder {
-  color: var(--spectrum-global-color-gray-500);
-  opacity: 1;
+  &.placeholder {
+    font-style: italic;
+    color: var(--spectrum-global-color-gray-500);
+    opacity: 0.75;
+  }
+
+  &.with-icon {
+    padding-left: 2rem;
+  }
+
+  i {
+    font-size: 18px;
+  }
 }
 
 .superCell.formInput.multirow {
@@ -210,17 +211,11 @@
 }
 
 .superCell.inline {
+  position: relative;
   border: unset;
   border-radius: 2px;
   min-height: 1.8rem;
   min-width: unset;
-
-  &:hover {
-    background-color: var(--spectrum-global-color-gray-200);
-  }
-}
-.superCell.inline > .value {
-  background-color: unset;
 }
 .superCell.inline.disabled {
   background-color: var(--spectrum-global-color-gray-100) !important;

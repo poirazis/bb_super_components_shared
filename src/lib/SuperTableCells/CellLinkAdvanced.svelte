@@ -2,21 +2,26 @@
   import { createEventDispatcher } from "svelte";
   import fsm from "svelte-fsm";
   import SuperPopover from "../SuperPopover/SuperPopover.svelte";
+  import CellLinkPickerTable from "./CellLinkPickerTable.svelte";
+  import CellLinkPickerTree from "./CellLinkPickerTree.svelte";
   import CellLinkPickerSelect from "./CellLinkPickerSelect.svelte";
+  import SuperList from "../SuperList/SuperList.svelte";
   const dispatch = createEventDispatcher();
 
   export let value;
   export let fieldSchema;
   export let cellOptions;
   export let simpleView = true;
-  export let filter = [];
+  export let filter = {};
   export let limit = 100;
 
   let originalValue = JSON.stringify(value);
+
+  let searchTerm;
   let anchor;
-  let popup;
-  let search;
-  let hasFocus;
+
+  // Whether a DnD operation is giong on
+  let inactive;
 
   export let cellState = fsm(cellOptions.initialState ?? "View", {
     "*": {
@@ -26,7 +31,7 @@
     },
     View: {
       _enter() {
-        search = false;
+        open = false;
       },
       focus() {
         if (!cellOptions.readonly && !cellOptions.disabled) return "Editing";
@@ -46,22 +51,23 @@
     Editing: {
       _enter() {
         originalValue = JSON.stringify(localValue);
-        editorState.open();
+        if (!expanded) editorState.open();
+        else anchor?.focus();
         dispatch("enteredit");
       },
       _exit() {
-        editorState.close();
         dispatch("exitedit");
       },
-      checkFocus() {
-        return hasFocus();
-      },
       focusout(e) {
-        if (popup?.contains(e.relatedTarget)) return;
-        this.submit();
-      },
-      popupfocusout(e) {
-        console.log(e);
+        if (
+          document.activeElement == anchor ||
+          anchor.contains(e.target) ||
+          anchor.contains(e.explicitOriginalTarget)
+        ) {
+          editorState.close();
+        } else {
+          this.submit();
+        }
       },
       clear() {
         localValue = [];
@@ -72,6 +78,7 @@
             "change",
             returnSingle && localValue ? localValue[0] : localValue
           );
+
         editorState.close();
         return "View";
       },
@@ -101,8 +108,8 @@
     },
   });
 
-  $: multi = !fieldSchema?.type?.includes("_single");
-  $: isUser = fieldSchema?.type?.includes("bb_reference");
+  $: multi = !fieldSchema.type.includes("_single");
+  $: isUser = fieldSchema.type.includes("bb_reference");
   $: localValue = enrichValue(value);
   $: inEdit = $cellState == "Editing";
   $: isDirty = inEdit && originalValue != JSON.stringify(localValue);
@@ -124,8 +131,6 @@
       e.preventDefault();
       e.stopPropagation();
       editorState.toggle();
-    } else if (e.key != "Tab") {
-      search = true;
     }
   };
 
@@ -137,9 +142,7 @@
       dispatch("change", val);
     }
 
-    if (singleSelect) {
-      editorState.close();
-    }
+    if (singleSelect) anchor?.focus();
   };
 
   const enrichValue = (x) => {
@@ -181,54 +184,80 @@
   class:readonly={cellOptions.readonly}
   class:error={cellOptions.error}
   style:color={cellOptions.color}
-  style:background={cellOptions.background}
+  style:background={inEdit && !expanded
+    ? "var(--spectrum-global-color-gray-100)"
+    : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
   on:keydown={handleKeyboard}
   on:focusin={cellState.focus}
-  on:focusout={cellState.focusout}
-  on:mousedown={editorState.toggle}
+  on:mousedown={() => {
+    if (!expanded) editorState.toggle();
+  }}
+  on:focusout={($editorState == "Open" && cellOptions.search) ||
+  (expanded && !inactive)
+    ? () => {}
+    : cellState.submit}
 >
   {#if cellOptions?.icon}
-    <i class={cellOptions.icon + " icon"}></i>
+    <i class={cellOptions.icon + " frontIcon"}></i>
   {/if}
 
-  <div
-    class="value"
-    class:with-icon={cellOptions?.icon}
-    class:placeholder={localValue?.length < 1}
-  >
-    <div class="items" class:simpleView>
-      {#if localValue?.length < 1}
-        {cellOptions.placeholder || ""}
-      {:else if localValue?.length > 0}
-        {#each localValue as val}
-          <div
-            class="item"
-            class:rel-pills={!simpleView}
-            class:rel-bb-reference={!simpleView && fieldSchema.type != "link"}
-          >
-            {#if !simpleView}
-              <i
-                class={fieldSchema.type == "link"
-                  ? "ri-links-line"
-                  : "ri-user-line"}
-              />
-            {/if}
-            <span>{val.primaryDisplay}</span>
-          </div>
-        {/each}
+  {#if expanded}
+    <SuperList
+      items={localValue}
+      listItemKey={"_id"}
+      createNew={cellOptions.createNew}
+      itemButtons={cellOptions.itemButtons}
+      draggable={cellOptions.reordering}
+      numbering={cellOptions.numbering}
+      {editorState}
+      {cellState}
+      bind:inactive
+      on:change={handleChange}
+      on:reorder={() => anchor?.focus()}
+      on:addrow={editorState.open}
+      on:createNew={cellOptions?.onCreateNew}
+    />
+  {:else}
+    <div
+      class="value"
+      class:placeholder={localValue?.length < 1}
+      style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
+      style:padding-right={cellOptions.padding}
+    >
+      <div class="items" class:simpleView>
+        {#if localValue?.length < 1}
+          {cellOptions.placeholder || ""}
+        {:else if localValue?.length > 0}
+          {#each localValue as val}
+            <div
+              class="item"
+              class:rel-pills={!simpleView}
+              class:rel-bb-reference={!simpleView && fieldSchema.type != "link"}
+            >
+              {#if !simpleView}
+                <i
+                  class={fieldSchema.type == "link"
+                    ? "ri-links-line"
+                    : "ri-user-line"}
+                />
+              {/if}
+              <span>{val.primaryDisplay}</span>
+            </div>
+          {/each}
+        {/if}
+      </div>
+      {#if cellOptions.clearValueIcon && inEdit && localValue?.length}
+        <i
+          class="ri-close-line actionIcon"
+          on:mousedown|self|stopPropagation|preventDefault={cellState.clear}
+        ></i>
+      {/if}
+      {#if cellOptions.role == "formInput" || inEdit}
+        <i class="ri-arrow-down-s-line"></i>
       {/if}
     </div>
-    {#if inEdit && localValue?.length}
-      <i
-        class="ri-close-line endIcon"
-        on:mousedown|preventDefault={cellState.clear}
-      ></i>
-    {/if}
-    {#if cellOptions.role == "formInput" || inEdit}
-      <i class="ri-arrow-down-s-line"></i>
-    {/if}
-  </div>
+  {/if}
 </div>
 
 {#if inEdit}
@@ -236,22 +265,44 @@
     {anchor}
     useAnchorWidth
     open={$editorState == "Open"}
-    bind:popup
-    on:close={cellState.focusout}
+    dismissible={false}
   >
-    <CellLinkPickerSelect
-      {fieldSchema}
-      filter={filter ?? []}
-      {singleSelect}
-      value={localValue}
-      wide={cellOptions.controlType != "expanded"}
-      {search}
-      on:change={handleChange}
-      on:clearFilter={() => {
-        search = false;
-        anchor.focus();
-      }}
-    />
+    {#if cellOptions.controlType == "treeSelect" || fieldSchema.relationshipType == "self" || cellOptions.joinColumn}
+      <CellLinkPickerTree
+        {fieldSchema}
+        {filter}
+        {searchTerm}
+        {limit}
+        joinColumn={cellOptions.joinColumn}
+        value={localValue}
+        multi={false}
+        on:change={handleChange}
+        on:focusout={(e) => setTimeout(cellState.focusout, 20, e)}
+      />
+    {:else if cellOptions.controlType == "tableSelect"}
+      <CellLinkPickerTable
+        {value}
+        datasource={{ type: "table", tableId: fieldSchema.tableId }}
+        {filter}
+        pickerColumns={cellOptions?.pickerColumns}
+        searchColumns={cellOptions?.searchColumns}
+        {limit}
+        {searchTerm}
+        multi={fieldSchema?.relationshipType != "many-to-one"}
+        on:change={(e) => (localValue = e.detail)}
+      />
+    {:else}
+      <CellLinkPickerSelect
+        {fieldSchema}
+        {filter}
+        {singleSelect}
+        value={localValue}
+        wide={cellOptions.controlType != "expanded"}
+        search={cellOptions.search}
+        on:change={handleChange}
+        on:focusout={(e) => setTimeout(cellState.focusout, 20, e)}
+      />
+    {/if}
   </SuperPopover>
 {/if}
 

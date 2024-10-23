@@ -57,6 +57,10 @@
         dispatch("focusout");
         return "View";
       },
+      clear() {
+        if (cellOptions.debounce) dispatch("change", null);
+        localValue = null;
+      },
       cancel() {
         value = originalValue;
       },
@@ -93,6 +97,8 @@
         editor?.focus();
       }, 30);
   });
+
+  $: console.log(cellOptions);
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -135,20 +141,16 @@
       on:focusout={cellState.focusout}
       use:focus
     />
-    {#if cellOptions.clearValueIcon}
-      <i
-        class="ri-close-line"
-        class:endIcon={true}
-        on:mousedown|preventDefault={() => dispatch("change", null)}
-      >
-      </i>
-    {/if}
+    <i
+      class="ri-close-line endIcon"
+      on:mousedown|preventDefault={cellState.clear}
+    >
+    </i>
   {:else}
     <div
       class="value"
+      class:with-icon={cellOptions.icon}
       class:placeholder={!value && !formattedValue}
-      style:padding-left={cellOptions?.icon ? "32px" : cellOptions?.padding}
-      style:padding-right={cellOptions.padding}
     >
       {formattedValue || value || cellOptions?.placeholder || ""}
     </div>

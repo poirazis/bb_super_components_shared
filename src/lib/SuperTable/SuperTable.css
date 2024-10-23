@@ -207,11 +207,11 @@
   }
 
   &.is-hovered {
+    color: var(--spectrum-global-color-gray-900);
     background-color: var(
       --super-table-hover-color,
       var(--spectrum-global-color-gray-75)
     );
-    color: var(--spectrum-global-color-gray-800);
 
     .row-number {
       color: var(--spectrum-global-color-gray-800);
@@ -299,19 +299,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 2.25rem;
+  width: 2.25rem;
   border-radius: 50%;
   transition: all 130ms;
   opacity: 0.75;
+  font-size: 20px;
+  bottom: 28px;
+  background-color: var(--spectrum-global-color-gray-200);
+  border: 1px solid var(--spectrum-global-color-gray-400);
+  color: var(--spectrum-global-color-gray-700);
 
   &.add-row-overlay {
-    bottom: 28px;
     right: 28px;
-    font-size: 20px;
-    color: var(--spectrum-global-color-gray-700);
-    background-color: var(--spectrum-global-color-gray-100);
-    border: 1px solid var(--spectrum-global-color-gray-200);
     z-index: 1;
 
     &.highlighted {
@@ -337,19 +337,16 @@
       transform: rotate(45deg);
       border-color: var(--spectrum-global-color-red-500);
       color: var(--spectrum-global-color-red-700);
-      &:hover {
-        background-color: var(--spectrum-global-color-red-100);
-      }
     }
   }
   &.save-row-overlay {
-    bottom: 28px;
     right: 28px;
     font-size: 16px;
     color: var(--spectrum-global-color-blue-700);
     background-color: var(--spectrum-global-color-blue-100);
     border: 1px solid var(--spectrum-global-color-blue-500);
     opacity: 0;
+    transition: right 230ms;
 
     &.footer {
       bottom: 58px;
@@ -363,7 +360,7 @@
 
     &.in-insert {
       opacity: 1;
-      right: 78px;
+      right: 74px;
     }
   }
 

@@ -4,7 +4,7 @@
   const dispatch = createEventDispatcher();
   const { processStringSync } = getContext("sdk");
 
-  export let value;
+  export let value = null;
   export let formattedValue;
   export let cellOptions = {
     role: "formInput",
@@ -58,14 +58,14 @@
         dispatch("focusout");
       },
       clear() {
-        value = "";
-        if (cellOptions.debounce) dispatch("change", value);
+        if (cellOptions.debounce) dispatch("change", null);
+        value = null;
       },
       focusout(e) {
         if (e.explicitOriginalTarget != clearIcon) this.submit();
       },
       submit() {
-        if (isDirty) {
+        if (isDirty && localValue) {
           dispatch("change", localValue);
         }
         return "View";
@@ -82,7 +82,7 @@
     },
   });
 
-  $: localValue = value;
+  $: localValue = value ?? null;
   $: inline = cellOptions.role == "inlineInput";
   $: inEdit = $cellState == "Editing";
   $: isDirty = inEdit && originalValue != localValue;
@@ -117,8 +117,6 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
   class="superCell"
-  tabindex={cellOptions.readonly || cellOptions.disabled ? "-1" : "0"}
-  class:flashing={$cellState == "Flashing"}
   class:inEdit
   class:isDirty={isDirty && cellOptions.showDirty}
   class:focused={inEdit}
@@ -133,10 +131,9 @@
     ? "var(--spectrum-global-color-gray-50)"
     : cellOptions.background}
   style:font-weight={cellOptions.fontWeight}
-  on:focusin={cellState.focus}
 >
   {#if cellOptions.icon}
-    <i class={cellOptions.icon + " frontIcon"}></i>
+    <i class={cellOptions.icon + " icon"}></i>
   {/if}
 
   {#if inEdit}
@@ -144,33 +141,30 @@
       bind:this={editor}
       tabindex="0"
       class="editor"
+      class:with-icon={cellOptions.icon}
       class:placeholder={!value && !formattedValue && !localValue}
-      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-      style:padding-right={cellOptions.clearValueIcon
-        ? "32px"
-        : cellOptions.padding}
-      value={value ?? ""}
-      placeholder={cellOptions.placeholder}
+      value={localValue}
+      placeholder={cellOptions?.placeholder ?? ""}
       on:input={debounce}
       on:focusout={cellState.focusout}
       on:keydown={cellState.handleKeyboard}
       use:focus
     />
-    {#if cellOptions.clearValueIcon}
+    {#if localValue}
       <i
         bind:this={clearIcon}
         class="ri-close-line endIcon"
         on:mousedown|preventDefault={cellState.clear}
-      >
-      </i>
+      />
     {/if}
   {:else}
     <div
       class="value"
+      tabindex={cellOptions.readonly || cellOptions.disabled ? "-1" : "0"}
+      class:with-icon={cellOptions.icon}
       class:placeholder={!value}
-      style:padding-left={cellOptions.icon ? "32px" : cellOptions.padding}
-      style:padding-right={cellOptions.padding}
       style:justify-content={cellOptions.align}
+      on:focusin={cellState.focus}
     >
       <span>
         {formattedValue || value || cellOptions?.placeholder || ""}
@@ -178,9 +172,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .flashing {
-    color: var(--spectrum-global-color-gray-400) !important;
-  }
-</style>

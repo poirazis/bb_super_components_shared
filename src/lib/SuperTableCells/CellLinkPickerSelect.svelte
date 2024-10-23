@@ -16,6 +16,7 @@
   let schema = fieldSchema;
   let tableId = fieldSchema.tableId;
   let appliedFilter = [];
+  let viewport;
 
   $: isBBReference = fieldSchema.type.includes("bb_reference");
   $: isMultiReference = isBBReference && !fieldSchema.type.includes("_single");
@@ -84,8 +85,8 @@
       ];
     } else {
       appliedFilter = filter ?? [];
+      dispatch("clearFilter");
     }
-
     fetch?.update({
       filter: appliedFilter,
     });
@@ -94,31 +95,27 @@
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="control">
+<div class="control" bind:this={viewport}>
   {#if search}
     <div class="searchControl">
-      <CellString
-        on:change={handleSearch}
-        on:exitedit={() => dispatch("focusout", {})}
-        autofocus
-        {cellOptions}
-      />
+      <CellString on:change={handleSearch} autofocus {cellOptions} value="" />
     </div>
   {/if}
 
-  {#if $fetch?.loaded && $fetch?.rows?.length}
+  {#if $fetch?.loaded}
     {#if !singleSelect && wide}
       <div class="listWrapper">
         <div class="list">
           <div class="options">
             {#key localValue}
-              {#each $fetch.rows as row, idx}
+              {#each $fetch.rows as row, idx (idx)}
                 {#if !rowSelected(row)}
                   <div
                     class="option"
                     on:mousedown|stopPropagation|preventDefault={selectRow(row)}
                   >
                     {row[primaryDisplay]}
+                    <i class="ri-add-line" />
                   </div>
                 {/if}
               {/each}
@@ -127,21 +124,24 @@
         </div>
         <div class="list listSelected">
           <div class="options">
-            {#key localValue}
-              {#each localValue as val, idx}
+            {#if localValue.length}
+              {#each localValue as val, idx (idx)}
                 {#if rowSelected(val)}
                   <div
                     transition:fly={{ x: -20, duration: 130 }}
-                    class="option"
+                    class="option selected"
                     on:mousedown|stopPropagation|preventDefault={unselectRow(
                       val
                     )}
                   >
                     {val.primaryDisplay}
+                    <i class="ri-close-line" />
                   </div>
                 {/if}
               {/each}
-            {/key}
+            {:else}
+              <span>Nothing Selected</span>
+            {/if}
           </div>
         </div>
       </div>
@@ -149,14 +149,15 @@
       <div class="listWrapper">
         <div class="list">
           <div class="options">
-            {#key localValue}
-              {#each $fetch?.rows as row, idx}
+            {#key value}
+              {#each $fetch?.rows as row, idx (idx)}
                 {#if !rowSelected(row)}
                   <div
                     class="option"
                     on:mousedown|stopPropagation|preventDefault={selectRow(row)}
                   >
                     {row[primaryDisplay]}
+                    <i class="ri-checkbox-circle-fill" />
                   </div>
                 {/if}
               {/each}
@@ -165,8 +166,6 @@
         </div>
       </div>
     {/if}
-  {:else}
-    <p>No Records Found</p>
   {/if}
 </div>
 
@@ -184,6 +183,7 @@
 
   .searchControl {
     height: 2rem;
+    border-bottom: 1px solid var(--spectrum-global-color-gray-300);
   }
 
   .listWrapper {
@@ -191,7 +191,7 @@
     display: flex;
     justify-content: stretch;
     align-content: stretch;
-    gap: 0.5rem;
+    gap: 0.25rem;
     overflow: hidden;
   }
 
@@ -201,12 +201,12 @@
     overflow-y: auto;
     overflow-x: hidden;
     color: var(--spectrum-global-color-gray-700);
-    border: 1px solid var(--spectrum-global-color-gray-300);
-    border-radius: 0.25rem;
   }
 
   .listSelected {
-    color: var(--spectrum-global-color-gray-900);
+    color: var(--spectrum-global-color-gray-800);
+    border-left: 1px solid var(--spectrum-global-color-gray-300);
+    padding-left: 0.25rem;
   }
   .searchControl {
     display: flex;
@@ -221,16 +221,43 @@
     justify-content: flex-start;
     align-items: stretch;
     overflow-y: auto;
-    padding: 0.3rem;
     gap: 0rem;
     min-width: 0;
   }
   .option {
     line-height: 1.5rem;
-    padding: 0.15rem;
+    padding: 0.15rem 0.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: flex;
+    justify-content: space-between;
+
+    & > i {
+      visibility: hidden;
+    }
+
+    &:hover {
+      & > i {
+        visibility: visible;
+        color: var(--spectrum-global-color-green-500);
+      }
+    }
+
+    &.selected {
+      & > i {
+        color: var(--spectrum-global-color-red-500);
+      }
+    }
+  }
+
+  .options > span {
+    color: var(--spectrum-global-color-gray-500);
+    font-style: italic;
+    flex: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .option:hover,

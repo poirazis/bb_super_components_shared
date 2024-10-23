@@ -115,7 +115,7 @@
   export let footerColorTemplate, footerBGColorTemplate;
 
   export let useOptionColors = true;
-  export let optionsViewMode = "pills";
+  export let optionsViewMode = "colorText";
   export let relViewMode = "pills";
   export let zebraColors = false;
   export let quiet;
@@ -402,7 +402,7 @@
             tableId,
             ...patch,
           });
-          stbState.endSave();
+          stbData.refresh();
           let richContext = {
             ...$context,
             [comp_id]: { row },
@@ -509,6 +509,10 @@
           if (y > $stbScrollPos + maxBodyHeight) break;
         }
         end = i;
+
+        $stbVisibleRows = $stbData.rows.slice(start, end).map((data, i) => {
+          return { index: i + start, data };
+        });
       },
       async handleVerticalScroll(delta) {
         $stbScrollPos = Math.max(
@@ -667,9 +671,7 @@
       endEdit() {
         return "Idle";
       },
-      startSave() {
-        return "Saving";
-      },
+      startSave() {},
       patchRow(index, id, rev, field, change) {
         let patch = { _id: id, _rev: rev, [field]: change };
         tableAPI.patchRow(index, patch);
@@ -694,11 +696,6 @@
       },
       startSave() {
         return "Saving";
-      },
-    },
-    Saving: {
-      endSave(e) {
-        stbData.refresh();
       },
     },
   });
@@ -905,10 +902,6 @@
   // Virtual List Capabilities
   $: if ($stbData?.loaded)
     stbState.calculateBoundaries(clientHeight, $stbSettings, stbData);
-
-  $: $stbVisibleRows = $stbData.rows.slice(start, end).map((data, i) => {
-    return { index: i + start, data };
-  });
 
   const createFetch = (datasource) => {
     stbState.init();

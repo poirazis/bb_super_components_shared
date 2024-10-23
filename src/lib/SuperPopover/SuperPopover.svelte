@@ -28,6 +28,8 @@
 
   export let ignoreAnchor = true;
 
+  export let popup;
+
   $: target = portalTarget || ".spectrum";
 
   export const show = () => {
@@ -46,6 +48,10 @@
     } else {
       hide();
     }
+  };
+
+  export const hasFocus = () => {
+    return viewport.matches(":focus-within");
   };
 
   const handleOutsideClick = (e) => {
@@ -80,6 +86,7 @@
   <Portal {target}>
     <div
       tabindex="0"
+      bind:this={popup}
       use:positionDropdown={{
         anchor,
         align,
@@ -115,6 +122,7 @@
 
   .spectrum-Popover {
     border-color: var(--spectrum-global-color-gray-300);
+    border-width: 2px;
     background-color: var(--spectrum-global-color-gray-50);
     overflow: auto;
   }
